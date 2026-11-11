@@ -10,24 +10,24 @@
 
 | Issue | Title | Stage | Attempt | Next action |
 | --- | --- | --- | --- | --- |
-| #5 | Spike: Playwright over CDP | implementing | 1 | Check researcher envelope and branch `spike/5-playwright-cdp` |
-| #6 | Spike: Forge with Vite in a pnpm workspace | implementing | 1 | Check researcher envelope and branch `spike/6-forge-vite` |
-| #7 | Spike: Terrazzo profile rules and outputs | implementing | 1 | Check researcher envelope and branch `spike/7-terrazzo-profile` |
-| #8 | Spike: React Aria overlays in child windows | implementing | 1 | Check researcher envelope and branch `spike/8-child-window-overlays` |
+| #5 | Spike: Playwright over CDP | review | 1 | Human go/no-go |
+| #6 | Spike: Forge with Vite in a pnpm workspace | review | 1 | Human go/no-go |
+| #7 | Spike: Terrazzo profile rules and outputs | review | 1 | Human go/no-go |
+| #8 | Spike: React Aria overlays in child windows | review | 1 | Human go/no-go |
 
 ## Last action
 
-PR #4 merged: ADR 0002 (all A) and ADR 0003 applied to the specs; #3 closed. Four researchers started in parallel.
+All four spikes returned go-with-changes; orchestrator checked the evidence and posted the envelopes; ADR 0004 proposed.
 
 ## Next action
 
-Check each spike's evidence, then give the human a go/no-go recommendation per spike.
+After the human decides ADR 0004: apply it to the specs, close the spikes, end phase 0, and delegate phase 1 planning.
 
 ## Open escalations
 
 | Issue or ADR | Waiting on | Since |
 | --- | --- | --- |
-| — | — | — |
+| ADR 0004, ten spike decisions and the phase 0 go/no-go | Human decision | 2026-11-11 |
 
 ## Blockers
 
