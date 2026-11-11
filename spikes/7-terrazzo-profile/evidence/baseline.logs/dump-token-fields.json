@@ -1,0 +1,42 @@
+{
+  "leafKey": "ui-color-fg-default",
+  "groupPath": "color",
+  "$type": "color",
+  "aliasOf": "ref.color.ui-ref-color-gray-900",
+  "$extensions": {
+    "io.github.chrisdevelops.ui": {
+      "usage": "Body text.",
+      "contrastWith": [
+        "ui-color-bg-default"
+      ]
+    }
+  },
+  "tokenSourceFilename": "file:///<worktree>/spikes/7-terrazzo-profile/cases/baseline/fixture/foundation/tokens/ui.resolver.json",
+  "tokenSourceHasLineInfo": true,
+  "declarations": [
+    {
+      "file": "tokens/theme/light.tokens.json",
+      "kind": "modifier",
+      "name": "theme",
+      "context": "light"
+    },
+    {
+      "file": "tokens/theme/dark.tokens.json",
+      "kind": "modifier",
+      "name": "theme",
+      "context": "dark"
+    },
+    {
+      "file": "tokens/theme/light-high-contrast.tokens.json",
+      "kind": "modifier",
+      "name": "theme",
+      "context": "light-high-contrast"
+    },
+    {
+      "file": "tokens/theme/dark-high-contrast.tokens.json",
+      "kind": "modifier",
+      "name": "theme",
+      "context": "dark-high-contrast"
+    }
+  ]
+}

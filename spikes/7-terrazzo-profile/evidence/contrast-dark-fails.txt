@@ -1,0 +1,11 @@
+case: contrast-dark-fails
+note: dark fg is gray-900 on gray-950; core pair is static
+command: tz build   (cwd cases/contrast-dark-fails/fixture/foundation, SPIKE_RULES={"a11y/min-contrast":["error",{"level":"AA","pairs":[{"foreground":"color.ui-color-fg-default","background":"color.ui-color-bg-default"}]}]})
+exit: 1
+--- stdout
+--- stderr
+✗  lint:ui/min-contrast-per-context: tokens/theme/dark.tokens.json#color.ui-color-fg-default: ui/min-contrast-per-context: color.ui-color-fg-default on ui-color-bg-default is 1.15:1 in {"theme":"dark","density":"compact"}; need 4.5:1
+
+lint:ui/min-contrast-per-context: tokens/theme/dark.tokens.json#color.ui-color-fg-default: ui/min-contrast-per-context: color.ui-color-fg-default on ui-color-bg-default is 1.15:1 in {"theme":"dark","density":"comfortable"}; need 4.5:1
+
+lint:lint: 2 errors

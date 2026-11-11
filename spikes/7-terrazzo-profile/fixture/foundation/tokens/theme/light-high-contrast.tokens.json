@@ -1,0 +1,37 @@
+{
+  "color": {
+    "ui-color-bg-default": {
+      "$type": "color",
+      "$value": "{ref.color.ui-ref-color-gray-50}",
+      "$description": "Default surface.",
+      "$extensions": {
+        "io.github.chrisdevelops.ui": {
+          "usage": "Spike usage."
+        }
+      }
+    },
+    "ui-color-fg-default": {
+      "$type": "color",
+      "$value": "{ref.color.ui-ref-color-gray-950}",
+      "$description": "Body text.",
+      "$extensions": {
+        "io.github.chrisdevelops.ui": {
+          "usage": "Body text.",
+          "contrastWith": [
+            "ui-color-bg-default"
+          ]
+        }
+      }
+    },
+    "ui-color-bg-accent-default": {
+      "$type": "color",
+      "$value": "{ref.color.ui-ref-color-brand-900}",
+      "$description": "Accent background.",
+      "$extensions": {
+        "io.github.chrisdevelops.ui": {
+          "usage": "Spike usage."
+        }
+      }
+    }
+  }
+}

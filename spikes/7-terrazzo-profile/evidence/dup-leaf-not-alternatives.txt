@@ -1,0 +1,7 @@
+case: dup-leaf-not-alternatives
+note: ui-radius-control-default also declared in density/compact (not an alternative of sys/base)
+command: tz build   (cwd cases/dup-leaf-not-alternatives/fixture/foundation, SPIKE_RULES={"ui/unique-leaf-names":"off"})
+exit: 0
+--- stdout
+✔  18 tokens built 36ms
+--- stderr

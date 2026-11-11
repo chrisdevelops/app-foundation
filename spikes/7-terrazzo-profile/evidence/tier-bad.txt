@@ -1,0 +1,9 @@
+case: tier-bad
+note: component aliases a primitive
+command: tz build   (cwd cases/tier-bad/fixture/foundation, SPIKE_RULES={})
+exit: 1
+--- stdout
+--- stderr
+✗  lint:ui/tier-references: src/components/button/button.tokens.json#button.ui-button__color-bg-primary-default: ui/tier-references: component token aliases primitive ({ref.color.ui-ref-color-blue-600})
+
+lint:lint: 1 error

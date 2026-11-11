@@ -1,0 +1,11 @@
+accept  parses=1  ui-ref-color-blue-600  [{"category":"color","scale":"blue","step":"600"}]
+accept  parses=1  ui-ref-space-4  [{"category":"space","scale":null,"step":"4"}]
+accept  parses=1  ui-ref-font-family-ui  [{"category":"font-family","scale":null,"step":"ui"}]
+REJECT  parses=0  ui-ref-colour-blue-600  []
+accept  parses=1  ui-ref-color-600  [{"category":"color","scale":null,"step":"600"}]
+REJECT  parses=0  ui-ref-color  []
+accept  parses=1  ui-ref-space-4-2  [{"category":"space","scale":"4","step":"2"}]
+accept  parses=1  ui-ref-font-family-ui-bold  [{"category":"font-family","scale":"ui","step":"bold"}]
+accept  parses=1  ui-ref-border-width-1  [{"category":"border-width","scale":null,"step":"1"}]
+REJECT  parses=0  ui-ref-color-Blue-600  []
+names with more than one parse (closed category list): none

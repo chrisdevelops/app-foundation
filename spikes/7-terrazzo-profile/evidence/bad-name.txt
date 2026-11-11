@@ -1,0 +1,15 @@
+case: bad-name
+note: ui-ref-colour-blue-600 breaks the grammar
+command: tz build   (cwd cases/bad-name/fixture/foundation, SPIKE_RULES={})
+exit: 1
+--- stdout
+--- stderr
+✗  lint:core/consistent-naming: ref.color.ui-ref-colour-blue-600 doesn’t match format (custom)
+
+
+
+lint:core/consistent-naming: ref.color.ui-ref-colour-blue-600 doesn’t match format (custom)
+
+
+
+lint:lint: 2 errors

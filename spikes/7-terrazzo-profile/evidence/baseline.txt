@@ -1,0 +1,7 @@
+case: baseline
+note: valid fixture, all rules
+command: tz build   (cwd cases/baseline/fixture/foundation, SPIKE_RULES={})
+exit: 0
+--- stdout
+✔  18 tokens built 78ms
+--- stderr

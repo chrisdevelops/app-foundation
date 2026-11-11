@@ -1,0 +1,27 @@
+case: wide-gamut-max-gamut-gamut
+note: out-of-sRGB colour; max-gamut with documented-table option `gamut: srgb`
+command: tz build   (cwd cases/wide-gamut-max-gamut-gamut/fixture/foundation, SPIKE_RULES={"core/colorspace":"off","core/max-gamut":["error",{"gamut":"srgb"}]})
+exit: 1
+--- stdout
+--- stderr
+✗  lint:core/max-gamut: Color ref.color.ui-ref-color-blue-600 is outside srgb gamut
+
+  38 |       "contexts": {
+  39 |         "light": [
+> 40 |           {
+     |            ^
+  41 |             "$ref": "theme/light.tokens.json"
+  42 |           }
+  43 |         ],
+
+lint:core/max-gamut: Color ref.color.ui-ref-color-blue-600 is outside srgb gamut
+
+  38 |       "contexts": {
+  39 |         "light": [
+> 40 |           {
+     |            ^
+  41 |             "$ref": "theme/light.tokens.json"
+  42 |           }
+  43 |         ],
+
+lint:lint: 2 errors

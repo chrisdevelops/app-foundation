@@ -1,0 +1,19 @@
+{
+  "name": "spike-7-terrazzo-profile",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "devDependencies": {
+    "@humanwhocodes/momoa": "^3.3.13",
+    "@terrazzo/cli": "^2.10.0",
+    "@terrazzo/parser": "^2.10.0",
+    "@terrazzo/plugin-css": "^2.10.0",
+    "@terrazzo/token-tools": "^2.10.0",
+    "colorjs.io": "^0.7.1",
+    "typescript": "^7.0.2"
+  },
+  "imports": {
+    "#profile": "./profile-plugin.mjs",
+    "#ref-guard": "./ref-guard.mjs"
+  }
+}

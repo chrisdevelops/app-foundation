@@ -1,0 +1,7 @@
+case: wide-gamut-builtin-css
+note: plugin-css own output for a P3-only colour
+command: tz build   (cwd cases/wide-gamut-builtin-css/fixture/foundation, SPIKE_RULES={"core/colorspace":"off","core/max-gamut":"off"})
+exit: 0
+--- stdout
+✔  18 tokens built 39ms
+--- stderr

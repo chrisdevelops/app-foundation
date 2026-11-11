@@ -1,0 +1,14 @@
+{
+  "ref": {
+    "duration": {
+      "ui-ref-duration-fast": {
+        "$type": "duration",
+        "$value": {
+          "value": 100,
+          "unit": "ms"
+        },
+        "$description": "Fast duration."
+      }
+    }
+  }
+}

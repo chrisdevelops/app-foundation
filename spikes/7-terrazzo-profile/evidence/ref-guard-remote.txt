@@ -1,0 +1,7 @@
+case: ref-guard-remote
+note: remote $ref with our ref guard on
+command: tz build   (cwd cases/ref-guard-remote/fixture/foundation, SPIKE_RULES={})
+exit: 1
+--- stdout
+--- stderr
+✗  config: foundation/tokens/ui.resolver.json: ref-guard: $ref "http://127.0.0.1:50134/remote.tokens.json" is not a relative path

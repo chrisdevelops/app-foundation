@@ -1,0 +1,7 @@
+case: ref-remote-url
+note: resolver $ref to http://127.0.0.1 (local stand-in for a remote URL)
+command: tz build   (cwd cases/ref-remote-url/fixture/foundation, SPIKE_RULES={})
+exit: 0
+--- stdout
+✔  19 tokens built 54ms
+--- stderr

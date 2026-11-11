@@ -1,0 +1,90 @@
+{
+  "ref": {
+    "color": {
+      "ui-ref-color-gray-50": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.98,
+            0.003,
+            250
+          ]
+        },
+        "$description": "Lightest gray."
+      },
+      "ui-ref-color-gray-900": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.22,
+            0.01,
+            250
+          ]
+        },
+        "$description": "Darkest gray."
+      },
+      "ui-ref-color-gray-950": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.14,
+            0.01,
+            250
+          ]
+        },
+        "$description": "Near black."
+      },
+      "ui-ref-color-blue-600": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.55,
+            0.2,
+            260
+          ]
+        },
+        "$description": "Mid blue."
+      },
+      "ui-ref-color-brand-100": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.92,
+            0.03,
+            260
+          ]
+        },
+        "$description": "Brand light step."
+      },
+      "ui-ref-color-brand-600": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.52,
+            0.19,
+            260
+          ]
+        },
+        "$description": "Brand mid step."
+      },
+      "ui-ref-color-brand-900": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.3,
+            0.1,
+            260
+          ]
+        },
+        "$description": "Brand dark step."
+      }
+    }
+  }
+}

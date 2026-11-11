@@ -1,0 +1,9 @@
+case: required-modes-builtin-dot
+note: same fixture; built-in core/required-modes with mode '.' (the only mode a resolver token has)
+command: tz build   (cwd cases/required-modes-builtin-dot/fixture/foundation, SPIKE_RULES={"core/required-modes":["error",{"matches":[{"match":["color.*"],"modes":["."]}]}]})
+exit: 1
+--- stdout
+--- stderr
+✗  lint:ui/required-theme-colors: tokens/theme/dark.tokens.json#color.ui-color-fg-default: ui/required-theme-colors: semantic colour "ui-color-fg-default" is missing from theme context "dark"
+
+lint:lint: 1 error

@@ -1,0 +1,14 @@
+{
+  "button": {
+    "ui-button__color-bg-primary-default": {
+      "$type": "color",
+      "$value": "{color.ui-color-bg-accent-default}",
+      "$description": "Primary button background.",
+      "$extensions": {
+        "io.github.chrisdevelops.ui": {
+          "usage": "Primary button."
+        }
+      }
+    }
+  }
+}

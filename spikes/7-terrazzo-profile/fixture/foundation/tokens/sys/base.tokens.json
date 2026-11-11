@@ -1,0 +1,17 @@
+{
+  "radius": {
+    "ui-radius-control-default": {
+      "$type": "dimension",
+      "$value": {
+        "value": 0.25,
+        "unit": "rem"
+      },
+      "$description": "Control corner radius.",
+      "$extensions": {
+        "io.github.chrisdevelops.ui": {
+          "usage": "Buttons and inputs."
+        }
+      }
+    }
+  }
+}

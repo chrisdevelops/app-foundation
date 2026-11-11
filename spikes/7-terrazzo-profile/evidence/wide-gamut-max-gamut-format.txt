@@ -1,0 +1,7 @@
+case: wide-gamut-max-gamut-format
+note: same; max-gamut with the docs' example option `format: srgb`
+command: tz build   (cwd cases/wide-gamut-max-gamut-format/fixture/foundation, SPIKE_RULES={"core/colorspace":"off","core/max-gamut":["error",{"format":"srgb"}]})
+exit: 0
+--- stdout
+✔  18 tokens built 38ms
+--- stderr

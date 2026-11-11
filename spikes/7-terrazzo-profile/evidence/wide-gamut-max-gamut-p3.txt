@@ -1,0 +1,7 @@
+case: wide-gamut-max-gamut-p3
+note: same; gamut p3
+command: tz build   (cwd cases/wide-gamut-max-gamut-p3/fixture/foundation, SPIKE_RULES={"core/colorspace":"off","core/max-gamut":["error",{"gamut":"p3"}]})
+exit: 0
+--- stdout
+✔  18 tokens built 38ms
+--- stderr

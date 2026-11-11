@@ -1,0 +1,7 @@
+case: ref-guard-escape
+note: escaping $ref with our ref guard on
+command: tz build   (cwd cases/ref-guard-escape/fixture/foundation, SPIKE_RULES={})
+exit: 1
+--- stdout
+--- stderr
+✗  config: foundation/tokens/ui.resolver.json: ref-guard: $ref "../../../outside.tokens.json" escapes the repo root

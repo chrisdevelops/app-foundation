@@ -1,0 +1,5 @@
+cases/
+node_modules/
+out/
+fixture/**/generated/
+fixture/**/logs/

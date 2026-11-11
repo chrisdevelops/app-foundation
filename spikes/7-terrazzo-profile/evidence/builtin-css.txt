@@ -1,0 +1,7 @@
+case: builtin-css
+note: plugin-css own permutations output for the valid fixture
+command: tz build   (cwd cases/builtin-css/fixture/foundation, SPIKE_RULES={})
+exit: 0
+--- stdout
+✔  18 tokens built 38ms
+--- stderr

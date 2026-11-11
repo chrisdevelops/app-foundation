@@ -1,0 +1,147 @@
+case: colorspace-srgb-required
+note: core/colorspace colorSpace: srgb against oklch tokens (negative control)
+command: tz build   (cwd cases/colorspace-srgb-required/fixture/foundation, SPIKE_RULES={"core/colorspace":["error",{"colorSpace":"srgb"}]})
+exit: 1
+--- stdout
+--- stderr
+✗  lint:core/colorspace: Color ref.color.ui-ref-color-blue-600 not in colorspace srgb
+
+  38 |       "contexts": {
+  39 |         "light": [
+> 40 |           {
+     |            ^
+  41 |             "$ref": "theme/light.tokens.json"
+  42 |           }
+  43 |         ],
+
+lint:core/colorspace: Color ref.color.ui-ref-color-brand-100 not in colorspace srgb
+
+  50 |           {
+  51 |             "$ref": "theme/light-high-contrast.tokens.json"
+> 52 |           }
+     |            ^
+  53 |         ],
+  54 |         "dark-high-contrast": [
+  55 |           {
+
+lint:core/colorspace: Color ref.color.ui-ref-color-brand-600 not in colorspace srgb
+
+  62 |     "density": {
+  63 |       "contexts": {
+> 64 |         "compact": [
+     |                     ^
+  65 |           {
+  66 |             "$ref": "density/compact.tokens.json"
+  67 |           }
+
+lint:core/colorspace: Color ref.color.ui-ref-color-brand-900 not in colorspace srgb
+
+  74 |       },
+  75 |       "default": "compact"
+> 76 |     }
+     |      ^
+  77 |   },
+  78 |   "resolutionOrder": [
+  79 |     {
+
+lint:core/colorspace: Color ref.color.ui-ref-color-gray-50 not in colorspace srgb
+
+  2 |   "name": "UI Foundation",
+  3 |   "version": "2025.10",
+> 4 |   "sets": {
+    |            ^
+  5 |     "ref": {
+  6 |       "sources": [
+  7 |         {
+
+lint:core/colorspace: Color ref.color.ui-ref-color-gray-900 not in colorspace srgb
+
+  14 |           "$ref": "ref/font.tokens.json"
+  15 |         },
+> 16 |         {
+     |          ^
+  17 |           "$ref": "ref/motion.tokens.json"
+  18 |         }
+  19 |       ]
+
+lint:core/colorspace: Color ref.color.ui-ref-color-gray-950 not in colorspace srgb
+
+  26 |       ]
+  27 |     },
+> 28 |     "components": {
+     |                    ^
+  29 |       "sources": [
+  30 |         {
+  31 |           "$ref": "../src/components/button/button.tokens.json"
+
+lint:core/colorspace: Color ref.color.ui-ref-color-blue-600 not in colorspace srgb
+
+  38 |       "contexts": {
+  39 |         "light": [
+> 40 |           {
+     |            ^
+  41 |             "$ref": "theme/light.tokens.json"
+  42 |           }
+  43 |         ],
+
+lint:core/colorspace: Color ref.color.ui-ref-color-brand-100 not in colorspace srgb
+
+  50 |           {
+  51 |             "$ref": "theme/light-high-contrast.tokens.json"
+> 52 |           }
+     |            ^
+  53 |         ],
+  54 |         "dark-high-contrast": [
+  55 |           {
+
+lint:core/colorspace: Color ref.color.ui-ref-color-brand-600 not in colorspace srgb
+
+  62 |     "density": {
+  63 |       "contexts": {
+> 64 |         "compact": [
+     |                     ^
+  65 |           {
+  66 |             "$ref": "density/compact.tokens.json"
+  67 |           }
+
+lint:core/colorspace: Color ref.color.ui-ref-color-brand-900 not in colorspace srgb
+
+  74 |       },
+  75 |       "default": "compact"
+> 76 |     }
+     |      ^
+  77 |   },
+  78 |   "resolutionOrder": [
+  79 |     {
+
+lint:core/colorspace: Color ref.color.ui-ref-color-gray-50 not in colorspace srgb
+
+  2 |   "name": "UI Foundation",
+  3 |   "version": "2025.10",
+> 4 |   "sets": {
+    |            ^
+  5 |     "ref": {
+  6 |       "sources": [
+  7 |         {
+
+lint:core/colorspace: Color ref.color.ui-ref-color-gray-900 not in colorspace srgb
+
+  14 |           "$ref": "ref/font.tokens.json"
+  15 |         },
+> 16 |         {
+     |          ^
+  17 |           "$ref": "ref/motion.tokens.json"
+  18 |         }
+  19 |       ]
+
+lint:core/colorspace: Color ref.color.ui-ref-color-gray-950 not in colorspace srgb
+
+  26 |       ]
+  27 |     },
+> 28 |     "components": {
+     |                    ^
+  29 |       "sources": [
+  30 |         {
+  31 |           "$ref": "../src/components/button/button.tokens.json"
+
+lint:lint: 14 errors

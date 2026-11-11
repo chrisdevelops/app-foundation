@@ -1,0 +1,22 @@
+{
+  "ref": {
+    "font-family": {
+      "ui-ref-font-family-ui": {
+        "$type": "fontFamily",
+        "$value": [
+          "system-ui",
+          "sans-serif"
+        ],
+        "$description": "UI font stack."
+      },
+      "ui-ref-font-family-mono": {
+        "$type": "fontFamily",
+        "$value": [
+          "ui-monospace",
+          "monospace"
+        ],
+        "$description": "Mono font stack."
+      }
+    }
+  }
+}

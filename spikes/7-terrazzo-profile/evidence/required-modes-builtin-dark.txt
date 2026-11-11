@@ -1,0 +1,33 @@
+case: required-modes-builtin-dark
+note: dark theme lacks ui-color-fg-default; built-in core/required-modes asks for mode 'dark'
+command: tz build   (cwd cases/required-modes-builtin-dark/fixture/foundation, SPIKE_RULES={"core/required-modes":["error",{"matches":[{"match":["color.*"],"modes":["dark"]}]}]})
+exit: 1
+--- stdout
+--- stderr
+✗  lint:ui/required-theme-colors: tokens/theme/dark.tokens.json#color.ui-color-fg-default: ui/required-theme-colors: semantic colour "ui-color-fg-default" is missing from theme context "dark"
+
+lint:core/required-modes: Token color.ui-color-bg-accent-default: missing required mode "dark"
+
+
+
+lint:core/required-modes: Token color.ui-color-bg-default: missing required mode "dark"
+
+
+
+lint:core/required-modes: Token color.ui-color-fg-default: missing required mode "dark"
+
+
+
+lint:core/required-modes: Token color.ui-color-bg-accent-default: missing required mode "dark"
+
+
+
+lint:core/required-modes: Token color.ui-color-bg-default: missing required mode "dark"
+
+
+
+lint:core/required-modes: Token color.ui-color-fg-default: missing required mode "dark"
+
+
+
+lint:lint: 7 errors

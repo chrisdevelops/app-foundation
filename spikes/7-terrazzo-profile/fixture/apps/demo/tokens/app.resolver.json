@@ -1,0 +1,105 @@
+{
+  "name": "Demo app",
+  "version": "2025.10",
+  "sets": {
+    "ref": {
+      "sources": [
+        {
+          "$ref": "../../../foundation/tokens/ref/color.tokens.json"
+        },
+        {
+          "$ref": "../../../foundation/tokens/ref/space.tokens.json"
+        },
+        {
+          "$ref": "../../../foundation/tokens/ref/font.tokens.json"
+        },
+        {
+          "$ref": "../../../foundation/tokens/ref/motion.tokens.json"
+        }
+      ]
+    },
+    "brand": {
+      "sources": [
+        {
+          "$ref": "brand.tokens.json"
+        }
+      ]
+    },
+    "sys": {
+      "sources": [
+        {
+          "$ref": "../../../foundation/tokens/sys/base.tokens.json"
+        }
+      ]
+    },
+    "components": {
+      "sources": [
+        {
+          "$ref": "../../../foundation/tokens/../src/components/button/button.tokens.json"
+        }
+      ]
+    }
+  },
+  "modifiers": {
+    "theme": {
+      "contexts": {
+        "light": [
+          {
+            "$ref": "../../../foundation/tokens/theme/light.tokens.json"
+          }
+        ],
+        "dark": [
+          {
+            "$ref": "../../../foundation/tokens/theme/dark.tokens.json"
+          }
+        ],
+        "light-high-contrast": [
+          {
+            "$ref": "../../../foundation/tokens/theme/light-high-contrast.tokens.json"
+          }
+        ],
+        "dark-high-contrast": [
+          {
+            "$ref": "../../../foundation/tokens/theme/dark-high-contrast.tokens.json"
+          }
+        ]
+      },
+      "default": "light"
+    },
+    "density": {
+      "contexts": {
+        "compact": [
+          {
+            "$ref": "../../../foundation/tokens/density/compact.tokens.json"
+          }
+        ],
+        "comfortable": [
+          {
+            "$ref": "../../../foundation/tokens/density/comfortable.tokens.json"
+          }
+        ]
+      },
+      "default": "compact"
+    }
+  },
+  "resolutionOrder": [
+    {
+      "$ref": "#/sets/ref"
+    },
+    {
+      "$ref": "#/sets/brand"
+    },
+    {
+      "$ref": "#/sets/sys"
+    },
+    {
+      "$ref": "#/modifiers/theme"
+    },
+    {
+      "$ref": "#/modifiers/density"
+    },
+    {
+      "$ref": "#/sets/components"
+    }
+  ]
+}

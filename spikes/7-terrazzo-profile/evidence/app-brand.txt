@@ -1,0 +1,7 @@
+case: app-brand
+note: app resolver: foundation files via ../../foundation/..., brand set after ref
+command: tz build   (cwd cases/app-brand/fixture/apps/demo, SPIKE_RULES={})
+exit: 0
+--- stdout
+✔  18 tokens built 38ms
+--- stderr

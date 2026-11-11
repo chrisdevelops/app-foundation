@@ -1,0 +1,8 @@
+case: display-p3-authored
+note: colour authored with colorSpace display-p3 (colorspace rule off, max-gamut off)
+command: tz build   (cwd cases/display-p3-authored/fixture/foundation, SPIKE_RULES={"core/colorspace":"off","core/max-gamut":["error",{"gamut":"p3"}]})
+exit: 1
+--- stdout
+--- stderr
+plugin:@terrazzo/plugin-css: There was an error trying to apply input {"density":"compact","theme":"light"}.
+✗  No color space found with id = "display-p3"

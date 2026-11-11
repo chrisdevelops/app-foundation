@@ -1,0 +1,2 @@
+{"id":"radius.ui-radius-control-default","input":{"theme":"light","density":"compact"},"value":{"value":0.5,"unit":"rem"},"description":"dup"}
+{"id":"ref.color.ui-ref-color-brand-600","input":{"theme":"dark"},"value":{"colorSpace":"oklch","components":[0.5,0.11,150],"alpha":1},"description":"Brand mid step."}

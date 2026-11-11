@@ -1,0 +1,9 @@
+case: dup-leaf-ours
+note: same fixture with our ui/unique-leaf-names on
+command: tz build   (cwd cases/dup-leaf-ours/fixture/foundation, SPIKE_RULES={})
+exit: 1
+--- stdout
+--- stderr
+✗  lint:ui/unique-leaf-names: tokens/density/compact.tokens.json#radius.ui-radius-control-default: ui/unique-leaf-names: leaf key "ui-radius-control-default" also declared in tokens/sys/base.tokens.json (set sys); the two are not alternative contexts
+
+lint:lint: 1 error

@@ -1,0 +1,42 @@
+{
+  "ref": {
+    "color": {
+      "ui-ref-color-brand-100": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.9,
+            0.06,
+            150
+          ]
+        },
+        "$description": "Brand light step."
+      },
+      "ui-ref-color-brand-600": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.5,
+            0.11,
+            150
+          ]
+        },
+        "$description": "Brand mid step."
+      },
+      "ui-ref-color-brand-900": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.3,
+            0.08,
+            150
+          ]
+        },
+        "$description": "Brand dark step."
+      }
+    }
+  }
+}
