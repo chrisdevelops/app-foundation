@@ -1,0 +1,22 @@
+F1.notStarted: browserType.connectOverCDP: connect ECONNREFUSED 127.0.0.1:9555
+Call log:
+[2m  - <ws preparing> retrieving websocket url from http://127.0.0.1:9555[22m
+
+F2.wrongPort: browserType.connectOverCDP: connect ECONNREFUSED 127.0.0.1:9334
+Call log:
+[2m  - <ws preparing> retrieving websocket url from http://127.0.0.1:9334[22m
+
+F3.second.alive: true
+F3.second.output: ["[14484:1111/153046.731547:ERROR:net/socket/socket_posix.cc:175] bind() failed: Address already in use (48)","[14484:1111/153046.731715:ERROR:content/browser/devtools/devtools_http_handler.cc:322] Cannot start http server for devtools."]
+F3.endpoint.ws: ws://127.0.0.1:9333/devtools/browser/f8c21028-7a6a-47b4-a160-23011afa5755
+F3.firstApp.output: first app owns 9333
+F3.second.orphans: []
+F4.disconnectedEvent: true
+F4.appExited: 0
+F4.pageTitleAfterQuit: page.title: Target page, context or browser has been closed
+F4.clickAfterQuit: page.click: Target page, context or browser has been closed
+F4.orphans: []
+F5.browserClose.err: cdpSession.send: Target page, context or browser has been closed
+F5.exitCodeAfterBrowserClose: 0
+F5.orphans: []
+F5.cleanup: []

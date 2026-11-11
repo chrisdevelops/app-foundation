@@ -1,0 +1,1 @@
+{"name":"spike-5-playwright-cdp","private":true,"version":"0.0.0","devDependencies":{"@electron/fuses":"^2.1.3","@electron/packager":"^20.3.0","electron":"45.3.0","playwright-core":"1.65.0","tsx":"^4.23.15","typescript":"^7.0.2"}}

@@ -1,0 +1,18 @@
+endpoint.Browser: Chrome/156.0.8078.96
+playwright.browserVersion: 156.0.8078.96
+contexts: 1
+pages.initial: ["Spike Main | file:///Users/cal/Projects/lab/app-foundation/.claude/worktrees/agent-a48784d0498bcf905/spikes/5-playwright-cdp/app/index.html"]
+main.title: Spike Main
+count.after2clicks: 2
+main.renderer: {"require":"undefined","process":"undefined","bridge":"object"}
+main.cspBlocksInline: 2
+child.windowOpen.title: Child
+child.windowOpen.out: clicked:Child:object:undefined
+child.browserWindow.title: Child
+child.browserWindow.out: clicked:Child:object:undefined
+pages.final: 3
+pages.afterCloseOne: 2
+appAliveAfterBrowserClose: true
+endpointAliveAfterBrowserClose: true
+orphansAfterStop: []
+appOutput: DevTools listening on ws://127.0.0.1:9333/devtools/browser/a07a1966-4278-4b8b-aac7-d990bafe1645 // [14311:1111/153027.815276:ERROR:content/browser/gpu/gpu_process_host.cc:1044] GPU process exited unexpectedly: exit_code=15 // [14311:1111/153028.026701:ERROR:content/browser/network_service_instance_impl.cc:652] Network service crashed or was terminated, restarting service.

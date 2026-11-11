@@ -1,0 +1,5 @@
+packaged.endpoint: Chrome/156.0.8078.96
+packaged.title: Spike Main
+packaged.count: 1
+packaged.child: clicked:Child:object:undefined
+packaged.orphans: []
