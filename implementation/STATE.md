@@ -2,36 +2,40 @@
 
 > Pointer file, rewritten by the orchestrator whenever a task changes stage, a phase changes, or an escalation opens or closes. History lives in GitHub Issues and git.
 
-- **Updated:** 2026-11-09 15:00
+- **Updated:** 2026-11-11
 - **Phase:** 0. Preparation and spikes
-- **Phase exit gate:** Human approves requirement IDs, then the spike go/no-go
+- **Phase exit gate:** Human approves requirement IDs (done), then the spike go/no-go
 
 ## Active tasks
 
 | Issue | Title | Stage | Attempt | Next action |
 | --- | --- | --- | --- | --- |
-| #1 | Specs: add requirement IDs and fill the ledger | review | 1 | Human approves or rejects the IDs on the pull request |
+| #5 | Spike: Playwright over CDP | implementing | 1 | Check researcher envelope and branch `spike/5-playwright-cdp` |
+| #6 | Spike: Forge with Vite in a pnpm workspace | implementing | 1 | Check researcher envelope and branch `spike/6-forge-vite` |
+| #7 | Spike: Terrazzo profile rules and outputs | implementing | 1 | Check researcher envelope and branch `spike/7-terrazzo-profile` |
+| #8 | Spike: React Aria overlays in child windows | implementing | 1 | Check researcher envelope and branch `spike/8-child-window-overlays` |
 
 ## Last action
 
-Planner finished #1 (commit 69da2f4); orchestrator re-ran the checks and all passed; pull request opened.
+PR #4 merged: ADR 0002 (all A) and ADR 0003 applied to the specs; #3 closed. Four researchers started in parallel.
 
 ## Next action
 
-After human approval: merge #1, apply decisions from ADR 0002, then delegate the four spike issues to the planner.
+Check each spike's evidence, then give the human a go/no-go recommendation per spike.
 
 ## Open escalations
 
 | Issue or ADR | Waiting on | Since |
 | --- | --- | --- |
-| #1 requirement IDs and classification choices | Human approval | 2026-11-09 |
-| ADR 0002, eight spec contradictions | Human decision | 2026-11-09 |
+| — | — | — |
 
 ## Blockers
 
-Spikes wait for ID approval. The Terrazzo spike also waits for ADR 0002 items 1 and 3.
+None.
 
 ## Notes for the next orchestrator
 
-- Spec sources: Claude Docs artifacts `3pw1TKuLLz8gVgPWoz4hHb` (Decision Summary, rev 11) and `8qrpoNZtckJcbuhHSxQezE` (Token Profile Spec, rev 30). The repository copies are now the master copies.
-- Open human decisions in the specs: token extension namespace; re-validation after a failed submit.
+- Spike branches are never merged. Findings live in `docs/spikes/` on each spike branch.
+- Decisions expected after spikes: colour gamut (#7); how smoke tests reach a packaged build if fuses block CDP (#5, major).
+- Open human decision in the specs: re-validation after a failed submit.
+- Merges by the orchestrator can trigger the auto mode classifier; the human approves spec-changing merges.
