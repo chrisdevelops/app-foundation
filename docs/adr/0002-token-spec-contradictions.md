@@ -1,6 +1,6 @@
 # ADR 0002: Resolve eight contradictions in the specs
 
-- **Status:** proposed
+- **Status:** accepted
 - **Weight:** major
 - **Date:** 2026-11-09
 - **Raised by:** planner, #1
@@ -71,10 +71,10 @@ TOK-067 says `data-theme` mirrors the media-query blocks. TOK-116 generates one 
 
 ## Decision
 
-Waiting on the human.
+The human chose option A for all eight items on 2026-11-11.
 
 ## Follow-up
 
-- [ ] Spec updated (`docs/foundation/token-profile-spec.md` and `docs/foundation/decision-summary.md`), keeping existing IDs
-- [ ] Ledger updated
-- [ ] Issues created or changed: Terrazzo spike depends on items 1 and 3
+- [x] Spec updated (`docs/foundation/token-profile-spec.md` and `docs/foundation/decision-summary.md`), keeping existing IDs
+- [x] Ledger updated: affected rows note ADR 0002
+- [x] Issues created or changed: #3

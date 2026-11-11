@@ -82,7 +82,7 @@ This summarises every decision from the foundation planning conversation. Once y
 | Decision | Rationale |
 | --- | --- |
 | [TOK-001] DTCG 2025.10 with Terrazzo, plus our own profile | Standard format with a greppable naming grammar layered on top; see the Design Token Profile Spec |
-| [TOK-002] Three tiers: primitive, semantic, component | Themes and apps change only the semantic layer |
+| [TOK-002] Three tiers: primitive, semantic, component | Themes change only the semantic layer; apps change only brand primitives |
 | [TOK-003] Repo token files are the master copy; the in-house design tool reads and writes them | One source of truth |
 | [TOK-004] Light, dark and high contrast themes; compact (default) and comfortable density | Accessibility and desktop density needs |
 | [TOK-005] Follow the OS for dark mode and contrast; theme override through `nativeTheme.themeSource` | All windows and native UI switch together |
@@ -179,7 +179,7 @@ Checked against official docs or primary sources during planning (November 2026)
 
 ### Open decisions (yours)
 
-- [ ] **Extension namespace** for token metadata, chosen once for the foundation (for example, a reverse domain you own).
+- [x] **Extension namespace** for token metadata: settled as `io.github.chrisdevelops.ui` (ADR 0003).
 - [ ] **Re-validation after a failed submit:** I proposed that a corrected field re-validates when the user leaves it. You haven't confirmed or rejected this yet.
 
 ### Assumptions
