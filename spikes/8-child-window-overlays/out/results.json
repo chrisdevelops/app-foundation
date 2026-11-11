@@ -1,0 +1,825 @@
+{
+  "versions": {
+    "electron": "45.3.0",
+    "chrome": "156.0.8078.96",
+    "node": "24.22.2",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "modes": {
+    "provider": {
+      "popover": {
+        "open": {
+          "inChild": true,
+          "inMain": false,
+          "ovRect": {
+            "x": 12,
+            "y": 142,
+            "w": 138,
+            "h": 83.5
+          },
+          "trRect": {
+            "x": 16,
+            "y": 113,
+            "w": 65.65625,
+            "h": 21.5
+          },
+          "vp": {
+            "w": 520,
+            "h": 488
+          },
+          "focus": {
+            "active": "react-aria9526766487-_r_7_",
+            "inOverlay": true,
+            "docHasFocus": true
+          },
+          "hidden": false,
+          "mainHidden": true,
+          "outsideBtnHidden": false,
+          "clickPt": {
+            "x": 49,
+            "y": 124
+          }
+        },
+        "afterEscapeOrLeave": {
+          "inChild": false,
+          "inMain": false,
+          "active": "BODY",
+          "mainHiddenAfter": false,
+          "hiddenAfter": false
+        },
+        "afterOutsideClick": {
+          "inChild": false,
+          "inMain": false,
+          "active": "BODY"
+        }
+      },
+      "menu": {
+        "open": {
+          "inChild": true,
+          "inMain": false,
+          "ovRect": {
+            "x": 16,
+            "y": 176,
+            "w": 138,
+            "h": 66
+          },
+          "trRect": {
+            "x": 16,
+            "y": 146.5,
+            "w": 49.3515625,
+            "h": 21.5
+          },
+          "vp": {
+            "w": 520,
+            "h": 488
+          },
+          "focus": {
+            "active": "react-aria9526766487-_r_c_",
+            "inOverlay": true,
+            "docHasFocus": true
+          },
+          "hidden": false,
+          "mainHidden": true,
+          "outsideBtnHidden": false,
+          "clickPt": {
+            "x": 41,
+            "y": 157
+          }
+        },
+        "afterEscapeOrLeave": {
+          "inChild": false,
+          "inMain": false,
+          "active": "BODY",
+          "mainHiddenAfter": false,
+          "hiddenAfter": false
+        },
+        "afterOutsideClick": {
+          "inChild": false,
+          "inMain": false,
+          "active": "BODY"
+        }
+      },
+      "dialog": {
+        "open": {
+          "inChild": true,
+          "inMain": false,
+          "ovRect": {
+            "x": 213.6640625,
+            "y": 187.8203125,
+            "w": 92.6640625,
+            "h": 112.359375
+          },
+          "trRect": {
+            "x": 16,
+            "y": 180,
+            "w": 53.796875,
+            "h": 21.5
+          },
+          "vp": {
+            "w": 520,
+            "h": 488
+          },
+          "focus": {
+            "active": "react-aria9526766487-_r_f_",
+            "inOverlay": true,
+            "docHasFocus": true
+          },
+          "hidden": false,
+          "mainHidden": true,
+          "outsideBtnHidden": false,
+          "clickPt": {
+            "x": 43,
+            "y": 191
+          }
+        },
+        "afterEscapeOrLeave": {
+          "inChild": false,
+          "inMain": false,
+          "active": "BODY",
+          "mainHiddenAfter": false,
+          "hiddenAfter": false
+        },
+        "afterOutsideClick": {
+          "inChild": false,
+          "inMain": false,
+          "active": "BODY"
+        }
+      },
+      "tooltip": {
+        "open": {
+          "inChild": false,
+          "inMain": false,
+          "ovRect": null,
+          "trRect": {
+            "x": 16,
+            "y": 213.5,
+            "w": 54.5390625,
+            "h": 21.5
+          },
+          "vp": {
+            "w": 520,
+            "h": 488
+          },
+          "focus": {
+            "active": "BODY",
+            "inOverlay": false,
+            "docHasFocus": true
+          },
+          "hidden": false,
+          "mainHidden": false,
+          "outsideBtnHidden": false,
+          "clickPt": {
+            "x": 43,
+            "y": 224
+          }
+        },
+        "afterEscapeOrLeave": {
+          "inChild": false,
+          "inMain": false,
+          "active": "BODY",
+          "mainHiddenAfter": false,
+          "hiddenAfter": false
+        }
+      },
+      "context-menu": {
+        "open": {
+          "inChild": true,
+          "inMain": false,
+          "ovRect": {
+            "x": 56,
+            "y": 275,
+            "w": 138,
+            "h": 66
+          },
+          "trRect": {
+            "x": 16,
+            "y": 247,
+            "w": 270,
+            "h": 66
+          },
+          "vp": {
+            "w": 520,
+            "h": 488
+          },
+          "focus": {
+            "active": "react-aria9526766487-_r_28_",
+            "inOverlay": true,
+            "docHasFocus": true
+          },
+          "hidden": false,
+          "mainHidden": true,
+          "outsideBtnHidden": false,
+          "clickPt": {
+            "x": 56,
+            "y": 267
+          }
+        },
+        "afterEscapeOrLeave": {
+          "inChild": false,
+          "inMain": false,
+          "active": "BODY",
+          "mainHiddenAfter": false,
+          "hiddenAfter": false
+        },
+        "afterOutsideClick": {
+          "inChild": false,
+          "inMain": false,
+          "active": "BODY"
+        }
+      },
+      "keyboard": {
+        "reactKbdHits": 2,
+        "lastKey": "ArrowDown",
+        "inputValueInChild": "q"
+      }
+    },
+    "control": {
+      "popover": {
+        "open": {
+          "inChild": false,
+          "inMain": true,
+          "ovRect": {
+            "x": 12,
+            "y": 142,
+            "w": 138,
+            "h": 83.5
+          },
+          "trRect": {
+            "x": 16,
+            "y": 113,
+            "w": 65.65625,
+            "h": 21.5
+          },
+          "vp": {
+            "w": 520,
+            "h": 488
+          },
+          "focus": {
+            "active": "pop-trigger",
+            "inOverlay": false,
+            "docHasFocus": true
+          },
+          "hidden": false,
+          "mainHidden": true,
+          "outsideBtnHidden": false,
+          "clickPt": {
+            "x": 49,
+            "y": 124
+          }
+        },
+        "afterEscapeOrLeave": {
+          "inChild": false,
+          "inMain": true,
+          "active": "pop-trigger",
+          "mainHiddenAfter": false,
+          "hiddenAfter": false
+        },
+        "afterOutsideClick": {
+          "inChild": false,
+          "inMain": false,
+          "active": "BODY"
+        }
+      },
+      "menu": {
+        "open": {
+          "inChild": false,
+          "inMain": true,
+          "ovRect": {
+            "x": 16,
+            "y": 176,
+            "w": 138,
+            "h": 66
+          },
+          "trRect": {
+            "x": 16,
+            "y": 146.5,
+            "w": 49.3515625,
+            "h": 21.5
+          },
+          "vp": {
+            "w": 520,
+            "h": 488
+          },
+          "focus": {
+            "active": "menu-trigger",
+            "inOverlay": false,
+            "docHasFocus": true
+          },
+          "hidden": false,
+          "mainHidden": true,
+          "outsideBtnHidden": false,
+          "clickPt": {
+            "x": 41,
+            "y": 157
+          }
+        },
+        "afterEscapeOrLeave": {
+          "inChild": false,
+          "inMain": true,
+          "active": "menu-trigger",
+          "mainHiddenAfter": false,
+          "hiddenAfter": false
+        },
+        "afterOutsideClick": {
+          "inChild": false,
+          "inMain": true,
+          "active": "BODY"
+        }
+      },
+      "dialog": {
+        "open": {
+          "inChild": false,
+          "inMain": true,
+          "ovRect": {
+            "x": 403.6640625,
+            "y": 277.8203125,
+            "w": 92.6640625,
+            "h": 112.359375
+          },
+          "trRect": {
+            "x": 16,
+            "y": 180,
+            "w": 53.796875,
+            "h": 21.5
+          },
+          "vp": {
+            "w": 520,
+            "h": 488
+          },
+          "focus": {
+            "active": "dialog-trigger",
+            "inOverlay": false,
+            "docHasFocus": true
+          },
+          "hidden": false,
+          "mainHidden": true,
+          "outsideBtnHidden": false,
+          "clickPt": {
+            "x": 43,
+            "y": 191
+          }
+        },
+        "afterEscapeOrLeave": {
+          "inChild": false,
+          "inMain": true,
+          "active": "dialog-trigger",
+          "mainHiddenAfter": false,
+          "hiddenAfter": false
+        },
+        "afterOutsideClick": {
+          "inChild": false,
+          "inMain": false,
+          "active": "BODY"
+        }
+      },
+      "tooltip": {
+        "open": {
+          "inChild": false,
+          "inMain": false,
+          "ovRect": null,
+          "trRect": {
+            "x": 16,
+            "y": 213.5,
+            "w": 54.5390625,
+            "h": 21.5
+          },
+          "vp": {
+            "w": 520,
+            "h": 488
+          },
+          "focus": {
+            "active": "BODY",
+            "inOverlay": false,
+            "docHasFocus": true
+          },
+          "hidden": false,
+          "mainHidden": false,
+          "outsideBtnHidden": false,
+          "clickPt": {
+            "x": 43,
+            "y": 224
+          }
+        },
+        "afterEscapeOrLeave": {
+          "inChild": false,
+          "inMain": false,
+          "active": "BODY",
+          "mainHiddenAfter": false,
+          "hiddenAfter": false
+        }
+      },
+      "context-menu": {
+        "open": {
+          "inChild": false,
+          "inMain": true,
+          "ovRect": {
+            "x": 56,
+            "y": 275,
+            "w": 138,
+            "h": 66
+          },
+          "trRect": {
+            "x": 16,
+            "y": 247,
+            "w": 270,
+            "h": 66
+          },
+          "vp": {
+            "w": 520,
+            "h": 488
+          },
+          "focus": {
+            "active": "ctx",
+            "inOverlay": false,
+            "docHasFocus": true
+          },
+          "hidden": false,
+          "mainHidden": true,
+          "outsideBtnHidden": false,
+          "clickPt": {
+            "x": 56,
+            "y": 267
+          }
+        },
+        "afterEscapeOrLeave": {
+          "inChild": false,
+          "inMain": true,
+          "active": "ctx",
+          "mainHiddenAfter": false,
+          "hiddenAfter": false
+        },
+        "afterOutsideClick": {
+          "inChild": false,
+          "inMain": true,
+          "active": "BODY"
+        }
+      },
+      "keyboard": {
+        "reactKbdHits": 2,
+        "lastKey": "ArrowDown",
+        "inputValueInChild": "q"
+      }
+    },
+    "workarounds": {
+      "popover": {
+        "open": {
+          "inChild": true,
+          "inMain": false,
+          "ovRect": {
+            "x": 12,
+            "y": 142,
+            "w": 138,
+            "h": 83.5
+          },
+          "trRect": {
+            "x": 16,
+            "y": 113,
+            "w": 65.65625,
+            "h": 21.5
+          },
+          "vp": {
+            "w": 520,
+            "h": 488
+          },
+          "focus": {
+            "active": "react-aria9526766487-_r_4c_",
+            "inOverlay": true,
+            "docHasFocus": true
+          },
+          "hidden": true,
+          "mainHidden": false,
+          "outsideBtnHidden": true,
+          "clickPt": {
+            "x": 49,
+            "y": 124
+          }
+        },
+        "afterEscapeOrLeave": {
+          "inChild": false,
+          "inMain": false,
+          "active": "pop-trigger",
+          "mainHiddenAfter": false,
+          "hiddenAfter": false
+        },
+        "afterOutsideClick": {
+          "inChild": false,
+          "inMain": false,
+          "active": "pop-trigger"
+        }
+      },
+      "menu": {
+        "open": {
+          "inChild": true,
+          "inMain": false,
+          "ovRect": {
+            "x": 16,
+            "y": 176,
+            "w": 138,
+            "h": 66
+          },
+          "trRect": {
+            "x": 16,
+            "y": 146.5,
+            "w": 49.3515625,
+            "h": 21.5
+          },
+          "vp": {
+            "w": 520,
+            "h": 488
+          },
+          "focus": {
+            "active": "react-aria9526766487-_r_4h_",
+            "inOverlay": true,
+            "docHasFocus": true
+          },
+          "hidden": true,
+          "mainHidden": false,
+          "outsideBtnHidden": true,
+          "clickPt": {
+            "x": 41,
+            "y": 157
+          }
+        },
+        "afterEscapeOrLeave": {
+          "inChild": false,
+          "inMain": false,
+          "active": "menu-trigger",
+          "mainHiddenAfter": false,
+          "hiddenAfter": false
+        },
+        "afterOutsideClick": {
+          "inChild": false,
+          "inMain": false,
+          "active": "menu-trigger"
+        }
+      },
+      "dialog": {
+        "open": {
+          "inChild": true,
+          "inMain": false,
+          "ovRect": {
+            "x": 213.6640625,
+            "y": 187.8203125,
+            "w": 92.6640625,
+            "h": 112.359375
+          },
+          "trRect": {
+            "x": 16,
+            "y": 180,
+            "w": 53.796875,
+            "h": 21.5
+          },
+          "vp": {
+            "w": 520,
+            "h": 488
+          },
+          "focus": {
+            "active": "react-aria9526766487-_r_4k_",
+            "inOverlay": true,
+            "docHasFocus": true
+          },
+          "hidden": true,
+          "mainHidden": false,
+          "outsideBtnHidden": true,
+          "clickPt": {
+            "x": 43,
+            "y": 191
+          }
+        },
+        "afterEscapeOrLeave": {
+          "inChild": false,
+          "inMain": false,
+          "active": "dialog-trigger",
+          "mainHiddenAfter": false,
+          "hiddenAfter": false
+        },
+        "afterOutsideClick": {
+          "inChild": false,
+          "inMain": false,
+          "active": "dialog-trigger"
+        }
+      },
+      "tooltip": {
+        "open": {
+          "inChild": true,
+          "inMain": false,
+          "ovRect": {
+            "x": 14.765625,
+            "y": 235,
+            "w": 57.2421875,
+            "h": 24
+          },
+          "trRect": {
+            "x": 16,
+            "y": 213.5,
+            "w": 54.5390625,
+            "h": 21.5
+          },
+          "vp": {
+            "w": 520,
+            "h": 488
+          },
+          "focus": {
+            "active": "BODY",
+            "inOverlay": false,
+            "docHasFocus": true
+          },
+          "hidden": false,
+          "mainHidden": false,
+          "outsideBtnHidden": false,
+          "clickPt": {
+            "x": 43,
+            "y": 224
+          }
+        },
+        "afterEscapeOrLeave": {
+          "inChild": false,
+          "inMain": false,
+          "active": "BODY",
+          "mainHiddenAfter": false,
+          "hiddenAfter": false
+        }
+      },
+      "context-menu": {
+        "open": {
+          "inChild": true,
+          "inMain": false,
+          "ovRect": {
+            "x": 56,
+            "y": 275,
+            "w": 138,
+            "h": 66
+          },
+          "trRect": {
+            "x": 16,
+            "y": 247,
+            "w": 270,
+            "h": 66
+          },
+          "vp": {
+            "w": 520,
+            "h": 488
+          },
+          "focus": {
+            "active": "react-aria9526766487-_r_6d_",
+            "inOverlay": true,
+            "docHasFocus": true
+          },
+          "hidden": true,
+          "mainHidden": false,
+          "outsideBtnHidden": true,
+          "clickPt": {
+            "x": 56,
+            "y": 267
+          }
+        },
+        "afterEscapeOrLeave": {
+          "inChild": false,
+          "inMain": false,
+          "active": "ctx",
+          "mainHiddenAfter": false,
+          "hiddenAfter": false
+        },
+        "afterOutsideClick": {
+          "inChild": false,
+          "inMain": false,
+          "active": "ctx"
+        }
+      },
+      "keyboard": {
+        "reactKbdHits": 2,
+        "lastKey": "ArrowDown",
+        "inputValueInChild": "q"
+      }
+    }
+  },
+  "extra": {
+    "openInfo": {
+      "opened": true,
+      "sameDocAccess": true,
+      "childLocation": "about:blank",
+      "childOrigin": "file://",
+      "openerOrigin": "file://",
+      "crossRealm": true,
+      "name": "child-1794436792624"
+    },
+    "processIds": {
+      "main": 26920,
+      "child": 26920
+    },
+    "childWebPreferences": {
+      "allowRunningInsecureContent": false,
+      "contextIsolation": true,
+      "disableDialogs": false,
+      "disablePopups": false,
+      "disableWakeLocks": false,
+      "enableBlinkFeatures": "",
+      "experimentalFeatures": false,
+      "javascript": true,
+      "nodeIntegration": false,
+      "nodeIntegrationInSubFrames": false,
+      "nodeIntegrationInWorker": false,
+      "safeDialogs": false,
+      "safeDialogsMessage": "",
+      "sandbox": true,
+      "webSecurity": true,
+      "webviewTag": false
+    },
+    "mainWebPreferences": {
+      "allowRunningInsecureContent": false,
+      "contextIsolation": true,
+      "disableDialogs": false,
+      "disablePopups": false,
+      "disableWakeLocks": false,
+      "enableBlinkFeatures": "",
+      "experimentalFeatures": false,
+      "javascript": true,
+      "nodeIntegration": false,
+      "nodeIntegrationInSubFrames": false,
+      "nodeIntegrationInWorker": false,
+      "safeDialogs": false,
+      "safeDialogsMessage": "",
+      "sandbox": true,
+      "webSecurity": true,
+      "webviewTag": false
+    },
+    "css": {
+      "link": {
+        "color": "rgb(0, 0, 255)",
+        "bg": "rgb(1, 2, 3)",
+        "sheets": 1,
+        "inlineScriptRan": "false",
+        "cspMeta": false
+      },
+      "adopted": {
+        "color": "rgb(0, 0, 255)",
+        "bg": "rgb(1, 2, 3)",
+        "sheets": 0,
+        "inlineScriptRan": "false",
+        "cspMeta": false
+      },
+      "cssom": {
+        "color": "rgb(0, 0, 0)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "sheets": 0,
+        "inlineScriptRan": "false",
+        "cspMeta": false
+      },
+      "styletext": {
+        "color": "rgb(0, 0, 0)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "sheets": 0,
+        "inlineScriptRan": "false",
+        "cspMeta": false
+      },
+      "none": {
+        "color": "rgb(0, 0, 0)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "sheets": 0,
+        "inlineScriptRan": "false",
+        "cspMeta": false
+      }
+    },
+    "gesture": {
+      "direct_no_gesture": {
+        "returned": "true",
+        "handlerCalls": 1,
+        "windowCreated": true
+      },
+      "direct_with_gesture": {
+        "returned": "true",
+        "handlerCalls": 1,
+        "windowCreated": true
+      },
+      "timer_no_gesture": {
+        "returned": "true",
+        "handlerCalls": 1,
+        "windowCreated": true
+      },
+      "timer_after_gesture_2s": {
+        "returned": "true",
+        "handlerCalls": 1,
+        "windowCreated": true
+      },
+      "real_click": {
+        "windowCreated": true,
+        "handlerCalls": 1
+      }
+    },
+    "closeWhileOpen": {
+      "handleClose_true": {
+        "openBefore": true,
+        "mainAlive": 2,
+        "mainBodyHiddenAfterClose": null,
+        "reopenedOk": true
+      },
+      "handleClose_false": {
+        "openBefore": true,
+        "mainAlive": 2,
+        "mainBodyHiddenAfterClose": "true",
+        "reopenedOk": true
+      }
+    }
+  }
+}

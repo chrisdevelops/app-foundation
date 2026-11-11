@@ -1,0 +1,255 @@
+main-console[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools
+You might need to use a local HTTP server (instead of file://): https://react.dev/link/react-devtools-faq font-weight:bold
+main-console[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[main] directive=style-src-elem blocked=inline file=file:29952 sample=""
+child-console[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[child] directive=style-src-elem blocked=inline file=file:29952 sample=""
+mode=provider open info={"opened":true,"sameDocAccess":true,"childLocation":"about:blank","childOrigin":"file://","openerOrigin":"file://","crossRealm":true,"name":"child-1794436792624"} created=true handlerCalls=[{"url":"about:blank","frameName":"child-1794436792624","disposition":"foreground-tab"}]
+main-console[info] pagehide in child -> unmount portal
+child closed
+child-console[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[child] directive=style-src-elem blocked=inline file=file:29952 sample=""
+mode=control open info={"opened":true,"sameDocAccess":true,"childLocation":"about:blank","childOrigin":"file://","openerOrigin":"file://","crossRealm":true,"name":"child-1794436808149"} created=true handlerCalls=[{"url":"about:blank","frameName":"child-1794436808149","disposition":"foreground-tab"}]
+main-console[info] pagehide in child -> unmount portal
+child closed
+child-console[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[child] directive=style-src-elem blocked=inline file=file:29952 sample=""
+mode=workarounds open info={"opened":true,"sameDocAccess":true,"childLocation":"about:blank","childOrigin":"file://","openerOrigin":"file://","crossRealm":true,"name":"child-1794436823805"} created=true handlerCalls=[{"url":"about:blank","frameName":"child-1794436823805","disposition":"foreground-tab"}]
+main-console[info] pagehide in child -> unmount portal
+child closed
+child-console[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[child] directive=style-src-elem blocked=inline file=file:29952 sample=""
+child-console[error] Executing inline script violates the following Content Security Policy directive 'script-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-tV4B9WGYt00dIOhqU3Ds4fd3+b/Ja8r9Imqtd9j5U7w='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[child] directive=script-src-elem blocked=inline file=:2 sample=""
+main-console[info] pagehide in child -> unmount portal
+child closed
+child-console[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[child] directive=style-src-elem blocked=inline file=file:29952 sample=""
+child-console[error] Executing inline script violates the following Content Security Policy directive 'script-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-tV4B9WGYt00dIOhqU3Ds4fd3+b/Ja8r9Imqtd9j5U7w='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[child] directive=script-src-elem blocked=inline file=:2 sample=""
+main-console[info] pagehide in child -> unmount portal
+child closed
+child-console[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[error] cssom: <style>.sheet is null in child (CSP blocked the style element)
+main-console[info] CSPVIOLATION[child] directive=style-src-elem blocked=inline file=file:34661 sample=""
+child-console[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[child] directive=style-src-elem blocked=inline file=file:29952 sample=""
+child-console[error] Executing inline script violates the following Content Security Policy directive 'script-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-tV4B9WGYt00dIOhqU3Ds4fd3+b/Ja8r9Imqtd9j5U7w='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[child] directive=script-src-elem blocked=inline file=:2 sample=""
+main-console[info] pagehide in child -> unmount portal
+child closed
+child-console[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-HXotqWqCZa1WjU3YQytXGvgZ6G8MXQuj1eE5XmWCda8='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[child] directive=style-src-elem blocked=inline file=file:34659 sample=""
+child-console[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[child] directive=style-src-elem blocked=inline file=file:29952 sample=""
+child-console[error] Executing inline script violates the following Content Security Policy directive 'script-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-tV4B9WGYt00dIOhqU3Ds4fd3+b/Ja8r9Imqtd9j5U7w='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[child] directive=script-src-elem blocked=inline file=:2 sample=""
+main-console[info] pagehide in child -> unmount portal
+child closed
+child-console[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[child] directive=style-src-elem blocked=inline file=file:29952 sample=""
+child-console[error] Executing inline script violates the following Content Security Policy directive 'script-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-tV4B9WGYt00dIOhqU3Ds4fd3+b/Ja8r9Imqtd9j5U7w='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[child] directive=script-src-elem blocked=inline file=:2 sample=""
+main-console[info] pagehide in child -> unmount portal
+child closed
+child closed
+child closed
+child closed
+child closed
+child-console[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[child] directive=style-src-elem blocked=inline file=file:29952 sample=""
+main-console[info] pagehide in child -> unmount portal
+child closed
+child-console[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[child] directive=style-src-elem blocked=inline file=file:29952 sample=""
+--- closeWhileOpen handleClose=true menuOpen=true: closing
+main-console[info] pagehide in child -> unmount portal
+child closed
+child-console[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[child] directive=style-src-elem blocked=inline file=file:29952 sample=""
+--- closeWhileOpen handleClose=true done
+main-console[info] pagehide in child -> unmount portal
+child closed
+main-console[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools
+You might need to use a local HTTP server (instead of file://): https://react.dev/link/react-devtools-faq font-weight:bold
+main-console[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[main] directive=style-src-elem blocked=inline file=file:29952 sample=""
+child-console[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[child] directive=style-src-elem blocked=inline file=file:29952 sample=""
+--- closeWhileOpen handleClose=false menuOpen=true: closing
+child closed
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+child-console[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[info] CSPVIOLATION[child] directive=style-src-elem blocked=inline file=file:29952 sample=""
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+--- closeWhileOpen handleClose=false done
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[info] pagehide in child -> unmount portal
+child closed
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[error] ResizeObserver loop completed with undelivered notifications.
+main-console[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools
+You might need to use a local HTTP server (instead of file://): https://react.dev/link/react-devtools-faq font-weight:bold
+main-console[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+main-console[info] CSPVIOLATION[main] directive=style-src-elem blocked=inline file=file:29952 sample=""
+RESULTS WRITTEN

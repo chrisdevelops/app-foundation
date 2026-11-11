@@ -1,0 +1,1 @@
+{"name":"spike-8","private":true,"version":"0.0.0","main":"dist/main.js","dependencies":{"@react-aria/overlays":"^3.32.1","electron":"^45.3.0","esbuild":"^0.28.2","react":"^19.3.1","react-aria":"^3.53.1","react-aria-components":"^1.22.1","react-dom":"^19.3.1"}}
