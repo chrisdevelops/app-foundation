@@ -47,7 +47,7 @@
 | CMP-013 | Icons decorative by default; icon-only buttons require a label prop | not-started | — | — |  |
 | CMP-014 | Single Chromium target: modern CSS allowed, no browser fallback | not-started | — | — |  |
 | TOK-001 | DTCG 2025.10 with Terrazzo plus the profile | not-started | — | — |  |
-| TOK-002 | Three token tiers: primitive, semantic, component | not-started | — | — |  |
+| TOK-002 | Three token tiers: primitive, semantic, component | not-started | — | — | ADR 0002 |
 | TOK-003 | Repo token files are the master copy; design tool reads and writes them | not-started | — | — |  |
 | TOK-004 | Light, dark and high contrast themes; compact (default) and comfortable density | not-started | — | — |  |
 | TOK-005 | Follow the OS for dark mode and contrast; theme override via nativeTheme.themeSource | not-started | — | — |  |
@@ -58,7 +58,7 @@
 | TOK-010 | Tokens and config factories come before any styled component | not-started | — | — |  |
 | TOK-011 | Token files stay valid DTCG with no custom parser | not-started | — | — |  |
 | TOK-012 | Leaf key is the full name; CSS variable is that name with -- in front | not-started | — | — |  |
-| TOK-013 | Primitive name shape: ui-ref-{category}-{scale}-{step} | not-started | — | — |  |
+| TOK-013 | Primitive name shape: ui-ref-{category}[-{scale}]-{step} | not-started | — | — | ADR 0002 |
 | TOK-014 | Semantic name shape: ui-{category}-{role}[-{variant}]-{leaf} | not-started | — | — |  |
 | TOK-015 | Component name shape: ui-{block}[__{part}]__{category}-{role}[-{variant}]-{leaf} | not-started | — | — |  |
 | TOK-016 | Component part tokens use the component shape with a part scope | not-started | — | — |  |
@@ -75,7 +75,7 @@
 | TOK-027 | Leaf words are a closed list, extendable by review | not-started | — | — |  |
 | TOK-028 | Every semantic and component name ends in exactly one leaf word | not-started | — | — |  |
 | TOK-029 | default is only ever a leaf, never a variant | not-started | — | — |  |
-| TOK-030 | Leaf keys are unique across a resolver's sources | not-started | — | — |  |
+| TOK-030 | Leaf keys are unique across a resolver's sources, except alternative modifier contexts and brand overrides | not-started | — | — | ADR 0002 |
 | TOK-031 | No token name equals the leading hyphen-segments of another | not-started | — | — |  |
 | TOK-032 | Names differing only by case are an error | not-started | — | — |  |
 | TOK-033 | Group path equals the start of the leaf key after the prefix | not-started | — | — |  |
@@ -110,7 +110,7 @@
 | TOK-062 | Dark high contrast context: both signals, both overrides, dark scheme | not-started | — | — |  |
 | TOK-063 | Comfortable density: data-density comfortable on the root | not-started | — | — |  |
 | TOK-064 | Theme override goes through Electron nativeTheme.themeSource, not an attribute | not-started | — | — |  |
-| TOK-065 | Runtime theme CSS needs only the media query | not-started | — | — |  |
+| TOK-065 | Runtime theme CSS needs only the media query | not-started | — | — | ADR 0002 |
 | TOK-066 | data-theme exists for tooling only | not-started | — | — |  |
 | TOK-067 | data-theme mirrors the media-query blocks | not-started | — | — |  |
 | TOK-068 | Contrast override is a data-contrast attribute on each window's root | not-started | — | — |  |
@@ -124,12 +124,12 @@
 | TOK-076 | ui-ref-font-family-ui defaults to the system font stack | not-started | — | — |  |
 | TOK-077 | ui-ref-font-family-mono is the monospace stack | not-started | — | — |  |
 | TOK-078 | An app's brand file overrides only the brand primitives | not-started | — | — |  |
-| TOK-079 | App resolver lists foundation sets, a brand set, then the modifiers | not-started | — | — |  |
+| TOK-079 | App resolver order: ref, brand, sys, modifiers, components | not-started | — | — | ADR 0002 |
 | TOK-080 | Each app generates its own complete tokens.css | not-started | — | — |  |
 | TOK-081 | Bundled font stack starts with the font and ends with system fallbacks | not-started | — | — |  |
 | TOK-082 | @font-face rules and font files live in the app, not in tokens | not-started | — | — |  |
 | TOK-083 | Opted-in OS accent: main reads the colour; renderer sets --ui-runtime-os-accent on each root | not-started | — | — |  |
-| TOK-084 | Accent semantic tokens derive steps with CSS relative colour syntax | not-started | — | — |  |
+| TOK-084 | Accent semantic tokens derive steps in hand-written CSS with relative colour syntax | not-started | — | — | ADR 0002 |
 | TOK-085 | App tokens use the app prefix and the same grammar, tiers and lint rules | not-started | — | — |  |
 | TOK-086 | App tokens must not reuse foundation names | not-started | — | — |  |
 | TOK-087 | One app config file; foundation factories build Terrazzo and Stylelint configs | not-started | — | — |  |
@@ -161,9 +161,9 @@
 | TOK-113 | token-names.ts comes from a custom Terrazzo plugin | not-started | — | — |  |
 | TOK-114 | TOKENS.md comes from a custom Terrazzo plugin plus a usage scan | not-started | — | — |  |
 | TOK-115 | CSS variable names come from variableName and equal the leaf key | not-started | — | — |  |
-| TOK-116 | Selectors come from permutations, one per context, each in @layer tokens | not-started | — | — |  |
+| TOK-116 | Selectors: one per context plus [data-theme] blocks for tooling, each in @layer tokens | not-started | — | — | ADR 0002 |
 | TOK-117 | Each CSS declaration has a trailing source comment with file and token path | not-started | — | — |  |
-| TOK-118 | tokens.css starts with the specified generated header | not-started | — | — |  |
+| TOK-118 | tokens.css starts with the specified generated header | not-started | — | — | ADR 0002 |
 | TOK-119 | Tokens referenced from TypeScript go through UiTokenName | not-started | — | — |  |
 | TOK-120 | TOKENS.md has one section per tier and one row per token | not-started | — | — |  |
 | TOK-121 | TOKENS.md Name column is the leaf key | not-started | — | — |  |
@@ -183,19 +183,19 @@
 | TOK-135 | core/max-gamut is an error with srgb | not-started | — | — |  |
 | TOK-136 | a11y/min-contrast is an error at AA with pairs from contrastWith | not-started | — | — |  |
 | TOK-137 | core/duplicate-values warns with primitives ignored | not-started | — | — |  |
-| TOK-138 | Lint ui/unique-leaf-names | not-started | — | — |  |
+| TOK-138 | Lint ui/unique-leaf-names | not-started | — | — | ADR 0002 |
 | TOK-139 | Lint ui/no-segment-prefix | not-started | — | — |  |
 | TOK-140 | Lint ui/no-case-variants | not-started | — | — |  |
-| TOK-141 | Lint ui/group-matches-name | not-started | — | — |  |
+| TOK-141 | Lint ui/group-matches-name | not-started | — | — | ADR 0002 |
 | TOK-142 | Lint ui/tier-references | not-started | — | — |  |
 | TOK-143 | Lint ui/components-theme-invariant | not-started | — | — |  |
 | TOK-144 | Lint ui/extension-fields | not-started | — | — |  |
 | TOK-145 | Stylelint: no raw values, only var(), in foundation and app CSS | not-started | — | — |  |
 | TOK-146 | Stylelint: no primitives in component CSS | not-started | — | — |  |
 | TOK-147 | Stylelint: component tokens from own block only | not-started | — | — |  |
-| TOK-148 | Stylelint: every var(--ui-...) exists in token-names.ts | not-started | — | — |  |
+| TOK-148 | Stylelint: every var(--ui-...) exists in token-names.ts, except reserved --ui-runtime-* variables | not-started | — | — | ADR 0002 |
 | TOK-149 | Stylelint: deprecated tokens produce a warning | not-started | — | — |  |
-| TOK-150 | Stylelint: each interactive component file has a forced-colors block | not-started | — | — |  |
+| TOK-150 | Stylelint: each interactive component file has a forced-colors block | not-started | — | — | ADR 0002 |
 | TOK-151 | CI: tz build and fail on generated drift | not-started | — | — |  |
 | TOK-152 | CI: fail if a component token file is missing from the resolver | not-started | — | — |  |
 | TOK-153 | CI: fail if a removed token is still referenced in CSS or TypeScript | not-started | — | — |  |
@@ -208,7 +208,7 @@
 | TOK-160 | Gate 5: token-names.ts type-checks and lists every token once | not-started | — | — |  |
 | TOK-161 | Gate 6: app brand override redeclares semantics; component tokens unchanged | not-started | — | — |  |
 | TOK-162 | Gate 7: grammar break fails core/consistent-naming | not-started | — | — |  |
-| TOK-163 | Gate 8: duplicate leaf key fails ui/unique-leaf-names | not-started | — | — |  |
+| TOK-163 | Gate 8: duplicate leaf key outside alternative contexts fails ui/unique-leaf-names | not-started | — | — | ADR 0002 |
 | TOK-164 | Gate 9: segment prefix fails ui/no-segment-prefix | not-started | — | — |  |
 | TOK-165 | Gate 10: component aliasing a primitive fails ui/tier-references | not-started | — | — |  |
 | TOK-166 | Gate 11: component token in a theme file fails ui/components-theme-invariant | not-started | — | — |  |

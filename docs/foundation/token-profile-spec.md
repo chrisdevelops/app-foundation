@@ -42,7 +42,7 @@ These were settled in the foundation planning conversation and are not reopened 
 
 | Tier | Pattern | Example leaf key | CSS variable |
 | --- | --- | --- | --- |
-| [TOK-013] Primitive | `ui-ref-{category}-{scale}-{step}` | `ui-ref-color-blue-600` | `--ui-ref-color-blue-600` |
+| [TOK-013] Primitive | `ui-ref-{category}[-{scale}]-{step}` | `ui-ref-color-blue-600` | `--ui-ref-color-blue-600` |
 | [TOK-014] Semantic | `ui-{category}-{role}[-{variant}]-{leaf}` | `ui-color-bg-accent-hover` | `--ui-color-bg-accent-hover` |
 | [TOK-015] Component | `ui-{block}[__{part}]__{category}-{role}[-{variant}]-{leaf}` | `ui-button__color-bg-primary-default` | `--ui-button__color-bg-primary-default` |
 | [TOK-016] Component part | (same) | `ui-dialog__trigger__color-fg-default` | `--ui-dialog__trigger__color-fg-default` |
@@ -64,7 +64,7 @@ The `__` rule exists for whole-word search. In ripgrep, `_` counts as a word cha
 
 ### Collision rules
 
-1. [TOK-030] **Unique leaf keys.** No two tokens anywhere in a resolver's sources share a leaf key. Groups no longer disambiguate, so this is enforced by lint.
+1. [TOK-030] **Unique leaf keys.** No two tokens anywhere in a resolver's sources share a leaf key, except across the alternative contexts of one modifier (for example, the four theme files) and in an app's `brand` set, which overrides brand primitives. Groups no longer disambiguate, so this is enforced by lint.
 2. [TOK-031] **No segment prefixes.** No token name may equal the leading hyphen-segments of another. `ui-color-bg` alongside `ui-color-bg-accent-default` is an error; `ui-ref-space-4` alongside `ui-ref-space-40` is fine because `4` and `40` are different segments.
 3. [TOK-032] **No case variants.** Names that differ only by case are an error, closing a gap DTCG explicitly allows.
 4. [TOK-033] **Group path matches the name.** A token's group path MUST equal the start of its leaf key after the prefix, with groups joined by hyphens, or by a double underscore for a component's block and part groups. [TOK-034] A token in group `color` MUST start `ui-color-`; a component token MUST live in a group named after its block. This keeps the JSON tree and the flat names from drifting apart.
@@ -190,7 +190,7 @@ apps/<app>/
 | [TOK-062] Dark high contrast | Both of the above | Both of the above | Contrast media query or attribute, dark scheme |
 | [TOK-063] Comfortable density | None | `data-density="comfortable"` on the root | `[data-density="comfortable"]` |
 
-- [TOK-064] **Theme override goes through Electron, not an attribute.** Setting `nativeTheme.themeSource` in the main process changes what `prefers-color-scheme` reports in every renderer, so all windows, including torn-off child windows, native menus and dialogs, switch together. [TOK-065] CSS needs only the media query.
+- [TOK-064] **Theme override goes through Electron, not an attribute.** Setting `nativeTheme.themeSource` in the main process changes what `prefers-color-scheme` reports in every renderer, so all windows, including torn-off child windows, native menus and dialogs, switch together. [TOK-065] App CSS needs only the media query.
 - [TOK-066] **`data-theme` exists for tooling only:** previews, screenshot tests and the design tool, where there is no Electron main process. [TOK-067] It mirrors the media-query blocks.
 - [TOK-068] **Contrast has no Electron equivalent**, so the override is a `data-contrast` attribute (`more` or `standard`) set on each window's root, including child windows.
 - [TOK-069] **Windows high contrast mode is not a token theme.** It turns on `forced-colors`, where the OS replaces colours. [TOK-070] Component CSS MUST handle `@media (forced-colors: active)` with system colour keywords; tokens do not try to imitate it.
@@ -208,7 +208,7 @@ apps/<app>/
 - [TOK-076] `ui-ref-font-family-ui`: the UI font stack, defaulting to the system font (`system-ui` and platform fallbacks).
 - [TOK-077] `ui-ref-font-family-mono`: the monospace stack.
 
-[TOK-078] An app's `brand.tokens.json` overrides only these. [TOK-079] Its resolver lists the foundation's sets, then a `brand` set, then the modifiers:
+[TOK-078] An app's `brand.tokens.json` overrides only these. [TOK-079] Its resolver lists the foundation's `ref` set, then a `brand` set, then the `sys` set, then the modifiers, then the `components` set:
 
 ```json
 "resolutionOrder": [
@@ -226,7 +226,7 @@ apps/<app>/
 
 ### OS accent colour (opt-in)
 
-[TOK-083] When an app opts in, the main process reads `systemPreferences.getAccentColor()` and the renderer sets one runtime variable, `--ui-runtime-os-accent`, on each window's root. [TOK-084] The accent semantic tokens then derive their steps from it with CSS relative colour syntax. This is runtime behaviour outside the token pipeline; its exact derivation is an open item below.
+[TOK-083] When an app opts in, the main process reads `systemPreferences.getAccentColor()` and the renderer sets one runtime variable, `--ui-runtime-os-accent`, on each window's root. [TOK-084] The accent semantic tokens then derive their steps from it with CSS relative colour syntax. This is runtime behaviour outside the token pipeline: the derivation is hand-written foundation CSS, not a token `$value`, and its exact recipe is an open item below.
 
 ### App-specific tokens
 
@@ -280,7 +280,7 @@ export default defineAppConfig({
 
 ### Profile extension
 
-[TOK-100] DTCG asks that extension keys use reverse domain notation and that tools preserve extension data they don't understand. [TOK-101] The profile reserves one key, written below as `<namespace>.ui` until the real namespace is chosen.
+[TOK-100] DTCG asks that extension keys use reverse domain notation and that tools preserve extension data they don't understand. [TOK-101] The profile reserves one key: `io.github.chrisdevelops.ui`.
 
 [TOK-102] The namespace belongs to the foundation and is set once. [TOK-103] Apps use the same key on their own tokens because they use the same fields; an app adds its own key only for metadata fields it invents.
 
@@ -290,7 +290,7 @@ export default defineAppConfig({
   "$value": "{ref.color.ui-ref-color-gray-900}",
   "$description": "Body text on default surfaces.",
   "$extensions": {
-    "<namespace>.ui": {
+    "io.github.chrisdevelops.ui": {
       "usage": "Paragraphs, labels and table cells.",
       "avoid": "Text on accent backgrounds; use ui-color-fg-on-accent-default.",
       "contrastWith": ["ui-color-bg-default", "ui-color-bg-subtle-default"]
@@ -326,14 +326,14 @@ export default defineAppConfig({
 ### tokens.css
 
 - [TOK-115] **Variable names** come from `variableName: (token) => token.id.split(".").at(-1)`, so the CSS name is the leaf key exactly. The plugin documents `variableName` as the hook for renaming variables.
-- [TOK-116] **Selectors** come from `permutations`, one per context in the themes table, each wrapped in `@layer tokens`.
+- [TOK-116] **Selectors** come from `permutations`, one per context in the themes table, plus one `[data-theme]` block per theme context for tooling, each wrapped in `@layer tokens`.
 - [TOK-117] **Source comments.** Each declaration gets a trailing comment with its file and token path, for example `/* tokens/theme/dark.tokens.json#color.ui-color-bg-default */`. `plugin-css` has no option for this, so a small step after the build adds them from Terrazzo's resolved token list.
-- [TOK-118] **Header:** `/* GENERATED by tz build. Edit tokens/**/*.tokens.json, never this file. */`
+- [TOK-118] **Header:** `/* GENERATED by tz build. Edit the source *.tokens.json files, never this file. */`
 
 ### token-names.ts
 
 ```ts
-// GENERATED by tz build. Edit tokens/**/*.tokens.json, never this file.
+// GENERATED by tz build. Edit the source *.tokens.json files, never this file.
 export const uiTokenNames = [
   "ui-color-bg-default",
   "ui-color-fg-default",
@@ -379,10 +379,10 @@ Three layers enforce the profile: Terrazzo lint on token files, Stylelint on CSS
 
 ### Token files: profile rules (custom Terrazzo lint plugin)
 
-- [TOK-138] **`ui/unique-leaf-names`**: no two tokens share a leaf key.
+- [TOK-138] **`ui/unique-leaf-names`**: no two tokens share a leaf key, except as collision rule 1 allows.
 - [TOK-139] **`ui/no-segment-prefix`**: no name equals the leading segments of another.
 - [TOK-140] **`ui/no-case-variants`**: no names that differ only by case.
-- [TOK-141] **`ui/group-matches-name`**: group path joined by hyphens equals the start of the name.
+- [TOK-141] **`ui/group-matches-name`**: group path matches the name, as collision rule 4 defines.
 - [TOK-142] **`ui/tier-references`**: primitives hold literals; semantics alias primitives or semantics; components alias semantics only.
 - [TOK-143] **`ui/components-theme-invariant`**: no component token appears in a theme or density context file.
 - [TOK-144] **`ui/extension-fields`**: `usage` present on semantic and component tokens; `contrastWith` on foreground colours.
@@ -392,9 +392,9 @@ Three layers enforce the profile: Terrazzo lint on token files, Stylelint on CSS
 - [TOK-145] **No raw values** for colour, spacing, radius, font, shadow, duration or easing properties in foundation and app CSS; only `var(--…)`. Candidate plugin: `stylelint-declaration-strict-value`, to verify.
 - [TOK-146] **No primitives** (`--ui-ref-*`) in any component CSS.
 - [TOK-147] **Own block only:** a component file may reference component tokens of its own block, matched by file and block name.
-- [TOK-148] **Known tokens only:** every `var(--ui-…)` must exist in `token-names.ts`.
+- [TOK-148] **Known tokens only:** every `var(--ui-…)` must exist in `token-names.ts`, except a closed list of reserved `--ui-runtime-*` variables.
 - [TOK-149] **Deprecated tokens** produce a warning.
-- [TOK-150] **Forced colours:** each interactive component file includes a `@media (forced-colors: active)` block.
+- [TOK-150] **Forced colours:** each interactive component file includes a `@media (forced-colors: active)` block. This is the minimum that lint enforces; the forced-colours rule under Themes, contrast and density applies to all component CSS.
 
 ### CI checks
 
@@ -425,7 +425,7 @@ The token pipeline is one black box: token files and a resolver go in; `tokens.c
 | # | Input | Expected error rule |
 | --- | --- | --- |
 | [TOK-162] 7 | Name breaking the grammar | `core/consistent-naming` |
-| [TOK-163] 8 | Same leaf key in two files | `ui/unique-leaf-names` |
+| [TOK-163] 8 | Same leaf key in two files that are not alternative contexts | `ui/unique-leaf-names` |
 | [TOK-164] 9 | `ui-color-bg` beside `ui-color-bg-subtle-default` | `ui/no-segment-prefix` |
 | [TOK-165] 10 | Component token aliasing a primitive | `ui/tier-references` |
 | [TOK-166] 11 | Component token inside `theme/dark.tokens.json` | `ui/components-theme-invariant` |
@@ -459,7 +459,7 @@ One item needs your decision; the rest are facts to confirm while building the p
 
 ### Decisions
 
-- [ ] **Extension namespace:** the reverse-domain key replacing `<namespace>.ui`, chosen once for the foundation (for example, a domain you own).
+- [x] **Extension namespace:** settled as `io.github.chrisdevelops.ui` (ADR 0003).
 - [x] **App prefix scheme:** settled. Each app sets `prefix` in `foundation.config.ts`; see App configuration.
 
 ### To verify during build
