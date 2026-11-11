@@ -32,7 +32,7 @@ This summarises every decision from the foundation planning conversation. Once y
 - State, IPC and form conventions
 - Testing infrastructure: component gate tests, workbench, end-to-end harness
 - Reference app and `create-app` script
-- Agent documentation
+- [PLT-001] Agent documentation
 
 **Non-goals for the first version (parked until an app needs them):**
 
@@ -51,109 +51,109 @@ This summarises every decision from the foundation planning conversation. Once y
 
 | Decision | Rationale |
 | --- | --- |
-| React | Highest AI familiarity; richest headless and desktop-grade libraries |
-| pnpm monorepo; foundation as a workspace package | Apps keep receiving updates; agents can read foundation source in the same repo |
-| Turborepo task runner | Low configuration, caching, affected builds; our own scripts cover what Nx would add |
-| Electron Forge with its Vite plugin, version pinned | Official tooling; one bundler shared with Vitest, Paraglide and the workbench |
-| ESLint and Prettier | Needed for the TanStack Query plugin and our custom rules |
-| Packaging per app; App Store-unfriendly features optional | Lets some apps ship to the Mac App Store without fighting the foundation |
-| Security baseline enforced by gate tests | Context isolation, sandbox, no Node in renderers, strict CSP, validated IPC, fuses locked in packaged builds |
+| [PLT-002] React | Highest AI familiarity; richest headless and desktop-grade libraries |
+| [PLT-003] pnpm monorepo; foundation as a workspace package | Apps keep receiving updates; agents can read foundation source in the same repo |
+| [PLT-004] Turborepo task runner | Low configuration, caching, affected builds; our own scripts cover what Nx would add |
+| [PLT-005] Electron Forge with its Vite plugin, version pinned | Official tooling; one bundler shared with Vitest, Paraglide and the workbench |
+| [PLT-006] ESLint and Prettier | Needed for the TanStack Query plugin and our custom rules |
+| [PLT-007] Packaging per app; App Store-unfriendly features optional | Lets some apps ship to the Mac App Store without fighting the foundation |
+| [PLT-008] Security baseline enforced by gate tests | Context isolation, sandbox, no Node in renderers, strict CSP, validated IPC, fuses locked in packaged builds |
 
 ### Components and styling
 
 | Decision | Rationale |
 | --- | --- |
-| React Aria Components, wrapped in foundation components | Strongest accessibility and widest coverage (dates, table, tree, drag and drop); wrappers hide its API from apps |
-| High accessibility bar | Raising it later would mean replacing the library under every app |
-| Plain CSS with `@layer` order `reset, tokens, foundation, app, overrides` | Most vanilla option; modern CSS works because Electron targets one Chromium |
-| Prefix `ui-`; flat React names (`DialogTrigger`); parts as `.ui-dialog__trigger` | Whole-word search on a parent never matches its parts |
-| Variants and state as data attributes; one identity class per element | Matches React Aria's own state attributes; cleaner searches |
-| CSS animation by default, JavaScript animation allowed per app | Lean foundation; apps needing drag physics aren't blocked |
-| React Aria Table only, extended later with our own features | Avoid combining table systems; built-in virtualisation, async loading, sorting, resizing |
-| react-resizable-panels for split panes, wrapped | Accessible window-splitter pattern with persistence |
-| Tear-off tabs as child windows sharing one React tree | Shared state and theme for free; the approach VS Code uses |
-| Docking staged: tabs, split panes and move-to-window now; full docking later | Ships the must-have sooner; defers the largest build |
-| Menubar built in React Aria style (unparked by the custom title bar) | React Aria has no Menubar component |
-| Phosphor icons through a curated `Icon{Name}` module | Filled weights show state through shape, not only colour; one greppable name per icon |
-| Icons decorative by default; icon-only buttons require a label prop | Unlabelled icon buttons fail to compile |
+| [CMP-001] React Aria Components, wrapped in foundation components | Strongest accessibility and widest coverage (dates, table, tree, drag and drop); wrappers hide its API from apps |
+| [CMP-002] High accessibility bar | Raising it later would mean replacing the library under every app |
+| [CMP-003] Plain CSS with `@layer` order `reset, tokens, foundation, app, overrides` | Most vanilla option; modern CSS works because Electron targets one Chromium |
+| [CMP-004] Prefix `ui-`; flat React names (`DialogTrigger`); parts as `.ui-dialog__trigger` | Whole-word search on a parent never matches its parts |
+| [CMP-005] Variants and state as data attributes; one identity class per element | Matches React Aria's own state attributes; cleaner searches |
+| [CMP-006] CSS animation by default, JavaScript animation allowed per app | Lean foundation; apps needing drag physics aren't blocked |
+| [CMP-007] React Aria Table only, extended later with our own features | Avoid combining table systems; built-in virtualisation, async loading, sorting, resizing |
+| [CMP-008] react-resizable-panels for split panes, wrapped | Accessible window-splitter pattern with persistence |
+| [CMP-009] Tear-off tabs as child windows sharing one React tree | Shared state and theme for free; the approach VS Code uses |
+| [CMP-010] Docking staged: tabs, split panes and move-to-window now; full docking later | Ships the must-have sooner; defers the largest build |
+| [CMP-011] Menubar built in React Aria style (unparked by the custom title bar) | React Aria has no Menubar component |
+| [CMP-012] Phosphor icons through a curated `Icon{Name}` module | Filled weights show state through shape, not only colour; one greppable name per icon |
+| [CMP-013] Icons decorative by default; icon-only buttons require a label prop | Unlabelled icon buttons fail to compile |
 
 ### Tokens and theming
 
 | Decision | Rationale |
 | --- | --- |
-| DTCG 2025.10 with Terrazzo, plus our own profile | Standard format with a greppable naming grammar layered on top; see the Design Token Profile Spec |
-| Three tiers: primitive, semantic, component | Themes and apps change only the semantic layer |
-| Repo token files are the master copy; the in-house design tool reads and writes them | One source of truth |
-| Light, dark and high contrast themes; compact (default) and comfortable density | Accessibility and desktop density needs |
-| Follow the OS for dark mode and contrast; theme override through `nativeTheme.themeSource` | All windows and native UI switch together |
-| OS accent colour opt-in per app; system font by default, bundled stack per app | Brand by default, native feel available |
-| Apps declare `prefix` and brand file in `foundation.config.ts`; factories build their tool configs | Prefix rules can't drift between tools |
-| Generated CSS, TypeScript names and `TOKENS.md` committed, with a CI drift check | Greppable without a build; nobody edits generated files |
+| [TOK-001] DTCG 2025.10 with Terrazzo, plus our own profile | Standard format with a greppable naming grammar layered on top; see the Design Token Profile Spec |
+| [TOK-002] Three tiers: primitive, semantic, component | Themes and apps change only the semantic layer |
+| [TOK-003] Repo token files are the master copy; the in-house design tool reads and writes them | One source of truth |
+| [TOK-004] Light, dark and high contrast themes; compact (default) and comfortable density | Accessibility and desktop density needs |
+| [TOK-005] Follow the OS for dark mode and contrast; theme override through `nativeTheme.themeSource` | All windows and native UI switch together |
+| [TOK-006] OS accent colour opt-in per app; system font by default, bundled stack per app | Brand by default, native feel available |
+| [TOK-007] Apps declare `prefix` and brand file in `foundation.config.ts`; factories build their tool configs | Prefix rules can't drift between tools |
+| [TOK-008] Generated CSS, TypeScript names and `TOKENS.md` committed, with a CI drift check | Greppable without a build; nobody edits generated files |
 
 ### Commands, menus and windows
 
 | Decision | Rationale |
 | --- | --- |
-| Shared command definitions; handlers where the work happens | Main builds the native menu from the same definitions the palette uses |
-| IDs as prefixed dotted literals (`ap.document.save`) with a generated type | One search finds definition, handlers and call sites |
-| Availability as TypeScript functions | Type-checked, greppable, no expression language |
-| Electron accelerator syntax; app-wide and panel scopes; system-wide opt-in per app | Native menu takes it directly; system-wide shortcuts steal keys from other apps |
-| User overrides designed in; rebinding UI later; build-time conflict check | No restructuring when rebinding arrives |
-| Typed command arguments; a picker or hidden from the palette | Palette never runs a command without its input |
-| macOS native menu; custom title bar with native window buttons and in-app menu bar elsewhere | Consistent, themeable; keeps Windows 11 snap layouts |
-| Alt and access keys supported | Standard Windows behaviour; accessibility bar |
-| Context menus rendered with React Aria from the registry | Themeable, accessible, identical in child windows |
-| `*.commands.ts` beside features; explicit registration list; one menu layout file per app with Electron roles | Commands sit beside their code; macOS Edit menu needs roles for text editing |
+| [CMD-001] Shared command definitions; handlers where the work happens | Main builds the native menu from the same definitions the palette uses |
+| [CMD-002] IDs as prefixed dotted literals (`ap.document.save`) with a generated type | One search finds definition, handlers and call sites |
+| [CMD-003] Availability as TypeScript functions | Type-checked, greppable, no expression language |
+| [CMD-004] Electron accelerator syntax; app-wide and panel scopes; system-wide opt-in per app | Native menu takes it directly; system-wide shortcuts steal keys from other apps |
+| [CMD-005] User overrides designed in; rebinding UI later; build-time conflict check | No restructuring when rebinding arrives |
+| [CMD-006] Typed command arguments; a picker or hidden from the palette | Palette never runs a command without its input |
+| [CMD-007] macOS native menu; custom title bar with native window buttons and in-app menu bar elsewhere | Consistent, themeable; keeps Windows 11 snap layouts |
+| [CMD-008] Alt and access keys supported | Standard Windows behaviour; accessibility bar |
+| [CMD-009] Context menus rendered with React Aria from the registry | Themeable, accessible, identical in child windows |
+| [CMD-010] `*.commands.ts` beside features; explicit registration list; one menu layout file per app with Electron roles | Commands sit beside their code; macOS Edit menu needs roles for text editing |
 
 ### State, data and content
 
 | Decision | Rationale |
 | --- | --- |
-| Four homes chosen by owner, lifetime and sharing | Places any state, including state no one anticipated |
-| Component state in React or React Aria | The library already manages it |
-| One Zustand store per system (`use<Name>Store`) | Matches the black-box rule; greppable; shared by child windows |
-| TanStack Query for main-owned and persisted data (`<name>Keys`) | Caching, loading and errors without hand-written plumbing |
-| One typed IPC contract, Zod-validated in main | The only bridge between processes; main never trusts renderer input |
-| Derived values computed, not stored; escape hatch via a decision note | No drifting copies; visible deviations |
-| Component props follow React Aria names (`value`, `defaultValue`, `onChange`) | One naming scheme end to end |
-| Message catalogue from day one, English only; Paraglide | Typed, greppable messages usable in the main process for native menus |
-| Locale from OS preferred languages with a user override | One locale for React Aria, Paraglide and native menus |
-| Foundation messages under `ui_`; keys `{prefix}_{area}_{name}` | Matches the rest of the naming system |
-| Logical CSS properties enforced by Stylelint | Right-to-left layouts work without per-language CSS |
-| Forms: React Aria `Form` by default; React Hook Form with Zod for complex forms | No dependency for simple forms; types come from the schema |
-| One Zod schema per payload, used in renderer and main | Same rules on both sides of the boundary |
-| Validation on commit, never while typing | Settings commit on leaving an input; full forms commit on submit; one handler |
-| Preferences apply immediately; dialogs use explicit submit | Desktop convention |
+| [STA-001] Four homes chosen by owner, lifetime and sharing | Places any state, including state no one anticipated |
+| [STA-002] Component state in React or React Aria | The library already manages it |
+| [STA-003] One Zustand store per system (`use<Name>Store`) | Matches the black-box rule; greppable; shared by child windows |
+| [STA-004] TanStack Query for main-owned and persisted data (`<name>Keys`) | Caching, loading and errors without hand-written plumbing |
+| [STA-005] One typed IPC contract, Zod-validated in main | The only bridge between processes; main never trusts renderer input |
+| [STA-006] Derived values computed, not stored; escape hatch via a decision note | No drifting copies; visible deviations |
+| [STA-007] Component props follow React Aria names (`value`, `defaultValue`, `onChange`) | One naming scheme end to end |
+| [STA-008] Message catalogue from day one, English only; Paraglide | Typed, greppable messages usable in the main process for native menus |
+| [STA-009] Locale from OS preferred languages with a user override | One locale for React Aria, Paraglide and native menus |
+| [STA-010] Foundation messages under `ui_`; keys `{prefix}_{area}_{name}` | Matches the rest of the naming system |
+| [STA-011] Logical CSS properties enforced by Stylelint | Right-to-left layouts work without per-language CSS |
+| [STA-012] Forms: React Aria `Form` by default; React Hook Form with Zod for complex forms | No dependency for simple forms; types come from the schema |
+| [STA-013] One Zod schema per payload, used in renderer and main | Same rules on both sides of the boundary |
+| [STA-014] Validation on commit, never while typing | Settings commit on leaving an input; full forms commit on submit; one handler |
+| [STA-015] Preferences apply immediately; dialogs use explicit submit | Desktop convention |
 
 ### Testing and quality
 
 | Decision | Rationale |
 | --- | --- |
-| Integration and end-to-end tests over unit tests | Your preference; pure-logic edge cases tested at their input/output boundary |
-| Component tests in real Chromium via Vitest Browser Mode | Same engine as Electron; real focus, keyboard and layout |
-| Component gate tests: roles and names, keyboard, naming conventions, axe scan, screenshots per theme and density, failure modes | The component contract, tested as a black box |
-| Visual tests on one CI platform with a fixed font | System fonts differ per OS |
-| One example file per component, used by the workbench, visual tests and agents | Single source; your design tool can import them later |
-| Simple workbench now; in-house design tool later; no Storybook | Avoids another system with its own conventions |
-| Playwright for end-to-end, connecting over CDP | Same API as component tests; avoids launch-flag fragility; WebdriverIO as fallback |
-| Test-only main-process bridge, absent from packaged builds | Stub dialogs, set theme, run commands, read menus; no backdoor in production |
-| CDP port on localhost in development builds for AI agents | Agents can inspect and drive the running app |
-| Small cross-process smoke suite per app on Windows, macOS and Linux | Launch, menus, palette, tear-off, theme, IPC; fake servers for network apps |
-| Reference app as end-to-end target and template; `create-app` script | Proves integration in foundation CI; new apps start from a clean shell |
+| [TST-001] Integration and end-to-end tests over unit tests | Your preference; pure-logic edge cases tested at their input/output boundary |
+| [TST-002] Component tests in real Chromium via Vitest Browser Mode | Same engine as Electron; real focus, keyboard and layout |
+| [TST-003] Component gate tests: roles and names, keyboard, naming conventions, axe scan, screenshots per theme and density, failure modes | The component contract, tested as a black box |
+| [TST-004] Visual tests on one CI platform with a fixed font | System fonts differ per OS |
+| [TST-005] One example file per component, used by the workbench, visual tests and agents | Single source; your design tool can import them later |
+| [TST-006] Simple workbench now; in-house design tool later; no Storybook | Avoids another system with its own conventions |
+| [TST-007] Playwright for end-to-end, connecting over CDP | Same API as component tests; avoids launch-flag fragility; WebdriverIO as fallback |
+| [TST-008] Test-only main-process bridge, absent from packaged builds | Stub dialogs, set theme, run commands, read menus; no backdoor in production |
+| [TST-009] CDP port on localhost in development builds for AI agents | Agents can inspect and drive the running app |
+| [TST-010] Small cross-process smoke suite per app on Windows, macOS and Linux | Launch, menus, palette, tear-off, theme, IPC; fake servers for network apps |
+| [TST-011] Reference app as end-to-end target and template; `create-app` script | Proves integration in foundation CI; new apps start from a clean shell |
 
 ## Cross-cutting requirements
 
 These apply to every part of the foundation and every app built on it.
 
-1. **One name, one definition site.** Every component, part, token, command, store, query key, icon and message has one exact name that appears verbatim wherever it is defined and used.
-2. **No barrel files or `export *`.** Re-export by name or import from the source module.
-3. **Black-box systems.** Each system has defined inputs and outputs; systems never import another system's internals; gate tests are written before implementation.
-4. **Failure modes are part of every contract** and are tested like any other output.
-5. **Accessibility at the high bar:** keyboard access, screen-reader support on macOS and Windows, forced-colours support, right-to-left readiness.
-6. **Generated files are committed and never hand-edited;** CI fails on drift.
-7. **Type errors are the first line of feedback** for agents: token names, command IDs, message keys, icon names and IPC payloads are all typed.
-8. **Main never trusts the renderer:** every IPC payload is validated in main.
-9. **Agent documentation ships with the foundation:** conventions file, `TOKENS.md`, example files and the CDP setup for agents.
+1. [XC-001] **One name, one definition site.** Every component, part, token, command, store, query key, icon and message has one exact name that appears verbatim wherever it is defined and used.
+2. [XC-002] **No barrel files or `export *`.** Re-export by name or import from the source module.
+3. [XC-003] **Black-box systems.** Each system has defined inputs and outputs; systems never import another system's internals; gate tests are written before implementation.
+4. [XC-004] **Failure modes are part of every contract** and are tested like any other output.
+5. [XC-005] **Accessibility at the high bar:** keyboard access, screen-reader support on macOS and Windows, forced-colours support, right-to-left readiness.
+6. [XC-006] **Generated files are committed and never hand-edited;** CI fails on drift.
+7. [XC-007] **Type errors are the first line of feedback** for agents: token names, command IDs, message keys, icon names and IPC payloads are all typed.
+8. [XC-008] **Main never trusts the renderer:** every IPC payload is validated in main.
+9. [XC-009] **Agent documentation ships with the foundation:** conventions file, `TOKENS.md`, example files and the CDP setup for agents.
 
 ## Verified facts
 
@@ -200,13 +200,13 @@ Checked against official docs or primary sources during planning (November 2026)
 
 ## Constraints
 
-- **TypeScript and JavaScript** for all tooling and scripts; Python only where no JavaScript option exists.
-- **pnpm** as the package manager; **`gh`** for GitHub work; no AI co-author trailers on commits.
-- **Electron's single Chromium target:** modern CSS is allowed, but there is no browser fallback to rely on.
-- **DTCG dimensions accept only `px` and `rem`**, so percentages and `fr` stay in layout CSS.
-- **Browsers only open windows from a user gesture**, which affects restoring torn-off windows automatically.
-- **macOS requires Electron's Edit-menu roles** for copy, paste and undo in text fields.
-- **App Store builds run sandboxed:** no built-in auto-update, limited file access.
+- [PLT-009] **TypeScript and JavaScript** for all tooling and scripts; Python only where no JavaScript option exists.
+- [PLT-010] **pnpm** as the package manager; **`gh`** for GitHub work; no AI co-author trailers on commits.
+- [CMP-014] **Electron's single Chromium target:** modern CSS is allowed, but there is no browser fallback to rely on.
+- [TOK-009] **DTCG dimensions accept only `px` and `rem`**, so percentages and `fr` stay in layout CSS.
+- [CMD-011] **Browsers only open windows from a user gesture**, which affects restoring torn-off windows automatically.
+- [CMD-012] **macOS requires Electron's Edit-menu roles** for copy, paste and undo in text fields.
+- [PLT-011] **App Store builds run sandboxed:** no built-in auto-update, limited file access.
 
 ## Risks and mitigations
 
@@ -240,24 +240,24 @@ Checked against official docs or primary sources during planning (November 2026)
 
 **Ordering dependencies between pieces of work:**
 
-- Tokens and the config factories come before any styled component.
-- Test infrastructure and gate tests come before each system's implementation.
-- The IPC contract comes before commands, persisted settings and forms that talk to main.
-- The command registry comes before menus, the palette, context menus and the title bar.
-- The reference app comes before the smoke suite and the `create-app` script.
+- [TOK-010] Tokens and the config factories come before any styled component.
+- [TST-012] Test infrastructure and gate tests come before each system's implementation.
+- [STA-016] The IPC contract comes before commands, persisted settings and forms that talk to main.
+- [CMD-013] The command registry comes before menus, the palette, context menus and the title bar.
+- [TST-013] The reference app comes before the smoke suite and the `create-app` script.
 
 ## Success criteria
 
 The first version of the foundation is done when all of these hold:
 
-- [ ] `create-app` produces a new app that launches with the custom title bar, menus, command palette, themes and density switching, with no manual wiring.
-- [ ] The reference app's smoke suite passes on Windows, macOS and Linux in CI.
-- [ ] Every foundation component passes its gate tests, including zero axe violations and screenshots in all four themes and both densities.
-- [ ] For any component, part, token, command, store, query key, icon or message, a single whole-word search returns its one definition and its usages, with no false matches.
-- [ ] A misspelled token, command ID, message key, icon name or IPC payload fails type-checking or lint.
-- [ ] Editing a generated file, or a component token that varies by theme, fails CI.
-- [ ] The security baseline gate tests pass in a packaged build.
-- [ ] An AI agent can attach to a running development build over CDP using the documented setup.
+- [ ] [TST-014] `create-app` produces a new app that launches with the custom title bar, menus, command palette, themes and density switching, with no manual wiring.
+- [ ] [TST-015] The reference app's smoke suite passes on Windows, macOS and Linux in CI.
+- [ ] [TST-016] Every foundation component passes its gate tests, including zero axe violations and screenshots in all four themes and both densities.
+- [ ] [XC-010] For any component, part, token, command, store, query key, icon or message, a single whole-word search returns its one definition and its usages, with no false matches.
+- [ ] [XC-011] A misspelled token, command ID, message key, icon name or IPC payload fails type-checking or lint.
+- [ ] [XC-012] Editing a generated file, or a component token that varies by theme, fails CI.
+- [ ] [PLT-012] The security baseline gate tests pass in a packaged build.
+- [ ] [TST-017] An AI agent can attach to a running development build over CDP using the documented setup.
 
 ## Ordered steps
 
