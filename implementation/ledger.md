@@ -27,11 +27,11 @@
 | PLT-005 | Electron Forge with its Vite plugin, version pinned | done | tools/reference-app/reference-app-manifest, reference-app-build | #15 |  |
 | PLT-006 | ESLint and Prettier are the linter and formatter | not-started | — | #12 | base config in #12; plugin rules later |
 | PLT-007 | Packaging is per app; App Store-unfriendly features are optional | not-started | — | #15, #17 | zip maker and ADR 0010 step in #15; signing, dmg and pkg deferred; native add-ons in #29; packaged in CI on three OS in #17 |
-| PLT-008 | Electron security baseline is enforced by gate tests | not-started | — | #15 | ADR 0004; app:// protocol, fuses and symlink refusal in #15; isolation, sandbox, CSP and CDP guard in #18 |
+| PLT-008 | Electron security baseline is enforced by gate tests | not-started | e2e/smoke/security-baseline.smoke, packages/foundation/src/main/app-protocol-csp.gate, tools/reference-app/reference-app-build.gate | #15, #18 | ADR 0004, ADR 0014; app:// protocol, fuses and symlink refusal in #15; isolation, sandbox, CSP, window.open policy and CDP guard done in #18; validated IPC open (#23) |
 | PLT-009 | TypeScript and JavaScript for tooling; Python only with no JavaScript option | done | tools/repo/workspace-config | #12 |  |
 | PLT-010 | pnpm for packages; gh for GitHub; no AI co-author trailers | done | tools/repo/workspace-config, tools/boundary-check | #12, #14 | pnpm in #12; co-author trailer rule in #14 |
 | PLT-011 | App Store builds run sandboxed: no built-in auto-update, limited file access | not-started | — | — |  |
-| PLT-012 | Success: security baseline gate tests pass in a packaged build | not-started | — | — |  |
+| PLT-012 | Success: security baseline gate tests pass in a packaged build | not-started | tools/reference-app/reference-app-build.gate, e2e/smoke/security-baseline.smoke | #18 | passes in a packaged build for everything except validated IPC (#23); re-check after #23 |
 | PLT-013 | Native Node add-ons packaged per app | not-started | — | — | ADR 0004, ADR 0005 |
 | CMP-001 | React Aria Components wrapped in foundation components | not-started | — | — |  |
 | CMP-002 | High accessibility bar for components | not-started | — | — |  |
@@ -263,8 +263,8 @@
 | TST-006 | Simple workbench now; in-house design tool later; no Storybook | not-started | — | — |  |
 | TST-007 | Playwright for end-to-end, connecting over CDP | done | e2e/harness/smoke-app-harness.gate | #16 |  |
 | TST-008 | Test-only main-process bridge, absent from packaged builds | not-started | — | — |  |
-| TST-009 | CDP port in development builds; packaged builds only with an environment variable | not-started | — | #16 | ADR 0004; dev build part in #16; packaged guard in #18 |
-| TST-010 | Small cross-process smoke suite per app on Windows, macOS and Linux | not-started | — | #16, #17 | harness and smoke suite on macOS and Linux in #16; packaged smoke in CI in #17; Windows deferred (ADR 0011, #39); CDP variable in #18 |
+| TST-009 | CDP port in development builds; packaged builds only with an environment variable | stubbed | tools/reference-app/reference-app-build.gate, tools/repo/packaged-cdp-variable.gate | #16, #18 | ADR 0004, ADR 0014; dev build part in #16; packaged guard `FOUNDATION_ALLOW_PACKAGED_CDP` in #18; `--remote-debugging-pipe` DEFERRED (#45) |
+| TST-010 | Small cross-process smoke suite per app on Windows, macOS and Linux | not-started | — | #16, #17 | harness and smoke suite on macOS and Linux in #16; packaged smoke in CI in #17; Windows deferred (ADR 0011, #39); CDP variable on the packaged smoke step done in #18 |
 | TST-011 | Reference app is end-to-end target and template; create-app script | not-started | — | #15 | reference app in #15; create-app in phase 5 |
 | TST-012 | Test infrastructure and gate tests come before each system's implementation | not-started | — | — |  |
 | TST-013 | Reference app comes before the smoke suite and create-app | done | tools/reference-app/reference-app-build | #15 |  |

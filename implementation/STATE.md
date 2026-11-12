@@ -10,16 +10,15 @@
 
 | Issue | Title | Stage | Attempt | Next action |
 | --- | --- | --- | --- | --- |
-| #18 | Security baseline: gate tests for isolation, CSP and the packaged CDP guard | review | 2 | Reviewer approved 70f9178 on condition of CI; verifier passed (attempt 1). Merge PR #44 when all seven checks on run 43298986676 pass. |
-| #46 | Background test runs: no window shown, no focus taken (TST-018) | planned | — | Next after #18 (ADR 0013). |
+| #46 | Background test runs: no window shown, no focus taken (TST-018) | tests | 1 | Test author: gate tests from ADR 0013 and the #46 criteria. Branch `task/46-background-test-runs`. |
 
 ## Last action
 
-#18 attempt 2: test author added gates for child-window `window.open` and the address and inspector refusals (0e09a70); developer named #45 in the pipe deferral (70f9178); reviewer approved. Spike #43 done: background mode works on macOS. Human accepted ADR 0013 (background test runs, new TST-018); task #46 created; #45 opened for `--remote-debugging-pipe` (phase 2).
+#18 merged (b5e6b27, PR #44): reviewer approve, verifier pass, seven CI checks pass (macOS `check` rerun after no runner was acquired). Ledger updated (PLT-008, PLT-012, TST-009, TST-010); ADR 0014 (minor) records the stricter guard rules. #46 picked.
 
 ## Next action
 
-Merge #18 after CI; update ledger and STATE; write a minor ADR for #18 readings 12 and 13. Then start #46 (test author).
+Delegate #46 to the test author.
 
 ## Open escalations
 
@@ -33,7 +32,7 @@ None.
 
 ## Notes for the next orchestrator
 
-- Order: #18, #46, #19 … #24, #30, #25 … #29. Phase 1 is strictly sequential.
+- Order: #46, #19 … #24, #30, #25 … #29. Phase 1 is strictly sequential.
 - Merge procedure (ADR 0009 item 4): reviewer `approve`; `gh pr checks` shows `boundary-check`, three `check (<os>)` and three `packaged-smoke (<os>)` checks `pass` (seven in total); explicit review of any diff to `.github/workflows/` or `tools/boundary-check/`. No branch protection (ADR 0009 item 5, human decision). A job cancelled because no runner was acquired, or a known Windows flake (#39 EBUSY), is rerun with `gh run rerun <id> --failed`; it is not a code failure. The human pre-approved `gh pr merge` with a local permission rule.
 - Windows: the human set a limit (ADR 0011). The smoke harness and smoke tests skip on Windows; no more phase 1 time on Windows harness work (#39); Windows keeps every other check. If a Windows-only failure needs real work, ask the human.
 - Task branches are never updated by merging `main`; force-push is blocked by the permission system. Rebuild on a new branch with cherry-picks and amend trailers before the first push (ADR 0009 item 2; done in #14 and #17).
