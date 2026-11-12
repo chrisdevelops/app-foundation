@@ -563,7 +563,6 @@ function buildAppEnv(extra: Readonly<Record<string, string>>): NodeJS.ProcessEnv
 
 /** Chromium switches of every launch: the DevTools port and the fresh user data folder. */
 function devToolsSwitches(port: number, userDataDir: string): string[] {
-  // DEFERRED: TST-009 (packaged builds refuse --remote-debugging-port unless a test build enables it; #18)
   const switches = [`--remote-debugging-port=${port}`, `--user-data-dir=${userDataDir}`];
   // macOS: keep Chromium away from the login keychain, which can prompt.
   if (process.platform === 'darwin') switches.push('--use-mock-keychain');
