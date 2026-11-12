@@ -1,6 +1,6 @@
 # ADR 0011: Windows smoke-harness deferral
 
-- **Status:** accepted (applies only if the trigger below occurs)
+- **Status:** accepted (trigger occurred)
 - **Weight:** major
 - **Date:** 2026-11-12
 - **Raised by:** orchestrator, #16
@@ -35,4 +35,4 @@ If the trigger does not occur, this ADR has no effect.
 
 ## Follow-up
 
-- [ ] Record whether the trigger occurred
+- [x] Trigger occurred: run 43205077115 (ceaaa5f) failed on Windows only in `TST-007: each launch uses a fresh temporary user data folder` (1 of 22 e2e gates) and its clean-clone knock-ons. Follow-up issue: 39
