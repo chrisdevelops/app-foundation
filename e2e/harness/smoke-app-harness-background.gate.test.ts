@@ -11,9 +11,13 @@
 // - In background mode the harness enables CDP focus emulation, so
 //   `document.hasFocus()` is true in every window, also one opened after the
 //   connection.
-// - In background mode the fixture's windows are never shown and never
-//   focused, pages paint, `Page.captureScreenshot` returns a real image, and
-//   CDP key input reaches a focused input.
+// - In background mode no fixture window is ever focused on any platform; on
+//   macOS none is ever shown, on Linux and Windows each is shown without focus
+//   (ADR 0013 amendment 1). Pages paint, `Page.captureScreenshot` returns a
+//   real image, and CDP key input reaches a focused input. Every CDP call of
+//   these probes has its own time limit, so a call that never answers fails
+//   the test in seconds with the step it waited for (PR #47 CI: a screenshot of
+//   a never-shown window on Linux hung until the 300 s test timeout).
 // - macOS: the launch leaves the frontmost app unchanged (the front app is
 //   never one of the fixture's processes), shows no window on screen and no
 //   Dock icon (spike #43 method, tools/test-support/macos-window-probe.ts).
@@ -29,10 +33,12 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { listProcessesUsing, removeAppFolderAfterExit } from '../../tools/test-support/app-process-cleanup';
 import {
   animationFramesPerSecondExpression,
+  focusProbeWatchMs,
   listScreenshotProbeProblems,
   minimumAnimationFramesPerSecond,
   paintScreenshotOverlayExpression,
   removeScreenshotOverlayExpression,
+  withBackgroundProbeTimeout,
 } from '../../tools/test-support/background-page-probes';
 import {
   foregroundRunSkipReason,
@@ -74,6 +80,8 @@ const slow = { timeout: 300_000 };
 const fixtureStartupTimeoutMs = 60_000;
 /** Time after the window appears that the frontmost app is still sampled (spike #43: 1.5 s). */
 const frontmostSettleMs = 1_500;
+/** ADR 0013 amendment 1: Linux and Windows show background windows without focus; macOS never shows them. */
+const backgroundWindowsAreShown = process.platform !== 'darwin';
 
 // DEFERRED: TST-010 (Windows smoke harness; ADR 0011, #39): every test in this file skips on Windows.
 beforeEach((context) => {
@@ -171,7 +179,7 @@ afterAll(async () => {
 describe('smoke harness: background mode by default', () => {
   // TST-018; issue #46 acceptance criteria 2 and 4; ADR 0013 rules 1 and 2
   it(
-    `TST-018: by default the harness launches with ${testBackgroundVariableName}=${testBackgroundEnabledValue}, and no fixture window, also one opened later, is ever shown or focused`,
+    `TST-018: by default the harness launches with ${testBackgroundVariableName}=${testBackgroundEnabledValue}, and no fixture window, also one opened later, is ever focused; ${backgroundWindowsAreShown ? 'each is shown without focus (Linux, Windows)' : 'none is ever shown (macOS)'}`,
     slow,
     async () => {
       const build = requireFixture({ mode: 'window', title: 'Smoke fixture background' });
@@ -180,13 +188,27 @@ describe('smoke harness: background mode by default', () => {
         const first = await waitForTitledWindow(app, 'Smoke fixture background');
         await first.evaluate('location.hash = "open-second-window"');
         await waitForTitledWindow(app, smokeFixtureSecondWindowTitle);
+        await waitForFixtureState(build, (current) => current.windows.length >= 2);
+        // A shown window takes focus within this time when it takes it at all (spike #43: 1.5 s).
+        await new Promise((resolve) => setTimeout(resolve, focusProbeWatchMs));
         const state = await waitForFixtureState(build, (current) => current.windows.length >= 2);
         expectBackgroundLaunch(state);
         expect(state.windows, 'the fixture must report both windows').toHaveLength(2);
         expect(
-          state.windows.filter((window) => window.everShown || window.everFocused || window.visible || window.focused),
-          'in background mode no window may ever be shown or focused',
+          state.windows.filter((window) => window.everFocused || window.focused),
+          `in background mode no window may ever be focused, on any platform (fixture state ${JSON.stringify(state)})`,
         ).toEqual([]);
+        if (backgroundWindowsAreShown) {
+          expect(
+            state.windows.filter((window) => !window.everShown || !window.visible),
+            `on ${process.platform} every background window must be shown without focus (ADR 0013 amendment 1; fixture state ${JSON.stringify(state)})`,
+          ).toEqual([]);
+        } else {
+          expect(
+            state.windows.filter((window) => window.everShown || window.visible),
+            `on macOS no background window may ever be shown (fixture state ${JSON.stringify(state)})`,
+          ).toEqual([]);
+        }
       } finally {
         await app.teardown();
       }
@@ -236,10 +258,22 @@ describe('smoke harness: background mode by default', () => {
       try {
         const first = await waitForTitledWindow(app, 'Smoke fixture focus');
         expectBackgroundLaunch(await waitForFixtureState(build, (state) => state.windows.length >= 1));
-        expect(await first.evaluate('document.hasFocus()'), 'the first window').toBe(true);
+        expect(
+          await withBackgroundProbeTimeout(
+            'document.hasFocus() in the first window',
+            first.evaluate('document.hasFocus()'),
+          ),
+          'the first window',
+        ).toBe(true);
         const second = await app.waitForNewWindow(() => first.evaluate('location.hash = "open-second-window"'), 30_000);
         await expect.poll(() => second.title(), { timeout: 30_000 }).toBe(smokeFixtureSecondWindowTitle);
-        expect(await second.evaluate('document.hasFocus()'), 'the window opened after the connection').toBe(true);
+        expect(
+          await withBackgroundProbeTimeout(
+            'document.hasFocus() in the second window',
+            second.evaluate('document.hasFocus()'),
+          ),
+          'the window opened after the connection',
+        ).toBe(true);
       } finally {
         await app.teardown();
       }
@@ -258,27 +292,40 @@ describe('smoke harness: background mode by default', () => {
         await page.waitForLoadState('load');
         expectBackgroundLaunch(await waitForFixtureState(build, (state) => state.windows.length >= 1));
 
-        const frames = await page.evaluate<number>(animationFramesPerSecondExpression);
-        expect(frames, 'animation frames in one second: a hidden window must keep painting').toBeGreaterThanOrEqual(
+        const frames = await withBackgroundProbeTimeout(
+          'paint probe (page.evaluate)',
+          page.evaluate<number>(animationFramesPerSecondExpression),
+        );
+        expect(frames, 'animation frames in one second: a background window must keep painting').toBeGreaterThanOrEqual(
           minimumAnimationFramesPerSecond,
         );
 
-        await page.evaluate(paintScreenshotOverlayExpression);
-        const session = await page.context().newCDPSession(page);
+        await withBackgroundProbeTimeout(
+          'screenshot overlay (page.evaluate)',
+          page.evaluate(paintScreenshotOverlayExpression),
+        );
+        const session = await withBackgroundProbeTimeout('CDP session', page.context().newCDPSession(page));
         try {
-          const shot = await session.send('Page.captureScreenshot', { format: 'png' });
+          const shot = await withBackgroundProbeTimeout(
+            'Page.captureScreenshot',
+            session.send('Page.captureScreenshot', { format: 'png' }),
+          );
           expect(listScreenshotProbeProblems(Buffer.from(shot.data, 'base64'))).toEqual([]);
         } finally {
           await session.detach().catch(() => undefined);
         }
-        await page.evaluate(removeScreenshotOverlayExpression);
+        await withBackgroundProbeTimeout(
+          'remove screenshot overlay (page.evaluate)',
+          page.evaluate(removeScreenshotOverlayExpression),
+        );
 
         const input = page.getByRole('textbox', { name: 'Smoke fixture input' });
-        await input.focus();
-        await page.keyboard.type('tst018');
-        expect(await input.inputValue(), `CDP key input must reach the focused input "${smokeFixtureInputName}"`).toBe(
-          'tst018',
-        );
+        await input.focus({ timeout: 20_000 });
+        await withBackgroundProbeTimeout('CDP key input (page.keyboard.type)', page.keyboard.type('tst018'));
+        expect(
+          await input.inputValue({ timeout: 20_000 }),
+          `CDP key input must reach the focused input "${smokeFixtureInputName}"`,
+        ).toBe('tst018');
       } finally {
         await app.teardown();
       }

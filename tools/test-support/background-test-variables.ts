@@ -6,7 +6,9 @@
 // - FOUNDATION_TEST_BACKGROUND: read by the foundation main process. Only the
 //   value `1` enables background mode: on macOS the `accessory` activation
 //   policy, and every window the foundation creates (including `window.open`
-//   children) is never shown and never focused. Unset, empty, `0`, `true` or
+//   children) is never shown; on Linux and Windows every such window is shown
+//   without focus (ADR 0013 amendment 1); no window is ever focused on any
+//   platform. Unset, empty, `0`, `true` or
 //   any other value: behaviour unchanged.
 // - FOUNDATION_TEST_FOREGROUND: read by the smoke harness and the gate-test
 //   launch helpers from the run's environment. Only the value `1` makes them

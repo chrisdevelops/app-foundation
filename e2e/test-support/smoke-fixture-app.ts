@@ -8,10 +8,12 @@
 // The copy lives in a temporary folder whose name holds a space, so a harness
 // that passes the path through a shell without quoting fails.
 //
-// Background mode (#46; TST-018; ADR 0013 rule 1): the fixture follows the
-// same switch as the foundation. With FOUNDATION_TEST_BACKGROUND=1 (only that
-// value) it uses the `accessory` activation policy on macOS, and its windows are
-// never shown and never focused. It writes what it did to `window-state.json`
+// Background mode (#46; TST-018; ADR 0013 rule 1 and amendment 1): the fixture
+// follows the same switch as the foundation. With FOUNDATION_TEST_BACKGROUND=1
+// (only that value) it uses the `accessory` activation policy on macOS and its
+// windows are never shown; on Linux and Windows its windows are shown without
+// focus (`showInactive()`). No window is ever focused on any platform.
+// It writes what it did to `window-state.json`
 // (`SmokeFixtureWindowState`) every 200 ms, so a gate can read, on every
 // platform, which value the launch got and whether a window was ever shown
 // or focused. Each process writes through its own temporary file and ignores a
@@ -89,9 +91,9 @@ export interface SmokeFixtureWindowState {
     readonly visible: boolean;
     /** BrowserWindow.isFocused() now. */
     readonly focused: boolean;
-    /** True when the window ever fired `show`. */
+    /** True when the window was visible when created or ever fired `show`. */
     readonly everShown: boolean;
-    /** True when the window ever fired `focus`. */
+    /** True when the window was focused when created or ever fired `focus`. */
     readonly everFocused: boolean;
   }>;
 }
@@ -219,6 +221,10 @@ function openWindow(title) {
   window.on('show', () => { entry.everShown = true; writeWindowState(); });
   window.on('focus', () => { entry.everFocused = true; writeWindowState(); });
   windowStates.push(entry);
+  // ADR 0013 amendment 1: on Linux and Windows a background window is shown without focus.
+  if (backgroundMode && process.platform !== 'darwin') window.showInactive();
+  entry.everShown = entry.everShown || window.isVisible();
+  entry.everFocused = entry.everFocused || window.isFocused();
   writeWindowState();
   void window.loadFile(join(__dirname, 'index.html'), { query: { title } });
   return window;

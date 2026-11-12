@@ -1,16 +1,92 @@
-// Test-only helper for #46 (TST-018; ADR 0013; spike #43): checks that a page
-// in a window that is never shown still works for tests. Each probe is a page
-// expression (a string, so it runs through raw CDP `Runtime.evaluate` and
-// Playwright `page.evaluate` alike, and needs no DOM types):
+// Test-only helper for #46 (TST-018; ADR 0013 rule 1 and amendment 1; spike #43):
+// checks that a page in a background-mode window still works for tests (on
+// macOS the window is never shown; on Linux and Windows it is shown without
+// focus). Each probe is a page expression (a string, so it runs through raw
+// CDP `Runtime.evaluate` and Playwright `page.evaluate` alike, and needs no
+// DOM types):
 // - paint: requestAnimationFrame callbacks per second (a hidden window that
 //   stopped painting gives 0);
 // - screenshot: a full-window overlay of a known colour, then the centre pixel
 //   of `Page.captureScreenshot` must be that colour (a blank or stale image fails);
 // - key input: an input the probe creates and focuses; the caller sends keys
-//   through CDP and reads the value back.
+//   through CDP and reads the value back;
+// - focus: `document.hasFocus()` read without CDP focus emulation is false in
+//   a window that never took OS focus.
+// Every CDP call a probe makes has its own time limit
+// (`backgroundProbeStepTimeoutMs`, `withBackgroundProbeTimeout`): PR #47 CI
+// showed `Page.captureScreenshot` can stay unanswered forever, and a probe must
+// then fail at once with the step it waited for, not at the test timeout.
 // Also a small PNG decoder (8-bit RGB or RGBA, not interlaced: what Chromium's
 // `Page.captureScreenshot` writes), so the gate reads pixels without a dependency.
 import { inflateSync } from 'node:zlib';
+
+/** Time limit of one CDP call in a background probe (a screenshot of a painted page answers in well under 1 s). */
+export const backgroundProbeStepTimeoutMs = 20_000;
+
+/**
+ * Resolves or rejects as `step` does, or rejects after `timeoutMs` with an error that names `label`
+ * ("<label> got no answer in <n> ms"), so a CDP call that never answers fails fast.
+ */
+export async function withBackgroundProbeTimeout<T>(
+  label: string,
+  step: Promise<T>,
+  timeoutMs: number = backgroundProbeStepTimeoutMs,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} got no answer in ${timeoutMs} ms`)), timeoutMs);
+  });
+  try {
+    return await Promise.race([step, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** How long the focus probe watches the page (spike #43: a shown window takes focus within 1.5 s). */
+export const focusProbeWatchMs = 1_500;
+
+/**
+ * Watches the page for `focusProbeWatchMs`: reads `document.hasFocus()` every 100 ms and counts `focus`
+ * events on the window. Resolves with `{ focusedSamples, samples, focusEvents }`. Read it without CDP
+ * focus emulation (Playwright's `connectOverCDP` turns emulation on, which makes `hasFocus()` true).
+ */
+export const watchDocumentFocusExpression = `new Promise((resolve) => {
+  let samples = 0;
+  let focusedSamples = 0;
+  let focusEvents = 0;
+  const onFocus = () => { focusEvents += 1; };
+  window.addEventListener('focus', onFocus);
+  const sample = () => { samples += 1; if (document.hasFocus()) focusedSamples += 1; };
+  sample();
+  const timer = setInterval(sample, 100);
+  setTimeout(() => {
+    clearInterval(timer);
+    sample();
+    window.removeEventListener('focus', onFocus);
+    resolve({ focusedSamples, samples, focusEvents });
+  }, ${focusProbeWatchMs});
+})`;
+
+/** What `watchDocumentFocusExpression` resolves with. */
+export interface DocumentFocusWatch {
+  readonly focusedSamples: number;
+  readonly samples: number;
+  readonly focusEvents: number;
+}
+
+/** Problems with a focus watch of a background-mode page; empty when the page never had focus. */
+export function listDocumentFocusProblems(watch: DocumentFocusWatch | null | undefined): string[] {
+  if (!watch || !(watch.samples > 0)) return [`the focus probe returned no samples (${JSON.stringify(watch)})`];
+  const problems: string[] = [];
+  if (watch.focusedSamples > 0) {
+    problems.push(
+      `document.hasFocus() was true in ${watch.focusedSamples} of ${watch.samples} samples over ${focusProbeWatchMs} ms: the window has OS focus`,
+    );
+  }
+  if (watch.focusEvents > 0) problems.push(`the window received ${watch.focusEvents} focus events`);
+  return problems;
+}
 
 /** Colour of the overlay the screenshot probe paints: magenta, so each channel is either full or empty. */
 export const screenshotProbeColour = { red: 255, green: 0, blue: 255 } as const;

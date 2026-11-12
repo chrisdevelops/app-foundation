@@ -25,13 +25,17 @@
 // - #18, PLT-012: the smoke suite (e2e/smoke/, which holds the security
 //   baseline smoke tests) passes through the harness against the packaged
 //   copy. ADR 0011: that one test skips on Windows; the guard tests run there.
-// - #46, background mode (TST-018; ADR 0013): every launch here gets
-//   FOUNDATION_TEST_BACKGROUND=1 from the gate launch helper
+// - #46, background mode (TST-018; ADR 0013 rule 1 and amendment 1): every
+//   launch here gets FOUNDATION_TEST_BACKGROUND=1 from the gate launch helper
 //   (test-support/electron-app-process.ts), so the #15 and #18 gates above
-//   run with the switch on. The dev window and the packaged window (and a
-//   `window.open` child) still paint, `Page.captureScreenshot` shows what
-//   they painted and CDP key input reaches a focused input. macOS (spike #43
-//   method): no window on screen, no Dock icon, and the frontmost app is
+//   run with the switch on. On every platform the dev window and the packaged
+//   window (and a `window.open` child) never have OS focus (`document.hasFocus()`
+//   read without CDP focus emulation stays false, no `focus` event), still
+//   paint, `Page.captureScreenshot` shows what they painted and CDP key input
+//   reaches a focused input. On Linux and Windows the windows are shown
+//   without focus (amendment 1); a window that is never shown there gives no
+//   screenshot (PR #47 CI), so the screenshot check fails for it. macOS (spike
+//   #43 method): no window on screen, no Dock icon, and the frontmost app is
 //   never one of the app's processes from the launch to 1.5 s after its
 //   window appeared. A run with FOUNDATION_TEST_FOREGROUND=1 skips these
 //   checks. The failure modes (variable unset or not `1`: the window shows)
@@ -85,7 +89,11 @@ import {
 } from '../test-support/packaged-app-layout';
 import { findReferenceAppDevScript, referenceAppRelativeDir } from './test-support/reference-app-paths';
 import { listZipEntries } from './test-support/zip-archive';
-import { listBackgroundPageProblems, listMacosBackgroundProblems } from './test-support/background-mode-checks';
+import {
+  listBackgroundFocusProblems,
+  listBackgroundPageProblems,
+  listMacosBackgroundProblems,
+} from './test-support/background-mode-checks';
 import { foregroundRunSkipReason, isForegroundTestRun } from '../test-support/background-test-variables';
 import {
   describeFrontmostSamples,
@@ -260,6 +268,21 @@ describe.skipIf(isInsideCleanClone(root))('reference app: dev, package, launch a
         }
         await ensureDevWindow();
         await expectFocusKept(context, devSampler, devApp, devWindowOpenedAt);
+      },
+    );
+
+    // TST-018; issue #46 acceptance criterion 2 (dev build; every platform: focus is never taken)
+    it(
+      'TST-018: in background mode the dev window never has OS focus: document.hasFocus() stays false without CDP focus emulation and no focus event fires',
+      slow,
+      async (context) => {
+        const skip = backgroundCheckSkipReason({ macosOnly: false });
+        if (skip) {
+          context.skip(skip);
+          return;
+        }
+        const { session } = await ensureDevWindow();
+        expect(await listBackgroundFocusProblems(session), devApp?.describe()).toEqual([]);
       },
     );
 
@@ -548,6 +571,21 @@ describe.skipIf(isInsideCleanClone(root))('reference app: dev, package, launch a
       },
     );
 
+    // TST-018; issue #46 acceptance criterion 2 (packaged build; every platform: focus is never taken)
+    it(
+      'TST-018: in background mode the packaged window never has OS focus: document.hasFocus() stays false without CDP focus emulation and no focus event fires',
+      slow,
+      async (context) => {
+        const skip = backgroundCheckSkipReason({ macosOnly: false });
+        if (skip) {
+          context.skip(skip);
+          return;
+        }
+        const { session } = await ensurePackagedWindow();
+        expect(await listBackgroundFocusProblems(session), packagedApp?.describe()).toEqual([]);
+      },
+    );
+
     // TST-018; issue #46 acceptance criterion 3 (packaged build)
     it(
       'TST-018: in background mode the packaged window paints, Page.captureScreenshot shows the painted colour, and CDP key input reaches a focused input',
@@ -568,9 +606,9 @@ describe.skipIf(isInsideCleanClone(root))('reference app: dev, package, launch a
       },
     );
 
-    // TST-018; issue #46 acceptance criteria 2 and 3: a `window.open` child in background mode
+    // TST-018; issue #46 acceptance criteria 2 and 3: a `window.open` child in background mode (ADR 0013 amendment 1)
     it(
-      'TST-018: in background mode an about:blank window.open child is never shown (macOS), and its page paints and takes CDP key input',
+      'TST-018: in background mode an about:blank window.open child never has OS focus, is never shown on macOS, and its page paints and takes CDP key input',
       slow,
       async (context) => {
         const skip = backgroundCheckSkipReason({ macosOnly: false });
@@ -597,7 +635,7 @@ describe.skipIf(isInsideCleanClone(root))('reference app: dev, package, launch a
             if (!child) await new Promise((resolve) => setTimeout(resolve, 250));
           }
           if (!child) throw new Error('the window.open child did not appear as a DevTools page target within 30 s');
-          // Give macOS the time a shown window needs to appear (spike #43: 1.5 s).
+          // Give a shown window the time it needs to appear and take focus (spike #43: 1.5 s).
           await new Promise((resolve) => setTimeout(resolve, frontmostSettleMs));
           if (macosWindowProbeAvailable) {
             expect(await listMacosBackgroundProblems(packagedApp?.userDataDir ?? ''), packagedApp?.describe()).toEqual(
@@ -605,6 +643,10 @@ describe.skipIf(isInsideCleanClone(root))('reference app: dev, package, launch a
             );
           }
           childSession = await DevToolsSession.connect(child.webSocketDebuggerUrl);
+          expect(
+            await listBackgroundFocusProblems(childSession),
+            `child window: ${packagedApp?.describe() ?? ''}`,
+          ).toEqual([]);
           expect(await listBackgroundPageProblems(childSession), packagedApp?.describe()).toEqual([]);
         } finally {
           childSession?.close();
