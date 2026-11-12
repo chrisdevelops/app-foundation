@@ -1,6 +1,7 @@
 // Gate tests for #14: the boundary check that rejects commits which break the
 // agent role boundaries (implementation/ORCHESTRATOR.md section 6, the
 // `Test-Change` trailer from section 3, and PLT-010: no AI co-author trailers).
+// Test code is the closed list in #14 plus `**/test-support/**` (ADR 0008).
 //
 // Contract (black box):
 // - Input: `node tools/boundary-check/boundary-check.ts --base <ref> --head <ref> --branch <name>`,
@@ -22,7 +23,7 @@ import {
   repoGateRootDir,
   runRepoCommand,
   type RepoCommandResult,
-} from '../repo/support/run-repo-command';
+} from '../repo/test-support/run-repo-command';
 
 /** The script the contract is about, relative to the repository root. */
 const boundaryCheckEntryRelativePath = 'tools/boundary-check/boundary-check.ts';
@@ -70,6 +71,7 @@ const baseFiles = {
   smokeTest: 'e2e/smoke/launch.ts',
   fixture: 'packages/ui/src/__fixtures__/tokens.json',
   snapshot: 'packages/ui/src/__snapshots__/button.gate.test.tsx.snap',
+  testSupport: 'tools/repo/test-support/run-fixture.ts',
 } as const;
 
 const fixtureRoots: string[] = [];
@@ -470,6 +472,9 @@ describe('developer paths', () => {
         .write('e2e/smoke-helpers/launch.ts')
         .write('src/gate-test-utils.ts')
         .write('docs/notes.md')
+        .write('test-supports/helper.ts')
+        .write('src/my-test-support/helper.ts')
+        .write('src/test-support.ts')
         .commit('Look-alike paths', taskTrailers('developer'));
       expectPass(repo.check());
     },
@@ -487,6 +492,9 @@ describe('test-author paths', () => {
     ['adds', 'src/__fixtures__.ts'],
     ['adds', 'packages/ui/src/menu.gate.test.ts.orig'],
     ['adds', '.github/workflows/boundary.yml'],
+    ['adds', 'test-supports/helper.ts'],
+    ['adds', 'src/my-test-support/helper.ts'],
+    ['adds', 'src/test-support.ts'],
   ] as const)(
     'section 6: an Agent: test-author commit that %s %s is rejected with test-author-touches-source naming the path',
     (verb, path) => {
@@ -501,6 +509,7 @@ describe('test-author paths', () => {
   );
 
   // #14 test paths: **/*.gate.test.ts, **/*.gate.test.tsx, e2e/smoke/**, **/__fixtures__/**, **/__snapshots__/**
+  // (test-support/ is covered in its own describe block, ADR 0008)
   it(
     '#14: an Agent: test-author commit may add files under every test path, at any depth, with no Test-Change trailer',
     slow,
@@ -540,8 +549,62 @@ describe('test-author paths', () => {
   );
 });
 
+describe('test-support folders (ADR 0008)', () => {
+  // ADR 0008 item 1: `**/test-support/**` is test code; the developer never changes it
+  it.each([
+    ['adds', 'test-support/root-helper.ts'],
+    ['adds', 'packages/ui/src/test-support/deep/render-helper.tsx'],
+    ['modifies', baseFiles.testSupport],
+    ['deletes', baseFiles.testSupport],
+  ] as const)(
+    'ADR 0008: an Agent: developer commit that %s %s is rejected with developer-touches-gate-test naming the path',
+    (verb, path) => {
+      const repo = new FixtureRepo().seed();
+      repo.edit(baseFiles.source).commit('Valid developer work', taskTrailers('developer'));
+      if (verb === 'adds') repo.write(path);
+      else if (verb === 'modifies') repo.edit(path);
+      else repo.remove(path);
+      // Approved, so only the developer rule applies to the existing file.
+      const bad = repo.commit('Developer touches test support', [...taskTrailers('developer'), approvedTestChange]);
+      expectViolations(repo, repo.check(), [{ sha: bad, rule: boundaryRule.developerTouchesGateTest, path }]);
+    },
+    slow.timeout,
+  );
+
+  // ADR 0008 item 1: the test author changes test-support/ at any depth
+  it('ADR 0008: an Agent: test-author commit may add, change and delete test-support/ files at any depth', slow, () => {
+    const repo = new FixtureRepo().seed();
+    repo
+      .write('test-support/root-helper.ts')
+      .write('tools/repo/test-support/new-helper.ts')
+      .write('packages/ui/src/test-support/deep/nested/render-helper.tsx')
+      .commit('Add test support', taskTrailers('test-author'));
+    repo.edit('tools/repo/test-support/new-helper.ts').commit('Change test support', taskTrailers('test-author'));
+    repo.remove('test-support/root-helper.ts').commit('Drop test support', taskTrailers('test-author'));
+    repo
+      .edit(baseFiles.testSupport)
+      .commit('Approved change to existing support', [...taskTrailers('test-author'), approvedTestChange]);
+    expectPass(repo.check());
+  });
+
+  // ADR 0008 item 1: the developer's look-alike paths are not test code
+  it(
+    'ADR 0008: test-supports/, my-test-support/ and a file named test-support.ts are not test code for the developer',
+    slow,
+    () => {
+      const repo = new FixtureRepo().seed();
+      repo
+        .write('test-supports/helper.ts')
+        .write('src/my-test-support/helper.ts')
+        .write('src/test-support.ts')
+        .commit('Look-alike source paths', taskTrailers('developer'));
+      expectPass(repo.check());
+    },
+  );
+});
+
 describe('existing test files and Test-Change', () => {
-  const existingTests = [baseFiles.gateTest, baseFiles.smokeTest] as const;
+  const existingTests = [baseFiles.gateTest, baseFiles.smokeTest, baseFiles.testSupport] as const;
 
   // ORCHESTRATOR section 3: changing an existing test needs Test-Change: approved #<issue>
   it.each(existingTests)(
