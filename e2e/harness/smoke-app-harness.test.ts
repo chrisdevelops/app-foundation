@@ -3,4 +3,3 @@
 import { test } from 'vitest';
 
 test.todo('packaged builds refuse the CDP port unless a test build enables it (TST-009; #18)');
-test.todo('CI runs the smoke suite against the packaged app on Windows, macOS and Linux (TST-010; #17)');

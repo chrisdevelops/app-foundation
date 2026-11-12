@@ -3,6 +3,7 @@
 // or against the packaged executable named by SMOKE_APP_EXECUTABLE; in
 // packaged mode the window URL must start with app:// (PLT-008, ADR 0004
 // decision 1). Driven by Playwright over CDP through the smoke harness.
+// A failing test writes the harness evidence into SMOKE_EVIDENCE_DIR (#17, ADR 0012).
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   loadSmokeHarness,
@@ -45,6 +46,13 @@ async function settledWindowTitles(started: ExpectedSmokeApp, timeoutMs: number)
 // DEFERRED: TST-010 (Windows smoke suite; ADR 0011, #39): no launch and every test skips on Windows.
 beforeEach((context) => {
   if (smokeHarnessDeferredOnWindows) context.skip(smokeHarnessWindowsDeferralReason);
+});
+
+// #17, ADR 0012: a failing test leaves its evidence in SMOKE_EVIDENCE_DIR (CI uploads it on failure).
+beforeEach((context) => {
+  context.onTestFailed(async () => {
+    await app?.writeEvidence(context.task.name);
+  });
 });
 
 beforeAll(async () => {

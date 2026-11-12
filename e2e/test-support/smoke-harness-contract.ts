@@ -9,6 +9,11 @@
 //   environment.
 // - Output: a Playwright browser connected over CDP with the app's windows and
 //   a teardown function, or a `SmokeHarnessError` whose `code` names the cause.
+// - Failure evidence (#17, ADR 0012): when SMOKE_EVIDENCE_DIR names a folder,
+//   a failed launch writes the app output, the harness events and the error
+//   code there before it throws, and `writeEvidence` writes the same plus a
+//   screenshot of each window (the smoke suite calls it when a test fails).
+//   Evidence never holds environment variable values.
 import type { Browser, Page } from 'playwright-core';
 
 /** Name of the one environment variable that points the smoke suite at a packaged executable. */
@@ -43,6 +48,12 @@ export interface ExpectedSmokeApp {
   windows(): Page[];
   /** Runs `action` and resolves with the window it opens; rejects when no window opens within `timeoutMs`. */
   waitForNewWindow(action: () => Promise<unknown>, timeoutMs?: number): Promise<Page>;
+  /**
+   * Writes failure evidence into the folder named by SMOKE_EVIDENCE_DIR (#17, ADR 0012): the app's stdout
+   * and stderr so far, the harness events, a PNG screenshot of each open window, and `label`. Never writes
+   * environment variable values. Does nothing when the variable is not set.
+   */
+  writeEvidence(label: string): Promise<void>;
   /** Kills the whole process tree; resolves when no process uses the user data folder. Safe to call twice. */
   teardown(): Promise<void>;
 }

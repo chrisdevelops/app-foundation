@@ -52,7 +52,21 @@ export function createCleanClone(repoRootDir: string): string {
   for (const args of [
     ['init', '--quiet'],
     ['add', '--all'],
-    ['-c', 'commit.gpgsign=false', 'commit', '--quiet', '--no-verify', '-m', 'clean clone'],
+    // No background gc or maintenance after the commit: it repacks loose objects
+    // while a later `git clone` of the clean clone copies them (#17: "failed to copy file").
+    [
+      '-c',
+      'commit.gpgsign=false',
+      '-c',
+      'gc.auto=0',
+      '-c',
+      'maintenance.auto=false',
+      'commit',
+      '--quiet',
+      '--no-verify',
+      '-m',
+      'clean clone',
+    ],
   ]) {
     const result = runRepoCommand('git', args, { cwd: cloneDir, env: gitEnv });
     if (result.exitCode !== 0) {
