@@ -27,6 +27,12 @@
 //   only when it was created after its parent, because Windows reuses pids.
 //   It waits until none is left, fails with their pids otherwise, and is safe
 //   to call twice.
+// - Failure evidence (#17, ADR 0012): when SMOKE_EVIDENCE_DIR names a folder,
+//   a failed launch writes the app's stdout and stderr and the harness events
+//   (with the error code) there before it throws, and `writeEvidence(label)`
+//   writes the same plus a PNG screenshot of each window. The variable is read
+//   when writing; evidence never holds environment variable values
+//   (smoke-evidence-folder.ts).
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { connect, createServer } from 'node:net';
@@ -34,6 +40,7 @@ import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Page } from 'playwright-core';
+import { readSmokeEvidenceDir, writeSmokeEvidence, type SmokeEvidenceScreenshot } from './smoke-evidence-folder';
 
 /** What the harness starts: the reference app's dev command, or a packaged executable by path. */
 export type SmokeAppTarget = { readonly kind: 'dev' } | { readonly kind: 'packaged'; readonly executablePath: string };
@@ -61,6 +68,12 @@ export interface SmokeApp {
   windows(): Page[];
   /** Runs `action` and resolves with the window it opens; rejects when no window opens within `timeoutMs`. */
   waitForNewWindow(action: () => Promise<unknown>, timeoutMs?: number): Promise<Page>;
+  /**
+   * Writes failure evidence into the folder named by SMOKE_EVIDENCE_DIR: the app's stdout and stderr so far,
+   * the harness events, a PNG screenshot of each open window, and `label`. Never writes environment variable
+   * values. Does nothing when the variable is not set. A screenshot that fails is recorded as an event.
+   */
+  writeEvidence(label: string): Promise<void>;
   /** Kills the whole process tree; resolves when no process uses the user data folder. Safe to call twice. */
   teardown(): Promise<void>;
 }
@@ -110,6 +123,8 @@ const gracefulStopMs = 5_000;
 const processExitWaitMs = 30_000;
 const pollIntervalMs = 150;
 const defaultNewWindowTimeoutMs = 30_000;
+/** Time one window screenshot gets before it is recorded as failed. */
+const screenshotTimeoutMs = 15_000;
 
 const repoRootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const referenceAppDir = join(repoRootDir, 'apps', 'reference');
@@ -126,8 +141,50 @@ export function resolveSmokeAppTarget(env: Readonly<Record<string, string | unde
   return { kind: 'packaged', executablePath };
 }
 
-/** Starts the target, checks that the DevTools endpoint is its own, and connects Playwright over CDP. */
+/** Timestamped harness event lines of one launch, written into the failure evidence. */
+interface HarnessEventLog {
+  record(event: string): void;
+  lines(): string[];
+}
+
+function createHarnessEventLog(): HarnessEventLog {
+  const lines: string[] = [];
+  return {
+    record: (event) => lines.push(`${new Date().toISOString()} ${event}`),
+    lines: () => [...lines],
+  };
+}
+
+/**
+ * Starts the target, checks that the DevTools endpoint is its own, and connects Playwright over CDP.
+ * A failed launch writes its evidence (when SMOKE_EVIDENCE_DIR is set) before it throws.
+ */
 export async function launchSmokeApp(options: SmokeAppLaunchOptions): Promise<SmokeApp> {
+  const events = createHarnessEventLog();
+  const target = options.target.kind === 'dev' ? 'dev build' : `packaged executable ${options.target.executablePath}`;
+  events.record(`launch requested: ${target}`);
+  try {
+    return await startSmokeApp(options, events);
+  } catch (error) {
+    const code = error instanceof SmokeHarnessError ? error.code : 'unexpected-error';
+    const summary = errorText(error).split('\n--- app stdout and stderr ---')[0] ?? '';
+    events.record(`launch failed with code ${code}: ${summary}`);
+    try {
+      writeSmokeEvidence({
+        label: `launch failed: ${code}`,
+        appOutput: error instanceof SmokeHarnessError ? error.output : '',
+        events: events.lines(),
+        appEnv: options.env,
+      });
+    } catch (evidenceError) {
+      // The launch error stays the one that is thrown; the evidence problem is reported beside it.
+      console.error(`the smoke harness could not write failure evidence: ${errorText(evidenceError)}`);
+    }
+    throw error;
+  }
+}
+
+async function startSmokeApp(options: SmokeAppLaunchOptions, events: HarnessEventLog): Promise<SmokeApp> {
   const startupTimeoutMs = options.startupTimeoutMs ?? defaultStartupTimeoutMs;
   const deadline = Date.now() + startupTimeoutMs;
 
@@ -156,6 +213,7 @@ export async function launchSmokeApp(options: SmokeAppLaunchOptions): Promise<Sm
   }
 
   const userDataDir = realpathSync.native(mkdtempSync(join(tmpdir(), 'smoke-user-data-')));
+  events.record(`DevTools port ${port}; user data folder ${userDataDir}`);
   let processTree: ProcessTree;
   try {
     processTree = startProcessTree(options, port, userDataDir);
@@ -163,17 +221,21 @@ export async function launchSmokeApp(options: SmokeAppLaunchOptions): Promise<Sm
     rmSync(userDataDir, { recursive: true, force: true });
     throw error;
   }
+  events.record(`started: ${processTree.commandLine}`);
 
   const fail = async (
     code: SmokeHarnessErrorCode,
     summary: string,
     extra: { exitCode?: number | null; cause?: unknown } = {},
   ): Promise<never> => {
+    events.record(`stopping the app after ${code}`);
     let stopProblem = '';
     try {
       await processTree.stop();
+      events.record('the app stopped');
     } catch (error) {
       stopProblem = `\nthe harness could not stop every process: ${errorText(error)}`;
+      events.record(`the app did not stop: ${errorText(error)}`);
     }
     throw new SmokeHarnessError({
       code,
@@ -191,6 +253,7 @@ export async function launchSmokeApp(options: SmokeAppLaunchOptions): Promise<Sm
     if (endpoint.kind === 'failed') {
       return await fail(endpoint.code, endpoint.summary, { exitCode: endpoint.exitCode, cause: endpoint.cause });
     }
+    events.record(`endpoint owned by the launched app: ${endpoint.webSocketUrl}`);
     try {
       browser = await chromium.connectOverCDP(endpoint.webSocketUrl, {
         timeout: Math.max(deadline - Date.now(), 5_000),
@@ -213,6 +276,7 @@ export async function launchSmokeApp(options: SmokeAppLaunchOptions): Promise<Sm
     // Any other failure after the spawn: never leave the app running.
     return fail('startup-timeout', `the launch failed unexpectedly: ${errorText(error)}`, { cause: error });
   }
+  events.record('connected over CDP');
 
   const windows = (): Page[] =>
     browser
@@ -229,6 +293,37 @@ export async function launchSmokeApp(options: SmokeAppLaunchOptions): Promise<Sm
     output: () => processTree.output(),
     windows,
     waitForNewWindow: (action, timeoutMs = defaultNewWindowTimeoutMs) => waitForNewWindow(windows, action, timeoutMs),
+    async writeEvidence(label: string): Promise<void> {
+      if (readSmokeEvidenceDir() === undefined) return;
+      events.record(`evidence requested: ${label}`);
+      const pages = windows();
+      events.record(`open windows: ${pages.length}`);
+      const screenshots: SmokeEvidenceScreenshot[] = [];
+      for (const [index, page] of pages.entries()) {
+        const fileName = `window-${index + 1}.png`;
+        try {
+          const png = await withTimeout(
+            page.screenshot({ type: 'png', timeout: screenshotTimeoutMs }),
+            screenshotTimeoutMs + 5_000,
+          );
+          if (png === undefined) {
+            events.record(`screenshot ${fileName} timed out`);
+            continue;
+          }
+          screenshots.push({ fileName, png });
+          events.record(`screenshot ${fileName} of ${page.url()}`);
+        } catch (error) {
+          events.record(`screenshot ${fileName} failed: ${errorText(error)}`);
+        }
+      }
+      writeSmokeEvidence({
+        label,
+        appOutput: processTree.output(),
+        events: events.lines(),
+        screenshots,
+        appEnv: options.env,
+      });
+    },
     teardown(): Promise<void> {
       teardownPromise ??= (async () => {
         // For a CDP connection, close() only disconnects; the app keeps running (spike #5).

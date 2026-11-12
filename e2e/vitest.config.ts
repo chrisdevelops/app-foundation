@@ -5,7 +5,6 @@
 //   gate tests never run here: one of them calls `pnpm run smoke` itself.
 // Tests in each file run one after another; files never run in parallel,
 // because every test starts a real Electron app.
-// DEFERRED: TST-010 (CI runs the smoke suite against the packaged app on three platforms; #17)
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
