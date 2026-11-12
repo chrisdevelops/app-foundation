@@ -8,7 +8,7 @@
 // ADR 0008 item 2: the job runs the script as it exists on the base commit,
 // and the pull request version only when the base has none, with a visible
 // notice. The "script source" gates run the job's steps locally against a
-// fixture repository (see test-support/workflow-job-emulator.ts).
+// fixture repository (see tools/test-support/workflow-job-emulator.ts).
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -30,7 +30,7 @@ import {
 } from '../test-support/github-workflow';
 import { describeRepoCommand, repoGateRootDir, runRepoCommand } from '../test-support/run-repo-command';
 import type { WorkflowYamlValue } from '../test-support/workflow-yaml-reader';
-import { emulateWorkflowJob, type EmulatedJobResult } from './test-support/workflow-job-emulator';
+import { emulateWorkflowJob, type EmulatedJobResult } from '../test-support/workflow-job-emulator';
 
 const root = repoGateRootDir;
 
