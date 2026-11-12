@@ -1,6 +1,6 @@
 # ADR 0013: Background test runs
 
-- **Status:** accepted
+- **Status:** accepted (amended 2026-11-12: rule 1 on Linux and Windows)
 - **Weight:** major
 - **Date:** 2026-11-12
 - **Raised by:** human; orchestrator, spike #43
@@ -34,11 +34,15 @@ Option 1.
 
 Option 1, with these rules (human, 2026-11-12):
 
-1. **Switch.** The foundation's main process reads `FOUNDATION_TEST_BACKGROUND`. Only the value `1` enables it. When enabled, on macOS the app uses the `accessory` activation policy, and every window the foundation creates (including `window.open` children) is never shown and never focused. On Windows and Linux windows are never shown and never focused. The variable name has one definition site in the foundation. The switch exposes no code or data and does not change fuses, CSP, the `app://` loader or the CDP guard.
+1. **Switch.** The foundation's main process reads `FOUNDATION_TEST_BACKGROUND`. Only the value `1` enables it. When enabled, on macOS the app uses the `accessory` activation policy, and every window the foundation creates (including `window.open` children) is never shown and never focused. On Linux and Windows every such window is shown without focus (`showInactive()`) and never focused; under `xvfb-run` nothing is visible (amendment 1). The variable name has one definition site in the foundation. The switch exposes no code or data and does not change fuses, CSP, the `app://` loader or the CDP guard.
 2. **Default on.** The harness and the gate-test launch helpers set `FOUNDATION_TEST_BACKGROUND=1` for every launch, locally, for agents and in CI. A run with `FOUNDATION_TEST_FOREGROUND=1` in its environment launches normally, so a person can watch. In background mode the harness enables CDP focus emulation so `document.hasFocus()` is true.
 3. **Foreground group.** Tests that need real OS focus, native menus or native dialogs are in a separate foreground group. It does not run by default on a developer machine; it runs in CI, and locally only on request, and prints a clear notice before it starts.
 4. **Platforms.** The switch applies on all three platforms. Linux keeps `xvfb-run`. No extra Windows measurement in phase 1 (ADR 0011); CI shows Windows problems.
 5. **Order.** The task runs directly after #18, before #19.
+
+## Amendment 1 (human, 2026-11-12)
+
+PR #47 CI (run 43324750319): on Linux (`xvfb-run`) and Windows, a never-shown window paints but `Page.captureScreenshot` never answers, so rule 1 and the screenshot criterion of #46 could not both hold there. Options: A show without focus on Linux and Windows; B spike for another hiding method; C keep never-shown and drop screenshot checks there. Decision: A. macOS is unchanged (accessory policy, never shown). Focus is never taken on any platform.
 
 ## Follow-up
 

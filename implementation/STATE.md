@@ -10,11 +10,11 @@
 
 | Issue | Title | Stage | Attempt | Next action |
 | --- | --- | --- | --- | --- |
-| #46 | Background test runs: no window shown, no focus taken (TST-018) | review | 1 (tests 2) | Reviewer and verifier running on PR #47; CI run 43324750319; then merge. |
+| #46 | Background test runs: no window shown, no focus taken (TST-018) | tests | test author 3 | ADR 0013 amendment 1 (Linux and Windows: `showInactive()`); test author updates the contract, then developer, CI, re-review. |
 
 ## Last action
 
-#46 developer done (b8898ac); fixture race found and fixed by the test author (07950f4; 5 clean e2e runs). Actions limit reached on the private repo; human made the repo public (ADR 0015). PR #47 open.
+#46 PR #47 CI failed on Linux and Windows: never-shown windows cannot be screenshotted there. Reviewer `escalate`, verifier pass (macOS). Human chose option A: ADR 0013 amendment 1.
 
 ## Next action
 
