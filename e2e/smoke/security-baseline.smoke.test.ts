@@ -28,11 +28,29 @@
 // - an inline <script> inserted into the DOM does not run and fires
 //   `securitypolicyviolation` (never `eval` through page.evaluate as proof:
 //   spike #5); an inline <style> applies; the about:blank child inherits this.
+// Background mode (#46; TST-018; ADR 0013 rule 2): the harness launches the
+// app with FOUNDATION_TEST_BACKGROUND=1, so every check above runs with the
+// switch on. The last tests prove that on macOS (spike #43 method): the app
+// these checks ran against shows no window on screen and no Dock icon, also
+// with a `window.open` child open, and the frontmost app was never one of its
+// processes from the launch on. A run with FOUNDATION_TEST_FOREGROUND=1 skips them.
 // A failing test writes the harness evidence into SMOKE_EVIDENCE_DIR (ADR 0012).
 import type { CDPSession, Page } from 'playwright-core';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { listProcessesUsing } from '../../tools/test-support/app-process-cleanup';
 import { listFoundationCspProblems } from '../../tools/test-support/content-security-policy';
+import { foregroundRunSkipReason, isForegroundTestRun } from '../../tools/test-support/background-test-variables';
+import {
+  describeFrontmostSamples,
+  dockApplicationType,
+  listAppProcessIds,
+  macosWindowProbeAvailable,
+  macosWindowProbeSkipReason,
+  readMacosAppPresence,
+  samplesWhereAppWasFrontmost,
+  startFrontmostAppSampler,
+  type FrontmostAppSampler,
+} from '../../tools/test-support/macos-window-probe';
 import {
   loadSmokeHarness,
   type ExpectedSmokeApp,
@@ -58,6 +76,8 @@ const slow = { timeout: 180_000 };
 
 let app: ExpectedSmokeApp | undefined;
 let target: ExpectedSmokeAppTarget | undefined;
+/** #46: samples the frontmost app from just before the launch (macOS, background runs only). */
+let frontmostSampler: FrontmostAppSampler | undefined;
 
 // DEFERRED: TST-010 (Windows smoke suite; ADR 0011, #39): no launch and every test skips on Windows.
 beforeEach((context) => {
@@ -75,10 +95,12 @@ beforeAll(async () => {
   if (smokeHarnessDeferredOnWindows) return;
   const harness = await loadSmokeHarness();
   target = harness.resolveSmokeAppTarget(process.env);
+  if (macosWindowProbeAvailable && !isForegroundTestRun()) frontmostSampler = startFrontmostAppSampler();
   app = await harness.launchSmokeApp({ target });
 }, 300_000);
 
 afterAll(async () => {
+  await frontmostSampler?.stop();
   await app?.teardown();
 }, 120_000);
 
@@ -557,6 +579,72 @@ describe('security baseline: Content-Security-Policy (packaged build)', () => {
       } finally {
         await child.close().catch(() => undefined);
       }
+    },
+  );
+});
+
+describe('security baseline: the app ran in background mode (TST-018, macOS)', () => {
+  /** Why these checks do not run here, or undefined when they run. */
+  function skipReason(): string | undefined {
+    if (isForegroundTestRun()) return foregroundRunSkipReason;
+    if (!macosWindowProbeAvailable) return macosWindowProbeSkipReason;
+    return undefined;
+  }
+
+  // TST-018; issue #46 acceptance criteria 2 and 8 (the #18 security checks run with the switch on)
+  it(
+    `TST-018: the app these checks ran against shows no window on screen and no Dock icon, also with a ${allowedChildUrl} child open`,
+    slow,
+    async (context) => {
+      const reason = skipReason();
+      if (reason) {
+        context.skip(reason);
+        return;
+      }
+      const started = requireApp();
+      const child = await openChildWindow(await mainWindow(), allowedChildUrl);
+      try {
+        // Give macOS the time a shown window needs to appear (spike #43: 1.5 s).
+        await new Promise((resolve) => setTimeout(resolve, 1_500));
+        const presence = await readMacosAppPresence(started.userDataDir);
+        expect(presence.pids, `control: the app processes must be found; ${presence.describe()}`).not.toEqual([]);
+        expect(presence.onscreenWindows, `no app window may be on screen; ${presence.describe()}`).toEqual([]);
+        expect(
+          [...presence.applicationTypes.values()],
+          `no app process may have a Dock icon (ApplicationType ${dockApplicationType}); ${presence.describe()}`,
+        ).not.toContain(dockApplicationType);
+      } finally {
+        await child.close().catch(() => undefined);
+      }
+    },
+  );
+
+  // TST-018; issue #46 acceptance criterion 7 (the frontmost app is unchanged)
+  it(
+    'TST-018: from the launch until now, the frontmost app was never one of the app processes',
+    slow,
+    async (context) => {
+      const reason = skipReason();
+      if (reason) {
+        context.skip(reason);
+        return;
+      }
+      const started = requireApp();
+      await mainWindow();
+      if (!frontmostSampler) throw new Error('the launch was not measured');
+      const appPids = listAppProcessIds(started.userDataDir);
+      const samples = await frontmostSampler.stop();
+      expect(appPids, 'control: the app processes must be found').not.toEqual([]);
+      if (!samples.some((sample) => sample.pid !== undefined)) {
+        context.skip(
+          `macOS reported no frontmost app in ${samples.length} samples, so focus cannot be measured in this session`,
+        );
+        return;
+      }
+      expect(
+        samplesWhereAppWasFrontmost(samples, appPids),
+        `the app (processes ${JSON.stringify(appPids)}) took focus; ${describeFrontmostSamples(samples)}`,
+      ).toEqual([]);
     },
   );
 });

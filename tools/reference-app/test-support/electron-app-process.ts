@@ -6,12 +6,23 @@
 //
 // Every wait is bounded: a modal error dialog in the main process makes the
 // wait fail with the app's output instead of hanging (ADR 0005).
+//
+// Background mode (#46; TST-018; ADR 0013 rule 2): every launch gets
+// FOUNDATION_TEST_BACKGROUND=1 by default, so the app shows no window and takes
+// no focus. A run with FOUNDATION_TEST_FOREGROUND=1 in its environment launches
+// normally. A caller that tests the switch itself sets the variable in `env`
+// (its value wins) or names it in `withoutEnv` (the app gets no such variable).
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { stripAnsiCodes } from '../../test-support/run-repo-command';
 import { removeAppFolderAfterExit } from '../../test-support/app-process-cleanup';
+import {
+  isForegroundTestRun,
+  testBackgroundEnabledValue,
+  testBackgroundVariableName,
+} from '../../test-support/background-test-variables';
 
 export interface ElectronAppProcess {
   readonly userDataDir: string;
@@ -42,9 +53,16 @@ function buildAppEnv(extra: Record<string, string>, without: readonly string[]):
     if (inheritedVariableNames.includes(key)) continue;
     if (inheritedVariablePrefixes.some((prefix) => key.startsWith(prefix))) continue;
     if (without.includes(key)) continue;
+    // The run-level choice below decides the launch mode, not a value left in this process's environment.
+    if (key === testBackgroundVariableName) continue;
     env[key] = value;
   }
-  return { ...env, FORCE_COLOR: '0', NO_COLOR: '1', ...extra };
+  // #46 (ADR 0013 rule 2): background mode by default; FOUNDATION_TEST_FOREGROUND=1 launches normally.
+  const background =
+    isForegroundTestRun() || without.includes(testBackgroundVariableName)
+      ? {}
+      : { [testBackgroundVariableName]: testBackgroundEnabledValue };
+  return { ...env, FORCE_COLOR: '0', NO_COLOR: '1', ...background, ...extra };
 }
 
 /** Chromium switches every gate launch adds: a free DevTools port and a fresh user data folder. */
@@ -80,7 +98,10 @@ export function startElectronAppProcess(options: {
   args: (userDataDir: string) => readonly string[];
   cwd: string;
   env?: Record<string, string>;
-  /** Variables the app must not inherit from this process (#18: a launch that must run without the CDP variable). */
+  /**
+   * Variables the app must not get (#18: a launch that must run without the CDP variable). Naming
+   * FOUNDATION_TEST_BACKGROUND here also drops the background default (#46).
+   */
   withoutEnv?: readonly string[];
 }): ElectronAppProcess {
   const userDataDir = realpathSync.native(mkdtempSync(join(tmpdir(), 'rf-gate-user-data-')));

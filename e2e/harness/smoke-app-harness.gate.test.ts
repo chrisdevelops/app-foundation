@@ -7,8 +7,14 @@
 //   another process on the port (spike #5: a busy port is silent).
 // - Failure modes, each a typed error: `port-not-owned` (a dummy listener and a
 //   real app on the port), `startup-timeout` (the endpoint never opens, so
-//   connections are refused), a modal error dialog from a top-level require()
-//   (ADR 0005), `app-exited` with the exit code, `executable-not-found`.
+//   connections are refused), `app-exited` with the exit code,
+//   `executable-not-found`. The modal error dialog from a top-level require()
+//   (ADR 0005) is in the foreground test group
+//   (smoke-app-harness-dialog.foreground.gate.test.ts; #46, ADR 0013 rule 3).
+// - Background mode (#46): every launch here runs in the harness default mode
+//   (FOUNDATION_TEST_BACKGROUND=1, set by the harness); the fixture follows the
+//   switch, so these tests show no window. Gated in
+//   smoke-app-harness-background.gate.test.ts.
 // - Teardown kills the whole process tree, also after the app quit by itself.
 // - A window opened after connection is detected.
 // - `pnpm run smoke` runs the suite against the dev build; SMOKE_APP_EXECUTABLE
@@ -497,24 +503,8 @@ describe('smoke harness: startup failure modes', () => {
     },
   );
 
-  // XC-004; issue #16 acceptance criterion 5; ADR 0005: a top-level require() of a missing module shows a modal dialog
-  it(
-    'XC-004: a main process that throws on a top-level require() makes the launch fail within the timeout, never hang',
-    slow,
-    async () => {
-      const harness = await loadSmokeHarness();
-      const build = requireFixture();
-      build.write({ mode: 'throw-on-require' });
-      const startupTimeoutMs = 10_000;
-      // macOS and Windows: a modal dialog keeps the app running (startup-timeout); without a dialog it may exit.
-      const { error } = await expectLaunchFailure(harness, { target: fixtureTarget(), startupTimeoutMs }, [
-        'startup-timeout',
-        'app-exited',
-      ]);
-      expect(error.output, 'captured stdout before the throw').toContain(build.stdoutMarker);
-      expect(processesLeft(error.userDataDir), 'the app with the dialog must be killed').toEqual([]);
-    },
-  );
+  // XC-004; issue #16 acceptance criterion 5 (a top-level require() that shows a native error dialog) moved to
+  // smoke-app-harness-dialog.foreground.gate.test.ts by #46: the dialog takes focus (ADR 0013 rule 3).
 
   // XC-004; issue #16 acceptance criterion 6
   it(
