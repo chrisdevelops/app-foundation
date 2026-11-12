@@ -13,7 +13,7 @@ export interface RepoCommandResult {
   readonly output: string;
 }
 
-/** Absolute path of the repository root (this file is `tools/repo/support/run-repo-command.ts`). */
+/** Absolute path of the repository root (this file is `tools/repo/test-support/run-repo-command.ts`). */
 export const repoGateRootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
 // ANSI colour codes start with the ESC control character (#14: the
