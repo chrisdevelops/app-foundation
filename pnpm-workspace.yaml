@@ -12,6 +12,6 @@ publicHoistPattern:
   - '@types/*' # Electron Forge's install check needs a public hoist pattern in the isolated layout (spike #6); type declarations only, no runtime code (ADR 0007 item 5)
 
 # pnpm 11 runs no dependency build script unless the package is named here
-# (spike #9, "The method" item 1). Empty until a package needs one; #15 adds
-# `electron` (ADR 0007 item 7). One entry per package, never a wildcard.
-allowBuilds: {}
+# (spike #9, "The method" item 1). One entry per package, never a wildcard.
+allowBuilds:
+  electron: true # Electron for the reference app and the foundation (#15, ADR 0007 item 7); 45.3.0 has no install script and downloads its binary on first use

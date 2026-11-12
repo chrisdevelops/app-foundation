@@ -46,6 +46,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The reference app gates (#15) start Electron with the Chromium sandbox on.
+      # Ubuntu 24.04 blocks unprivileged user namespaces through AppArmor, and
+      # chrome-sandbox is not setuid root in node_modules or in the packaged zip,
+      # so Chromium has no usable sandbox. This lets it use user namespaces.
+      # `--no-sandbox` is never used.
+      - name: Allow the Chromium sandbox on Linux
+        if: runner.os == 'Linux'
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
       - name: Typecheck, lint and test
         run: pnpm turbo run typecheck lint test
 

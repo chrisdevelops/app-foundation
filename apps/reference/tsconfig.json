@@ -1,0 +1,9 @@
+{
+  // Reference app: main, preload and renderer sources and the Forge and Vite configs.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx"
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "*.config.ts"]
+}

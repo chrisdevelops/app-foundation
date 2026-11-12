@@ -24,6 +24,8 @@
         "packages/**",
         "apps/**",
         "!**/node_modules/**",
+        "!apps/*/.vite/**",
+        "!apps/*/out/**",
         "!**/.turbo/**",
         "!**/*.tsbuildinfo"
       ]
