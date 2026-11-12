@@ -33,6 +33,7 @@ import {
   waitForAccessibleHeadingNames,
   type OpenAppWindow,
 } from './test-support/app-window-checks';
+import { removeAppFolderAfterExit } from './test-support/app-process-cleanup';
 import { listAsarFiles, readAsarFile } from './test-support/asar-archive';
 import {
   devToolsLaunchSwitches,
@@ -115,7 +116,7 @@ describe.skipIf(isInsideCleanClone(root))('reference app: dev, package, launch a
     afterAll(async () => {
       if (devWindow) (await devWindow.catch(() => undefined))?.session.close();
       await devApp?.stop();
-    }, 60_000);
+    }, 180_000);
 
     // PLT-005; issue #15 acceptance criterion 2
     it('PLT-005: the dev command opens exactly one window', slow, async () => {
@@ -186,8 +187,9 @@ describe.skipIf(isInsideCleanClone(root))('reference app: dev, package, launch a
     afterAll(async () => {
       if (packagedWindow) (await packagedWindow.catch(() => undefined))?.session.close();
       await packagedApp?.stop();
-      if (copyDir) rmSync(copyDir, { recursive: true, force: true });
-    }, 60_000);
+      // Waits for every process started from the copy (Windows locks running executables), then removes it.
+      if (copyDir) await removeAppFolderAfterExit(copyDir, 'packaged app copy');
+    }, 180_000);
 
     // PLT-007, PLT-003; ADR 0007 item 5: Forge packages with publicHoistPattern '@types/*' only
     it('PLT-007: pnpm run package (electron-forge package) exits 0', slow, () => {

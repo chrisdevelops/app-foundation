@@ -7,10 +7,11 @@
 // Every wait is bounded: a modal error dialog in the main process makes the
 // wait fail with the app's output instead of hanging (ADR 0005).
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { stripAnsiCodes } from '../../repo/test-support/run-repo-command';
+import { removeAppFolderAfterExit } from './app-process-cleanup';
 
 export interface ElectronAppProcess {
   readonly userDataDir: string;
@@ -20,7 +21,11 @@ export interface ElectronAppProcess {
   exitCode(): number | null;
   /** Resolves with the DevTools port the app opened; rejects when the app exits or the time runs out. */
   waitForDevToolsPort(timeoutMs: number): Promise<number>;
-  /** Stops the process and every child it started, then removes the user data folder. */
+  /**
+   * Stops the process and every child it started, waits until no process uses
+   * the user data folder, then removes it. Rejects when a process is still
+   * running after the bounded wait, or the folder cannot be removed.
+   */
   stop(): Promise<void>;
   describe(): string;
 }
@@ -154,15 +159,9 @@ export function startElectronAppProcess(options: {
         }
         await Promise.race([exited, delay(5000)]);
       }
-      // Chromium may hold files for a moment after exit (Windows).
-      for (let attempt = 0; attempt < 5; attempt += 1) {
-        try {
-          rmSync(userDataDir, { recursive: true, force: true });
-          return;
-        } catch {
-          await delay(500);
-        }
-      }
+      // Helper processes can outlive the main process, and Windows keeps their
+      // files locked; wait for every process that uses this folder, then remove it.
+      await removeAppFolderAfterExit(userDataDir, 'Electron user data folder');
     },
   };
 }
