@@ -3,12 +3,16 @@
 // or against the packaged executable named by SMOKE_APP_EXECUTABLE; in
 // packaged mode the window URL must start with app:// (PLT-008, ADR 0004
 // decision 1). Driven by Playwright over CDP through the smoke harness.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   loadSmokeHarness,
   type ExpectedSmokeApp,
   type ExpectedSmokeAppTarget,
 } from '../test-support/smoke-harness-contract';
+import {
+  smokeHarnessDeferredOnWindows,
+  smokeHarnessWindowsDeferralReason,
+} from '../test-support/windows-smoke-deferral';
 
 /** The reference app's window title (apps/reference: main window title and index.html <title>). */
 const referenceAppTitle = 'Reference';
@@ -38,7 +42,13 @@ async function settledWindowTitles(started: ExpectedSmokeApp, timeoutMs: number)
   throw new Error(`no settled app window within ${timeoutMs} ms; last titles ${JSON.stringify(titles)}`);
 }
 
+// DEFERRED: TST-010 (Windows smoke suite; ADR 0011, #39): no launch and every test skips on Windows.
+beforeEach((context) => {
+  if (smokeHarnessDeferredOnWindows) context.skip(smokeHarnessWindowsDeferralReason);
+});
+
 beforeAll(async () => {
+  if (smokeHarnessDeferredOnWindows) return;
   const harness = await loadSmokeHarness();
   target = harness.resolveSmokeAppTarget(process.env);
   app = await harness.launchSmokeApp({ target });

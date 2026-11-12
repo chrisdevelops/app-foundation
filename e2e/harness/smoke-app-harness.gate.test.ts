@@ -22,7 +22,7 @@ import type { AddressInfo } from 'node:net';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, relative } from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   listProcessesUsing,
   listRunningProcesses,
@@ -44,6 +44,10 @@ import {
   type ExpectedSmokeHarnessErrorCode,
   type ExpectedSmokeHarnessModule,
 } from '../test-support/smoke-harness-contract';
+import {
+  smokeHarnessDeferredOnWindows,
+  smokeHarnessWindowsDeferralReason,
+} from '../test-support/windows-smoke-deferral';
 
 const root = repoGateRootDir;
 const slow = { timeout: 300_000 };
@@ -51,6 +55,14 @@ const slow = { timeout: 300_000 };
 const fixtureStartupTimeoutMs = 60_000;
 /** Time the harness gets, after its startup timeout, to kill the process tree and report. */
 const failureCleanupGraceMs = 45_000;
+
+// DEFERRED: TST-010 (Windows smoke harness; ADR 0011, #39): every test in this file skips on Windows.
+beforeEach((context) => {
+  if (smokeHarnessDeferredOnWindows) context.skip(smokeHarnessWindowsDeferralReason);
+});
+
+// ADR 0011: the Windows work is tracked in #39.
+it.todo('TST-010: the smoke harness gates pass on Windows (#39, ADR 0011)');
 
 let fixture: SmokeFixtureBuild | undefined;
 const startedApps: ExpectedSmokeApp[] = [];
