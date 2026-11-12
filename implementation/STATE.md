@@ -10,21 +10,21 @@
 
 | Issue | Title | Stage | Attempt | Next action |
 | --- | --- | --- | --- | --- |
-| #17 | CI: package the reference app and run smoke tests on three platforms | tests | 1 | Check test-author envelope and red run on `task/17-packaged-smoke-ci` |
+| #18 | Security baseline: gate tests for isolation, CSP and the packaged CDP guard | tests | 1 | Check test-author envelope and red run on `task/18-security-baseline` |
 
 ## Last action
 
-#16 merged (PR #38, developer attempt 3, reviewer approve, verifier 5/5): smoke harness over CDP with ownership checks and safe whole-tree teardown; Windows harness gates skipped under ADR 0011 (follow-up #39). TST-007 done.
+#17 merged (PR #40, reviewer approve, failure probe #41): `packaged-smoke (<os>)` job packages, copies and smoke-tests the reference app (macOS, Linux; Windows per ADR 0011) and uploads evidence on failure (ADR 0012). Follow-ups #42 (evidence gaps), #39 (Windows EBUSY race).
 
 ## Next action
 
-Task loop on #17, then each next issue in the chain.
+Task loop on #18, then each next issue in the chain.
 
 ## Open escalations
 
 | Issue or ADR | Waiting on | Since |
 | --- | --- | --- |
-| — | — | — |
+| Superseded branch `task/17-packaged-smoke-ci` | Human: approve deletion | 2026-11-12 |
 
 ## Blockers
 
@@ -32,8 +32,8 @@ None.
 
 ## Notes for the next orchestrator
 
-- Order: #17 … #24, #30, #25 … #29. Phase 1 is strictly sequential.
-- Merge procedure (ADR 0009 item 4): reviewer `approve`; `gh pr checks` shows `boundary-check` and three platform checks `pass`; explicit review of any diff to `.github/workflows/` or `tools/boundary-check/`. No branch protection (ADR 0009 item 5, human decision). A job that GitHub cancels because no runner was acquired is rerun with `gh run rerun <id> --failed`; it is not a code failure.
+- Order: #18 … #24, #30, #25 … #29. Phase 1 is strictly sequential.
+- Merge procedure (ADR 0009 item 4): reviewer `approve`; `gh pr checks` shows `boundary-check`, three `check (<os>)` and three `packaged-smoke (<os>)` checks `pass` (seven in total); explicit review of any diff to `.github/workflows/` or `tools/boundary-check/`. No branch protection (ADR 0009 item 5, human decision). A job that GitHub cancels because no runner was acquired is rerun with `gh run rerun <id> --failed`; it is not a code failure.
 - Windows: the human set a limit (ADR 0011). The smoke harness and smoke tests skip on Windows; no more phase 1 time on Windows harness work (#39). Windows keeps every other check. For #17, packaged smoke runs on macOS and Linux; on Windows the packaged app only builds, starts and passes its build gates.
 - Task branches are never updated by merging `main`; force-push is blocked by the permission system. Rebuild on a new branch with cherry-picks (ADR 0009 item 2).
 - Shared test helpers used by more than one system live in `tools/test-support/`; system-only helpers stay in that system's `test-support/` (ADR 0008). Only the test author changes them. No system imports another system's `test-support/`.

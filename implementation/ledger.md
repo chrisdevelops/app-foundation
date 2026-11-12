@@ -26,7 +26,7 @@
 | PLT-004 | Turborepo is the task runner | done | tools/repo/clean-clone | #12 |  |
 | PLT-005 | Electron Forge with its Vite plugin, version pinned | done | tools/reference-app/reference-app-manifest, reference-app-build | #15 |  |
 | PLT-006 | ESLint and Prettier are the linter and formatter | not-started | — | #12 | base config in #12; plugin rules later |
-| PLT-007 | Packaging is per app; App Store-unfriendly features are optional | not-started | — | #15 | zip maker and ADR 0010 step in #15; signing, dmg and pkg deferred; native add-ons in #29 |
+| PLT-007 | Packaging is per app; App Store-unfriendly features are optional | not-started | — | #15, #17 | zip maker and ADR 0010 step in #15; signing, dmg and pkg deferred; native add-ons in #29; packaged in CI on three OS in #17 |
 | PLT-008 | Electron security baseline is enforced by gate tests | not-started | — | #15 | ADR 0004; app:// protocol, fuses and symlink refusal in #15; isolation, sandbox, CSP and CDP guard in #18 |
 | PLT-009 | TypeScript and JavaScript for tooling; Python only with no JavaScript option | done | tools/repo/workspace-config | #12 |  |
 | PLT-010 | pnpm for packages; gh for GitHub; no AI co-author trailers | done | tools/repo/workspace-config, tools/boundary-check | #12, #14 | pnpm in #12; co-author trailer rule in #14 |
@@ -264,12 +264,12 @@
 | TST-007 | Playwright for end-to-end, connecting over CDP | done | e2e/harness/smoke-app-harness.gate | #16 |  |
 | TST-008 | Test-only main-process bridge, absent from packaged builds | not-started | — | — |  |
 | TST-009 | CDP port in development builds; packaged builds only with an environment variable | not-started | — | #16 | ADR 0004; dev build part in #16; packaged guard in #18 |
-| TST-010 | Small cross-process smoke suite per app on Windows, macOS and Linux | not-started | — | #16 | harness and smoke suite on macOS and Linux in #16; packaged smoke in CI in #17; Windows deferred (ADR 0011, #39) |
+| TST-010 | Small cross-process smoke suite per app on Windows, macOS and Linux | not-started | — | #16, #17 | harness and smoke suite on macOS and Linux in #16; packaged smoke in CI in #17; Windows deferred (ADR 0011, #39); CDP variable in #18 |
 | TST-011 | Reference app is end-to-end target and template; create-app script | not-started | — | #15 | reference app in #15; create-app in phase 5 |
 | TST-012 | Test infrastructure and gate tests come before each system's implementation | not-started | — | — |  |
 | TST-013 | Reference app comes before the smoke suite and create-app | done | tools/reference-app/reference-app-build | #15 |  |
 | TST-014 | Success: create-app output launches with shell features and no manual wiring | not-started | — | — |  |
-| TST-015 | Success: reference app smoke suite passes on three platforms in CI | not-started | — | #13 | CI on three OS in #13; smoke and packaging in #17 |
+| TST-015 | Success: reference app smoke suite passes on three platforms in CI | not-started | — | #13, #17 | CI on three OS in #13; smoke and packaging in #17; packaged smoke job on three OS in #17 (smoke on macOS and Linux, Windows per ADR 0011) |
 | TST-016 | Success: every component passes gate tests, zero axe violations, all theme and density screenshots | not-started | — | — |  |
 | TST-017 | Success: an AI agent can attach to a development build over CDP with the documented setup | not-started | — | — |  |
 | XC-001 | One name, one definition site | not-started | — | — |  |
