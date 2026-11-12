@@ -1,0 +1,60 @@
+{
+  "mainGreeting": "hello from workspace package, main",
+  "packaged": true,
+  "devServerUrl": null,
+  "contextIsolation": true,
+  "sandbox": true,
+  "nodeIntegration": false,
+  "marker": "marker-v1",
+  "addons": {
+    "sqlite": {
+      "ok": true,
+      "result": {
+        "rows": [
+          {
+            "id": 1,
+            "name": "alpha"
+          },
+          {
+            "id": 2,
+            "name": "beta"
+          }
+        ],
+        "sqliteVersion": "3.54.1"
+      }
+    },
+    "sharp": {
+      "ok": true,
+      "result": {
+        "inputBytes": 228,
+        "outputBytes": 103,
+        "width": 16,
+        "height": 16,
+        "format": "png",
+        "libvips": "8.18.7"
+      }
+    },
+    "pty": {
+      "ok": true,
+      "result": {
+        "output": "pty-hello-42\r\n",
+        "exitCode": 0,
+        "pid": 52566
+      }
+    }
+  },
+  "loadedNativeFiles": [
+    "/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/prebuilds-only/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/better-sqlite3/prebuilds/darwin-arm64.node",
+    "/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/prebuilds-only/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/@img/sharp-darwin-arm64/lib/sharp-darwin-arm64-0.35.5.node",
+    "/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/prebuilds-only/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/@img/sharp-libvips-darwin-arm64/lib/libvips-cpp.8.18.7.dylib",
+    "/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/prebuilds-only/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/node-pty/prebuilds/darwin-arm64/pty.node"
+  ],
+  "asarIntegrityNote": "see fuses read-back",
+  "resourcesPath": "/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/prebuilds-only/SpikeDemo.app/Contents/Resources",
+  "rendererLogs": [
+    "SPIKE_RENDERER {\"greeting\":\"hello from workspace package, renderer\",\"preload\":{\"processType\":\"renderer\",\"hasRequire\":true,\"sandboxed\":true},\"rendererHasRequire\":false,\"rendererHasProcess\":false}"
+  ],
+  "electron": "45.3.0",
+  "chrome": "156.0.8078.96",
+  "node": "24.22.2"
+}

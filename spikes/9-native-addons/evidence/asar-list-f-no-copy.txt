@@ -1,0 +1,10 @@
+/.vite
+/.vite/build
+/.vite/build/main.cjs
+/.vite/build/preload.cjs
+/.vite/renderer
+/.vite/renderer/main_window
+/.vite/renderer/main_window/assets
+/.vite/renderer/main_window/assets/index-mu9aBE5S.js
+/.vite/renderer/main_window/index.html
+/package.json

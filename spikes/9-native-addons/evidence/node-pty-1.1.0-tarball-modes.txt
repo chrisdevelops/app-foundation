@@ -1,0 +1,4 @@
+-rw-r--r--  0 0      0       50480 Oct 26  1985 package/prebuilds/darwin-arm64/spawn-helper
+-rw-r--r--  0 0      0        9248 Oct 26  1985 package/prebuilds/darwin-x64/spawn-helper
+-rw-r--r--  0 0      0       85496 Oct 26  1985 package/prebuilds/darwin-arm64/pty.node
+-rw-r--r--  0 0      0       52864 Oct 26  1985 package/prebuilds/darwin-x64/pty.node

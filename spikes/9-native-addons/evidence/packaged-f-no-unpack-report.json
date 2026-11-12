@@ -1,0 +1,47 @@
+{
+  "mainGreeting": "hello from workspace package, main",
+  "packaged": true,
+  "devServerUrl": null,
+  "contextIsolation": true,
+  "sandbox": true,
+  "nodeIntegration": false,
+  "marker": "marker-v1",
+  "addons": {
+    "sqlite": {
+      "ok": true,
+      "result": {
+        "rows": [
+          {
+            "id": 1,
+            "name": "alpha"
+          },
+          {
+            "id": 2,
+            "name": "beta"
+          }
+        ],
+        "sqliteVersion": "3.54.1"
+      }
+    },
+    "sharp": {
+      "ok": false,
+      "error": "Error: Could not load the \"sharp\" module using the darwin-arm64 runtime\nERR_DLOPEN_FAILED: dlopen(/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/@img/sharp-darwin-arm64/lib/sharp-darwin-arm64-0.35.5.node, 0x0001): Library not loaded: @rpath/libvips-cpp.8.18.7.dylib\n  Referenced from: <1EE8D12A-E2E8-3CD0-BAA6-2413C540CE7B> /private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/@img/sharp-darwin-arm64/lib/sharp-darwin-arm64-0.35.5.node\n  Reason: tried: '/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/@img/sharp-darwin-arm64/lib/../../sharp-libvips-darwin-arm64/lib/libvips-cpp.8.18.7.dylib' (no such file), '/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/@img/sharp-darwin-arm64/lib/../../../sharp-libvips-darwin-arm64/1.3.4/lib/libvips-cpp.8.18.7.dylib' (no such file), '/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/@img/sharp-darwin-arm64/lib/../node_modules/@img/sharp-libvips-darwin-arm64/lib/libvips-cpp.8.18.7.dylib' (no such file), '/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/@img/sharp-darwin-arm64/lib/../../node_modules/@img/sharp-libvips-darwin-arm64/lib/libvips-cpp.8.18.7.dylib' (no such file), '/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/@img/sharp-darwin-arm64/lib/../../../node_modules/@img/sharp-libvips-darwin-arm64/lib/libvips-cpp.8.18.7.dylib' (no such file), '/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/@img/sharp-darwin-arm64/lib/../../../../../@img-sharp-libvips-darwin-arm64-npm-1.3.4-264ee1b7a8/node_modules/@img/sharp-libvips-darwin-arm64/lib/libvips-cpp.8.18.7.dylib' (no such file), '/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/@img/sharp-darwin-arm64/lib/../../sharp-libvips-darwin-arm64/lib/libvips-cpp.8.18.7.dylib' (no such file), '/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/@img/sharp-darwin-arm64/lib/../../../sharp-libvips-darwin-arm64/1.3.4/lib/libvips-cpp.8.18.7.dylib' (no such file), '/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/@img/sharp-darwin-arm64/lib/../node_modules/@img/sharp-libvips-darwin-arm64/lib/libvips-cpp.8.18.7.dylib' (no such file), '/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/@img/sharp-darwin-arm64/lib/../../node_modules/@img/sharp-libvips-darwin-arm64/lib/libvips-cpp.8.18.7.dylib' (no such file), '/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/@img/sharp-darwin-arm64/lib/../../../node_modules/@img/sharp-libvips-darwin-arm64/lib/libvips-cpp.8.18.7.dylib' (no such file), '/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/@img/sharp-darwin-arm64/lib/../../../../../@img-sharp-libvips-darwin-arm64-npm-1.3.4-264ee1b7a8/node_modules/@img/sharp-libvips-darwin-arm64/lib/libvips-cpp.8.18.7.dylib' (no such file), '/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Libraries/libvips-cpp.8.18.7.dylib' (no such file), '/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Frameworks/Electron Framework.framework/Versions/A/../../../libvips-cpp.8.18.7.dylib' (no such file), '/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Frameworks/libvips-cpp.8.18.7.dylib' (no such file)\nPossible solutions:\n- Ensure optional dependencies can be installed:\n    npm install --include=optional sharp\n- Ensure your package manager supports multi-platform installation:\n    See https://sharp.pixelplumbing.com/install#cross-platform\n- Add platform-specific dependencies:\n    npm install --os=darwin --cpu=arm64 sharp\n- Consult the installation documentation:\n    See https://sharp.pixelplumbing.com/install\n    at file:///private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar/node_modules/sharp/dist/sharp.mjs:171:9\n    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)\n    at async node:internal/modules/esm/loader:647:26\n    at async p (/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar/.vite/build/main.cjs:1:1088)\n    at async /private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar/.vite/build/main.cjs:1:2328"
+    },
+    "pty": {
+      "ok": false,
+      "error": "Error: posix_spawnp failed.\n    at new UnixTerminal (/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar/node_modules/node-pty/lib/unixTerminal.js:92:24)\n    at Module.spawn (/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar/node_modules/node-pty/lib/index.js:30:12)\n    at /private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar/.vite/build/main.cjs:1:1478\n    at new Promise (<anonymous>)\n    at m (/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar/.vite/build/main.cjs:1:1450)\n    at async /private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar/.vite/build/main.cjs:1:2328"
+    }
+  },
+  "loadedNativeFiles": [
+    "/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/better-sqlite3/prebuilds/darwin-arm64.node",
+    "/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources/app.asar.unpacked/node_modules/node-pty/build/Release/pty.node"
+  ],
+  "asarIntegrityNote": "see fuses read-back",
+  "resourcesPath": "/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-unpack/SpikeDemo.app/Contents/Resources",
+  "rendererLogs": [
+    "SPIKE_RENDERER {\"greeting\":\"hello from workspace package, renderer\",\"preload\":{\"processType\":\"renderer\",\"hasRequire\":true,\"sandboxed\":true},\"rendererHasRequire\":false,\"rendererHasProcess\":false}"
+  ],
+  "electron": "45.3.0",
+  "chrome": "156.0.8078.96",
+  "node": "24.22.2"
+}

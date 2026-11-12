@@ -1,0 +1,43 @@
+$ electron-forge package
+❯ Checking your system
+❯ Checking package manager version
+✔ Found pnpm@11.13.1
+✔ Checking your system
+❯ Preparing to package application
+✔ Preparing to package application
+❯ Running packaging hooks
+❯ Running generateAssets hook
+✔ Running generateAssets hook
+❯ Running prePackage hook
+❯ [plugin-vite] Building production Vite bundles
+❯ Building main and preload targets...
+❯ Building renderer targets...
+❯ Building src/main.ts
+❯ Building src/preload.ts
+❯ Building main_window
+✔ Built target src/preload.ts
+✔ Built target src/main.ts
+✔ Building main and preload targets...
+✔ Built target main_window
+✔ Building renderer targets...
+✔ [plugin-vite] Building production Vite bundles
+✔ Running prePackage hook
+✔ Running packaging hooks
+❯ Packaging application
+› Determining targets...
+❯ Packaging for arm64 on darwin
+❯ Copying files
+✔ Copying files
+❯ Preparing native dependencies
+✔ Preparing native dependencies
+❯ Finalizing package
+copyNativeModules copied: @img/colour, @img/sharp-darwin-arm64, @img/sharp-libvips-darwin-arm64, better-sqlite3, detect-libc, node-addon-api, node-pty, semver, sharp
+chmod 755 on prebuilt node-pty spawn-helper
+SPIKE_STRIP_BUILD: removed rebuilt output from the package
+✔ Finalizing package
+✔ Packaging for arm64 on darwin
+✔ Packaging application
+❯ Running postPackage hook
+✔ Running postPackage hook
+
+exit=0 signal=null timedOut=false

@@ -1,0 +1,84 @@
+stderr:
+
+--- sample (filtered) ---
+    +       831 node::PrincipalRealm::snapshot_deserialize_main() const  (in Electron Framework) + 14588  [0x11312ada4]
+    +         831 node::inspector::protocol::Target::Dispatcher::wire(crdtp::UberDispatcher*, node::inspector::protocol::Target::Backend*)  (in Electron Framework) + 1341284  [0x1146827c8]
+    +           831 node::inspector::protocol::Target::Dispatcher::wire(crdtp::UberDispatcher*, node::inspector::protocol::Target::Backend*)  (in Electron Framework) + 1339624  [0x11468214c]
+    +                   831 node::AsyncWrap::~AsyncWrap()  (in Electron Framework) + 1028152  [0x11414c238]
+    +                     831 node::PrincipalRealm::inspector_enable_network_tracking() const  (in Electron Framework) + 315336  [0x1141ff8a8]
+    +                       831 node::LoadEnvironment(node::Environment*, std::__Cr::function<v8::MaybeLocal<v8::Value> (node::StartExecutionCallbackInfo const&)>, std::__Cr::function<void (node::Environment*, v8::Local<v8::Value>, v8::Local<v8::Value>)>)  (in Electron Framework) + 176  [0x1142ac728]
+    +                         831 node::LoadEnvironment(node::Environment*, std::__Cr::function<v8::MaybeLocal<v8::Value> (node::StartExecutionCallbackInfoWithModule const&)>, std::__Cr::function<void (node::Environment*, v8::Local<v8::Value>, v8::Local<v8::Value>)>)  (in Electron Framework) + 200  [0x1142ac3d4]
+    +                           831 node::StartExecution(node::Environment*, std::__Cr::function<v8::MaybeLocal<v8::Value> (node::StartExecutionCallbackInfoWithModule const&)>)  (in Electron Framework) + 380  [0x11432d5fc]
+    +                             831 node::InternalCallbackScope::~InternalCallbackScope()  (in Electron Framework) + 368  [0x1121cd96c]
+    +                                               831 node::AsyncWrap::~AsyncWrap()  (in Electron Framework) + 241628  [0x11408c1dc]
+    +                                                 831 node::PrincipalRealm::inspector_enable_network_tracking() const  (in Electron Framework) + 782952  [0x114271b48]
+    +                                                   831 -[NSAlert runModal]  (in AppKit) + 196  [0x18caa98e8]
+    +                                                     831 _NSTryRunModal  (in AppKit) + 100  [0x18ca3c838]
+    +                                                       831 __19-[NSAlert runModal]_block_invoke.195  (in AppKit) + 36  [0x18cfe016c]
+    +                                                         831 __19-[NSAlert runModal]_block_invoke  (in AppKit) + 192  [0x18cfdff0c]
+    +                                                           831 -[NSApplication runModalForWindow:]  (in AppKit) + 292  [0x18ca3c6f0]
+    +                                                             831 _NSTryRunModal  (in AppKit) + 100  [0x18ca3c838]
+    +                                                               831 __35-[NSApplication runModalForWindow:]_block_invoke  (in AppKit) + 108  [0x18ca3cf6c]
+    +                                                                 831 __35-[NSApplication runModalForWindow:]_block_invoke_2  (in AppKit) + 56  [0x18ca3cfc0]
+    +     831 node::WorkerThreadsTaskRunner::DelayedTaskScheduler::Start()::'lambda'(void*)::__invoke(void*)  (in Electron Framework) + 144  [0x1143d3c48]
+--- sample head ---
+
+Analysis of sampling SpikeDemo (pid 52357) every 1 millisecond
+Process:         SpikeDemo [52357]
+Path:            /private/tmp/*/SpikeDemo.app/Contents/MacOS/SpikeDemo
+Load Address:    0x1049cc000
+Identifier:      com.electron.spikedemo
+Version:         0.0.1 (0.0.1)
+Code Type:       ARM64
+Platform:        macOS
+Parent Process:  node [52356]
+Target Type:     live task
+
+Date/Time:       2026-11-11 17:17:36.606 -0700
+Launch Time:     2026-11-11 17:17:28.495 -0700
+OS Version:      macOS 26.6.2 (25G83)
+Report Version:  7
+Analysis Tool:   /usr/bin/sample
+
+Physical footprint:         27.9M
+Physical footprint (peak):  28.2M
+Idle exit:                  untracked
+----
+
+Call graph:
+    831 Thread_34419822   DispatchQueue_1: com.apple.main-thread  (serial)
+    + 831 start  (in dyld) + 6992  [0x187f584e4]
+    +   831 ElectronMain  (in Electron Framework) + 504  [0x1130e8d00]
+    +     831 uv_setup_args  (in Electron Framework) + 5120  [0x1130eabcc]
+    +       831 node::PrincipalRealm::snapshot_deserialize_main() const  (in Electron Framework) + 14588  [0x11312ada4]
+    +         831 node::inspector::protocol::Target::Dispatcher::wire(crdtp::UberDispatcher*, node::inspector::protocol::Target::Backend*)  (in Electron Framework) + 1341284  [0x1146827c8]
+    +           831 node::inspector::protocol::Target::Dispatcher::wire(crdtp::UberDispatcher*, node::inspector::protocol::Target::Backend*)  (in Electron Framework) + 1339624  [0x11468214c]
+    +             831 _v8_internal_Node_Print(void*)  (in Electron Framework) + 4780084  [0x115f223b8]
+    +               831 _v8_internal_Node_Print(void*)  (in Electron Framework) + 4795688  [0x115f260ac]
+    +                 831 _v8_internal_Node_Print(void*)  (in Electron Framework) + 4782240  [0x115f22c24]
+    +                   831 node::AsyncWrap::~AsyncWrap()  (in Electron Framework) + 1028152  [0x11414c238]
+    +                     831 node::PrincipalRealm::inspector_enable_network_tracking() const  (in Electron Framework) + 315336  [0x1141ff8a8]
+    +                       831 node::LoadEnvironment(node::Environment*, std::__Cr::function<v8::MaybeLocal<v8::Value> (node::StartExecutionCallbackInfo const&)>, std::__Cr::function<void (node::Environment*, v8::Local<v8::Value>, v8::Local<v8::Value>)>)  (in Electron Framework) + 176  [0x1142ac728]
+    +                         831 node::LoadEnvironment(node::Environment*, std::__Cr::function<v8::MaybeLocal<v8::Value> (node::StartExecutionCallbackInfoWithModule const&)>, std::__Cr::function<void (node::Environment*, v8::Local<v8::Value>, v8::Local<v8::Value>)>)  (in Electron Framework) + 200  [0x1142ac3d4]
+    +                           831 node::StartExecution(node::Environment*, std::__Cr::function<v8::MaybeLocal<v8::Value> (node::StartExecutionCallbackInfoWithModule const&)>)  (in Electron Framework) + 380  [0x11432d5fc]
+    +                             831 node::InternalCallbackScope::~InternalCallbackScope()  (in Electron Framework) + 368  [0x1121cd96c]
+    +                               831 v8::internal::OptimizingCompileInputQueue::Dequeue(v8::internal::OptimizingCompileTaskState&)  (in Electron Framework) + 10912  [0x113406df4]
+    +                                 831 v8::MicrotasksScope::~MicrotasksScope()  (in Electron Framework) + 2124  [0x111ba5968]
+    +                                   831 ???  (in <unknown binary>)  [0x157dcb99c]
+    +                                     831 ???  (in <unknown binary>)  [0x157dfeaf0]
+    +                                       831 ???  (in <unknown binary>)  [0x157f13650]
+    +                                         831 ???  (in <unknown binary>)  [0x157dcebf0]
+    +                                           831 ???  (in <unknown binary>)  [0x157dcebf0]
+    +                                             831 ???  (in <unknown binary>)  [0x157dd0b4c]
+    +                                               831 node::AsyncWrap::~AsyncWrap()  (in Electron Framework) + 241628  [0x11408c1dc]
+    +                                                 831 node::PrincipalRealm::inspector_enable_network_tracking() const  (in Electron Framework) + 782952  [0x114271b48]
+    +                                                   831 -[NSAlert runModal]  (in AppKit) + 196  [0x18caa98e8]
+    +                                                     831 _NSTryRunModal  (in AppKit) + 100  [0x18ca3c838]
+    +                                                       831 __19-[NSAlert runModal]_block_invoke.195  (in AppKit) + 36  [0x18cfe016c]
+    +                                                         831 __19-[NSAlert runModal]_block_invoke  (in AppKit) + 192  [0x18cfdff0c]
+    +                                                           831 -[NSApplication runModalForWindow:]  (in AppKit) + 292  [0x18ca3c6f0]
+    +                                                             831 _NSTryRunModal  (in AppKit) + 100  [0x18ca3c838]
+    +                                                               831 __35-[NSApplication runModalForWindow:]_block_invoke  (in AppKit) + 108  [0x18ca3cf6c]
+    +                                                                 831 __35-[NSApplication runModalForWindow:]_block_invoke_2  (in AppKit) + 56  [0x18ca3cfc0]
+    +                                                                   831 -[NSApplication _doModalLoop:peek:]  (in AppKit) + 216  [0x18ca3e398]
+    +                                                                     831 -[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:]  (in AppKit) + 72  [0x18d3ab678]

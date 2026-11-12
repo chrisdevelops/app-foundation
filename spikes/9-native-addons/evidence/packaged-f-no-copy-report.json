@@ -1,0 +1,32 @@
+{
+  "mainGreeting": "hello from workspace package, main",
+  "packaged": true,
+  "devServerUrl": null,
+  "contextIsolation": true,
+  "sandbox": true,
+  "nodeIntegration": false,
+  "marker": "marker-v1",
+  "addons": {
+    "sqlite": {
+      "ok": false,
+      "error": "Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'better-sqlite3' imported from /private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-copy/SpikeDemo.app/Contents/Resources/app.asar/.vite/build/main.cjs\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:331:9)\n    at packageResolve (node:internal/modules/esm/resolve:797:25)\n    at moduleResolve (node:internal/modules/esm/resolve:886:18)\n    at defaultResolve (node:internal/modules/esm/resolve:1019:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)\n    at #resolve (node:internal/modules/esm/loader:687:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)\n    at node:internal/modules/esm/loader:636:32"
+    },
+    "sharp": {
+      "ok": false,
+      "error": "Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'sharp' imported from /private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-copy/SpikeDemo.app/Contents/Resources/app.asar/.vite/build/main.cjs\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:331:9)\n    at packageResolve (node:internal/modules/esm/resolve:797:25)\n    at moduleResolve (node:internal/modules/esm/resolve:886:18)\n    at defaultResolve (node:internal/modules/esm/resolve:1019:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)\n    at #resolve (node:internal/modules/esm/loader:687:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)\n    at node:internal/modules/esm/loader:636:32"
+    },
+    "pty": {
+      "ok": false,
+      "error": "Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'node-pty' imported from /private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-copy/SpikeDemo.app/Contents/Resources/app.asar/.vite/build/main.cjs\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:331:9)\n    at packageResolve (node:internal/modules/esm/resolve:797:25)\n    at moduleResolve (node:internal/modules/esm/resolve:886:18)\n    at defaultResolve (node:internal/modules/esm/resolve:1019:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)\n    at #resolve (node:internal/modules/esm/loader:687:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)\n    at node:internal/modules/esm/loader:636:32"
+    }
+  },
+  "loadedNativeFiles": [],
+  "asarIntegrityNote": "see fuses read-back",
+  "resourcesPath": "/private/tmp/claude-501/-Users-cal-Projects-lab-app-foundation/e951459b-74fd-4455-94f3-00debf481d2a/scratchpad/run/f-no-copy/SpikeDemo.app/Contents/Resources",
+  "rendererLogs": [
+    "SPIKE_RENDERER {\"greeting\":\"hello from workspace package, renderer\",\"preload\":{\"processType\":\"renderer\",\"hasRequire\":true,\"sandboxed\":true},\"rendererHasRequire\":false,\"rendererHasProcess\":false}"
+  ],
+  "electron": "45.3.0",
+  "chrome": "156.0.8078.96",
+  "node": "24.22.2"
+}

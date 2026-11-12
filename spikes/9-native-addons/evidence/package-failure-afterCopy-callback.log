@@ -1,0 +1,40 @@
+$ electron-forge package
+❯ Checking your system
+❯ Checking package manager version
+✔ Found pnpm@11.13.1
+✔ Checking your system
+❯ Preparing to package application
+✔ Preparing to package application
+❯ Running packaging hooks
+❯ Running generateAssets hook
+✔ Running generateAssets hook
+❯ Running prePackage hook
+❯ [plugin-vite] Building production Vite bundles
+❯ Building main and preload targets...
+❯ Building renderer targets...
+❯ Building src/main.ts
+❯ Building src/preload.ts
+❯ Building main_window
+✔ Built target src/preload.ts
+✔ Built target src/main.ts
+✔ Building main and preload targets...
+✔ Built target main_window
+✔ Building renderer targets...
+✔ [plugin-vite] Building production Vite bundles
+✔ Running prePackage hook
+✔ Running packaging hooks
+❯ Packaging application
+› Determining targets...
+❯ Packaging for arm64 on darwin
+❯ Copying files
+✔ Copying files
+❯ Preparing native dependencies
+✔ Preparing native dependencies
+❯ Finalizing package
+
+An unhandled rejection has occurred inside Forge:
+TypeError: done is not a function
+at /Users/cal/Projects/lab/app-foundation/.claude/worktrees/agent-af2dccf0c1de03905/spikes/9-native-addons/apps/demo/forge.config.ts:23:18
+[ELIFECYCLE] Command failed with exit code 1.
+
+exit=1 signal=null timedOut=false
