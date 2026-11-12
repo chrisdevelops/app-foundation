@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint tools *.config.ts",
     "test": "vitest run",
+    "smoke": "pnpm --filter @foundation/e2e run smoke",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

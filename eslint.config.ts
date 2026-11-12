@@ -19,6 +19,6 @@ export default defineConfig(
       },
     },
   },
-  // tools/repo/test-support/run-repo-command.ts turns off no-control-regex
+  // tools/test-support/run-repo-command.ts turns off no-control-regex
   // with an inline directive for its ANSI pattern; no file-level override here.
 );

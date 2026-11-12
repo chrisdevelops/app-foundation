@@ -1,0 +1,646 @@
+// Smoke harness (#16; TST-007, TST-009 dev build part, TST-010 partial, XC-004).
+// Starts the reference app (the dev command, or a packaged executable by path)
+// with the DevTools port open, checks that the endpoint belongs to the app it
+// started, and connects Playwright with `chromium.connectOverCDP` from
+// playwright-core (spike #5; Playwright's Electron launcher is not used).
+//
+// Input: a target and environment. Output: a connected browser with the app's
+// windows and a teardown function, or a `SmokeHarnessError` whose code names
+// the cause: `port-not-owned`, `startup-timeout`, `app-exited`,
+// `executable-not-found`.
+//
+// - Each launch gets a free port (unless the caller sets one) and a fresh
+//   temporary user data folder.
+// - Ownership: a busy port is silent in Chromium (spike #5), so a port that
+//   is in use before the launch fails at once and starts nothing. The harness
+//   connects only when the endpoint on the port names the browser that the app
+//   wrote in DevToolsActivePort in its own user data folder.
+// - Every wait is bounded. A modal error dialog in the main process (ADR 0005)
+//   keeps the app running without an endpoint; the launch then fails with
+//   `startup-timeout` and kills the app.
+// - Teardown kills the whole process tree, waits until no process uses the
+//   user data folder, and is safe to call twice.
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
+import { connect, createServer } from 'node:net';
+import { tmpdir } from 'node:os';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { chromium, type Browser, type Page } from 'playwright-core';
+
+/** What the harness starts: the reference app's dev command, or a packaged executable by path. */
+export type SmokeAppTarget = { readonly kind: 'dev' } | { readonly kind: 'packaged'; readonly executablePath: string };
+
+export interface SmokeAppLaunchOptions {
+  readonly target: SmokeAppTarget;
+  /** Variables added to the app's environment. */
+  readonly env?: Readonly<Record<string, string>>;
+  /** Time the DevTools endpoint has to become ready; then the launch fails with `startup-timeout`. */
+  readonly startupTimeoutMs?: number;
+  /** DevTools port to use. Default: a free port the harness picks. */
+  readonly port?: number;
+}
+
+export interface SmokeApp {
+  /** Playwright browser from `chromium.connectOverCDP`. */
+  readonly browser: Browser;
+  /** The DevTools port the harness connected to. */
+  readonly port: number;
+  /** The fresh temporary user data folder of this launch. */
+  readonly userDataDir: string;
+  /** Combined stdout and stderr of the app so far. */
+  output(): string;
+  /** The app's windows (page targets; DevTools front ends excluded). */
+  windows(): Page[];
+  /** Runs `action` and resolves with the window it opens; rejects when no window opens within `timeoutMs`. */
+  waitForNewWindow(action: () => Promise<unknown>, timeoutMs?: number): Promise<Page>;
+  /** Kills the whole process tree; resolves when no process uses the user data folder. Safe to call twice. */
+  teardown(): Promise<void>;
+}
+
+export type SmokeHarnessErrorCode = 'port-not-owned' | 'startup-timeout' | 'app-exited' | 'executable-not-found';
+
+/** The harness's typed error. The message starts with the code and ends with the captured app output. */
+export class SmokeHarnessError extends Error {
+  override readonly name = 'SmokeHarnessError';
+  readonly code: SmokeHarnessErrorCode;
+  /** Exit code of the app for `app-exited`; otherwise null. */
+  readonly exitCode: number | null;
+  /** Captured stdout and stderr of the app (empty when nothing started). */
+  readonly output: string;
+  /** User data folder of the failed launch, or undefined when the harness started no app. */
+  readonly userDataDir: string | undefined;
+
+  constructor(details: {
+    code: SmokeHarnessErrorCode;
+    summary: string;
+    output?: string;
+    exitCode?: number | null;
+    userDataDir?: string;
+    cause?: unknown;
+  }) {
+    const output = details.output ?? '';
+    super(
+      `${details.code}: ${details.summary}` +
+        (output.trim() === '' ? '' : `\n--- app stdout and stderr ---\n${clipOutput(output)}`),
+      details.cause === undefined ? undefined : { cause: details.cause },
+    );
+    this.code = details.code;
+    this.exitCode = details.exitCode ?? null;
+    this.output = output;
+    this.userDataDir = details.userDataDir;
+  }
+}
+
+/** Environment variable that points the smoke suite at a packaged executable instead of the dev build. */
+const smokeAppExecutableVariableName = 'SMOKE_APP_EXECUTABLE';
+
+/** Startup time for a launch that sets none: the dev command builds main and preload before Electron starts. */
+const defaultStartupTimeoutMs = 120_000;
+/** Time Electron gets to quit after SIGTERM before the process group is killed. */
+const gracefulStopMs = 5_000;
+/** Time every process that uses the user data folder gets to exit after the tree is killed. */
+const processExitWaitMs = 30_000;
+const pollIntervalMs = 150;
+const defaultNewWindowTimeoutMs = 30_000;
+
+const repoRootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const referenceAppDir = join(repoRootDir, 'apps', 'reference');
+
+/**
+ * The target the smoke suite runs against: the packaged executable named by
+ * SMOKE_APP_EXECUTABLE, or the dev build when the variable is not set. A
+ * relative path is read from the folder pnpm was started in.
+ */
+export function resolveSmokeAppTarget(env: Readonly<Record<string, string | undefined>>): SmokeAppTarget {
+  const executable = env[smokeAppExecutableVariableName];
+  if (executable === undefined || executable.trim() === '') return { kind: 'dev' };
+  const executablePath = isAbsolute(executable) ? executable : resolve(env.INIT_CWD ?? process.cwd(), executable);
+  return { kind: 'packaged', executablePath };
+}
+
+/** Starts the target, checks that the DevTools endpoint is its own, and connects Playwright over CDP. */
+export async function launchSmokeApp(options: SmokeAppLaunchOptions): Promise<SmokeApp> {
+  const startupTimeoutMs = options.startupTimeoutMs ?? defaultStartupTimeoutMs;
+  const deadline = Date.now() + startupTimeoutMs;
+
+  if (options.target.kind === 'packaged') {
+    const { executablePath } = options.target;
+    if (!existsSync(executablePath) || !statSync(executablePath).isFile()) {
+      throw new SmokeHarnessError({
+        code: 'executable-not-found',
+        summary: `the packaged executable ${executablePath} does not exist or is not a file (${smokeAppExecutableVariableName} or the launch target names it)`,
+      });
+    }
+  }
+
+  let port: number;
+  // Port 0 means "any free port", as in Chromium's own switch.
+  if (options.port === undefined || options.port === 0) {
+    port = await pickFreePort();
+  } else {
+    port = options.port;
+    if (await isPortInUse(port)) {
+      throw new SmokeHarnessError({
+        code: 'port-not-owned',
+        summary: `port ${port} is already in use by another process, so the endpoint there would not belong to this launch; the harness started nothing`,
+      });
+    }
+  }
+
+  const userDataDir = realpathSync.native(mkdtempSync(join(tmpdir(), 'smoke-user-data-')));
+  let processTree: ProcessTree;
+  try {
+    processTree = startProcessTree(options, port, userDataDir);
+  } catch (error) {
+    rmSync(userDataDir, { recursive: true, force: true });
+    throw error;
+  }
+
+  const fail = async (
+    code: SmokeHarnessErrorCode,
+    summary: string,
+    extra: { exitCode?: number | null; cause?: unknown } = {},
+  ): Promise<never> => {
+    let stopProblem = '';
+    try {
+      await processTree.stop();
+    } catch (error) {
+      stopProblem = `\nthe harness could not stop every process: ${errorText(error)}`;
+    }
+    throw new SmokeHarnessError({
+      code,
+      summary: `${summary}${stopProblem}\n(command: ${processTree.commandLine})`,
+      output: processTree.output(),
+      exitCode: extra.exitCode,
+      userDataDir,
+      cause: extra.cause,
+    });
+  };
+
+  const endpoint = await waitForOwnedEndpoint(processTree, port, userDataDir, deadline);
+  if (endpoint.kind === 'failed') {
+    return fail(endpoint.code, endpoint.summary, { exitCode: endpoint.exitCode, cause: endpoint.cause });
+  }
+
+  let browser: Browser;
+  try {
+    browser = await chromium.connectOverCDP(endpoint.webSocketUrl, {
+      timeout: Math.max(deadline - Date.now(), 5_000),
+    });
+  } catch (error) {
+    return fail('startup-timeout', `could not connect over CDP to ${endpoint.webSocketUrl}: ${errorText(error)}`, {
+      cause: error,
+    });
+  }
+
+  const windows = (): Page[] =>
+    browser
+      .contexts()
+      .flatMap((context) => context.pages())
+      .filter((page) => !page.url().startsWith('devtools://'));
+
+  let teardownPromise: Promise<void> | undefined;
+
+  return {
+    browser,
+    port,
+    userDataDir,
+    output: () => processTree.output(),
+    windows,
+    waitForNewWindow: (action, timeoutMs = defaultNewWindowTimeoutMs) => waitForNewWindow(windows, action, timeoutMs),
+    teardown(): Promise<void> {
+      teardownPromise ??= (async () => {
+        // For a CDP connection, close() only disconnects; the app keeps running (spike #5).
+        await withTimeout(browser.close(), 5_000).catch(() => undefined);
+        await processTree.stop();
+      })();
+      return teardownPromise;
+    },
+  };
+}
+
+type EndpointResult =
+  | { readonly kind: 'owned'; readonly webSocketUrl: string }
+  | {
+      readonly kind: 'failed';
+      readonly code: SmokeHarnessErrorCode;
+      readonly summary: string;
+      readonly exitCode?: number | null;
+      readonly cause?: unknown;
+    };
+
+/**
+ * Chromium's log line when the DevTools server cannot bind its port (spike #5).
+ * Its general `bind() failed` line is not used: other Chromium sockets print it too.
+ */
+const devToolsBindFailurePattern = /Cannot start http server for devtools/i;
+
+async function waitForOwnedEndpoint(
+  processTree: ProcessTree,
+  port: number,
+  userDataDir: string,
+  deadline: number,
+): Promise<EndpointResult> {
+  const activePortFile = join(userDataDir, 'DevToolsActivePort');
+  let lastProblem = 'DevToolsActivePort was not written';
+  for (;;) {
+    const spawnError = processTree.spawnError();
+    if (spawnError) {
+      const notFound = (spawnError as NodeJS.ErrnoException).code === 'ENOENT';
+      return {
+        kind: 'failed',
+        code: notFound ? 'executable-not-found' : 'app-exited',
+        summary: `could not start ${processTree.command}: ${spawnError.message}`,
+        cause: spawnError,
+      };
+    }
+    const exit = processTree.exit();
+    if (exit) {
+      await processTree.outputClosed(2_000);
+      return {
+        kind: 'failed',
+        code: 'app-exited',
+        summary: `the app exited with code ${exit.code ?? 'none'}${exit.signal ? ` (signal ${exit.signal})` : ''} before its DevTools endpoint on port ${port} was ready`,
+        exitCode: exit.code,
+      };
+    }
+    if (devToolsBindFailurePattern.test(processTree.output())) {
+      return {
+        kind: 'failed',
+        code: 'port-not-owned',
+        summary: `the app could not open its DevTools endpoint on port ${port}: another process holds the port`,
+      };
+    }
+    const written = readActivePortFile(activePortFile);
+    if (written) {
+      if (written.port !== port) {
+        return {
+          kind: 'failed',
+          code: 'port-not-owned',
+          summary: `the app wrote DevTools port ${written.port} in ${activePortFile}, not the requested port ${port}`,
+        };
+      }
+      const answered = await readEndpointBrowserUrl(port);
+      if (answered.kind === 'answered') {
+        if (webSocketPath(answered.webSocketUrl) !== written.browserPath) {
+          return {
+            kind: 'failed',
+            code: 'port-not-owned',
+            summary: `the endpoint on port ${port} is ${answered.webSocketUrl}, but the launched app wrote ${written.browserPath}: another process holds the port`,
+          };
+        }
+        return { kind: 'owned', webSocketUrl: answered.webSocketUrl };
+      }
+      lastProblem = answered.problem;
+    }
+    if (Date.now() >= deadline) {
+      return {
+        kind: 'failed',
+        code: 'startup-timeout',
+        summary: `the DevTools endpoint on port ${port} was not ready within the startup time (${lastProblem}). A modal error dialog in the main process (ADR 0005) looks like this`,
+      };
+    }
+    await delay(Math.min(pollIntervalMs, Math.max(deadline - Date.now(), 0)));
+  }
+}
+
+function readActivePortFile(path: string): { port: number; browserPath: string } | undefined {
+  if (!existsSync(path)) return undefined;
+  const [portLine, browserPath] = readFileSync(path, 'utf8').split(/\r?\n/);
+  const port = Number(portLine);
+  // Chromium writes the file in one step; an incomplete read is retried on the next poll.
+  if (!Number.isInteger(port) || port <= 0 || !browserPath) return undefined;
+  return { port, browserPath };
+}
+
+async function readEndpointBrowserUrl(
+  port: number,
+): Promise<{ kind: 'answered'; webSocketUrl: string } | { kind: 'no-answer'; problem: string }> {
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/json/version`, { signal: AbortSignal.timeout(2_000) });
+    if (!response.ok) return { kind: 'no-answer', problem: `/json/version answered HTTP ${response.status}` };
+    const body = (await response.json()) as { webSocketDebuggerUrl?: unknown };
+    if (typeof body.webSocketDebuggerUrl !== 'string') {
+      return { kind: 'no-answer', problem: '/json/version gave no webSocketDebuggerUrl' };
+    }
+    return { kind: 'answered', webSocketUrl: body.webSocketDebuggerUrl };
+  } catch (error) {
+    return { kind: 'no-answer', problem: `/json/version: ${errorText(error)}` };
+  }
+}
+
+function webSocketPath(url: string): string {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return url;
+  }
+}
+
+async function waitForNewWindow(
+  windows: () => Page[],
+  action: () => Promise<unknown>,
+  timeoutMs: number,
+): Promise<Page> {
+  const before = new Set(windows());
+  let actionError: { error: unknown } | undefined;
+  Promise.resolve()
+    .then(action)
+    .catch((error: unknown) => {
+      actionError = { error };
+    });
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    if (actionError) {
+      throw new Error(`the action that should open a window failed: ${errorText(actionError.error)}`, {
+        cause: actionError.error,
+      });
+    }
+    const opened = windows().find((page) => !before.has(page));
+    if (opened) return opened;
+    if (Date.now() >= deadline) {
+      throw new Error(`no new window opened within ${timeoutMs} ms (windows: ${before.size} before and after)`);
+    }
+    await delay(Math.min(pollIntervalMs, Math.max(deadline - Date.now(), 0)));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Ports
+
+/** A port the operating system reports as free on 127.0.0.1 at this moment. */
+function pickFreePort(): Promise<number> {
+  return new Promise((resolvePort, reject) => {
+    const server = createServer();
+    server.unref();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      const port = typeof address === 'object' && address !== null ? address.port : 0;
+      server.close(() => (port > 0 ? resolvePort(port) : reject(new Error('the OS gave no free port'))));
+    });
+  });
+}
+
+/** True when a process listens on the port, or the port cannot be bound on 127.0.0.1. Never sends HTTP. */
+async function isPortInUse(port: number): Promise<boolean> {
+  const accepts = await new Promise<boolean>((resolveAccepts) => {
+    const socket = connect({ host: '127.0.0.1', port });
+    const finish = (value: boolean): void => {
+      socket.destroy();
+      resolveAccepts(value);
+    };
+    socket.setTimeout(2_000, () => finish(false));
+    socket.once('connect', () => finish(true));
+    socket.once('error', () => finish(false));
+  });
+  if (accepts) return true;
+  return new Promise<boolean>((resolveBindable) => {
+    const server = createServer();
+    server.unref();
+    server.once('error', () => resolveBindable(true));
+    server.listen(port, '127.0.0.1', () => server.close(() => resolveBindable(false)));
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Processes
+
+interface ProcessTree {
+  readonly command: string;
+  readonly commandLine: string;
+  output(): string;
+  spawnError(): Error | undefined;
+  exit(): { code: number | null; signal: NodeJS.Signals | null } | undefined;
+  /** Resolves when stdout and stderr are closed, or after `timeoutMs`. */
+  outputClosed(timeoutMs: number): Promise<void>;
+  /** Kills the whole tree and waits until no process uses the user data folder; then removes the folder. */
+  stop(): Promise<void>;
+}
+
+// Variables an outer pnpm, Turborepo or Vitest process sets; the app must not inherit them.
+const inheritedVariablePrefixes = ['npm_', 'TURBO_', 'VITEST', 'PNPM_SCRIPT'];
+const inheritedVariableNames = new Set(['NODE_ENV', 'TEST', 'INIT_CWD', 'ELECTRON_RUN_AS_NODE', 'NODE_OPTIONS']);
+
+function buildAppEnv(extra: Readonly<Record<string, string>>): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (inheritedVariableNames.has(key)) continue;
+    if (inheritedVariablePrefixes.some((prefix) => key.startsWith(prefix))) continue;
+    env[key] = value;
+  }
+  return { ...env, FORCE_COLOR: '0', NO_COLOR: '1', ...extra };
+}
+
+/** Chromium switches of every launch: the DevTools port and the fresh user data folder. */
+function devToolsSwitches(port: number, userDataDir: string): string[] {
+  // DEFERRED: TST-009 (packaged builds refuse --remote-debugging-port unless a test build enables it; #18)
+  const switches = [`--remote-debugging-port=${port}`, `--user-data-dir=${userDataDir}`];
+  // macOS: keep Chromium away from the login keychain, which can prompt.
+  if (process.platform === 'darwin') switches.push('--use-mock-keychain');
+  return switches;
+}
+
+/** Quotes one argument for cmd.exe; throws on characters cmd.exe expands even inside quotes. */
+function quoteForWindowsShell(arg: string): string {
+  if (/[%!"\r\n]/.test(arg)) throw new Error(`argument cannot be passed through cmd.exe: ${JSON.stringify(arg)}`);
+  return /^[A-Za-z0-9_@+=:,./\\-]+$/.test(arg) ? arg : `"${arg}"`;
+}
+
+function startProcessTree(options: SmokeAppLaunchOptions, port: number, userDataDir: string): ProcessTree {
+  const switches = devToolsSwitches(port, userDataDir);
+  // Dev build: `pnpm run dev -- <switches>` in the reference app; Forge passes the switches after `--` to Electron.
+  let command = options.target.kind === 'dev' ? 'pnpm' : options.target.executablePath;
+  let args = options.target.kind === 'dev' ? ['run', 'dev', '--', ...switches] : switches;
+  const cwd = options.target.kind === 'dev' ? referenceAppDir : dirname(options.target.executablePath);
+  // Linux without a display (CI): run under a virtual X server.
+  if (process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) {
+    args = ['--auto-servernum', '--server-args=-screen 0 1280x1024x24', command, ...args];
+    command = 'xvfb-run';
+  }
+  // On Windows pnpm is a .cmd shim, which Node starts only through cmd.exe.
+  const throughShell = process.platform === 'win32' && command === 'pnpm';
+  const spawnOptions = {
+    cwd,
+    env: buildAppEnv(options.env ?? {}),
+    stdio: ['ignore', 'pipe', 'pipe'] as ['ignore', 'pipe', 'pipe'],
+    // POSIX: its own process group, so one signal reaches every process of the tree.
+    detached: process.platform !== 'win32',
+    windowsHide: true,
+  };
+  const child: ChildProcess = throughShell
+    ? spawn([command, ...args.map(quoteForWindowsShell)].join(' '), { ...spawnOptions, shell: true })
+    : spawn(command, args, spawnOptions);
+
+  let output = '';
+  let spawnError: Error | undefined;
+  let exit: { code: number | null; signal: NodeJS.Signals | null } | undefined;
+  child.stdout?.on('data', (data: Buffer) => (output += String(data)));
+  child.stderr?.on('data', (data: Buffer) => (output += String(data)));
+  child.on('error', (error) => (spawnError ??= error));
+  const exited = new Promise<void>((resolveExit) => {
+    child.on('exit', (code, signal) => {
+      exit = { code, signal };
+      resolveExit();
+    });
+    child.on('error', () => resolveExit());
+  });
+  const closed = new Promise<void>((resolveClose) => {
+    child.on('close', () => resolveClose());
+    child.on('error', () => resolveClose());
+  });
+
+  let stopPromise: Promise<void> | undefined;
+  const stop = async (): Promise<void> => {
+    const pid = child.pid;
+    if (pid !== undefined) {
+      if (process.platform === 'win32') {
+        if (exit === undefined) {
+          spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true, timeout: 30_000 });
+        }
+        await Promise.race([exited, delay(gracefulStopMs)]);
+      } else {
+        if (exit === undefined) {
+          signalProcessGroup(pid, 'SIGTERM');
+          await Promise.race([exited, delay(gracefulStopMs)]);
+        }
+        // Helpers and children of the main process can outlive it; the group signal reaches them.
+        signalProcessGroup(pid, 'SIGKILL');
+        await Promise.race([exited, delay(gracefulStopMs)]);
+      }
+    }
+    await waitUntilUserDataDirIsFree(userDataDir);
+    await Promise.race([closed, delay(2_000)]);
+    rmSync(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
+  };
+
+  return {
+    command,
+    commandLine: [command, ...args].join(' '),
+    output: () => stripAnsiCodes(output),
+    spawnError: () => spawnError,
+    exit: () => exit,
+    outputClosed: (timeoutMs) => Promise.race([closed, delay(timeoutMs)]),
+    stop: () => (stopPromise ??= stop()),
+  };
+}
+
+function signalProcessGroup(pid: number, signal: NodeJS.Signals): void {
+  try {
+    process.kill(-pid, signal);
+  } catch {
+    // The group is gone.
+  }
+}
+
+/**
+ * Waits until no process runs with `--user-data-dir=<dir>`. Processes that are
+ * still there after the wait (for example, children of a main process that
+ * already exited on Windows, where no process group exists) are killed one by
+ * one, then waited for again; any that survive fail the teardown with their command lines.
+ */
+async function waitUntilUserDataDirIsFree(userDataDir: string): Promise<void> {
+  const firstWaitEnds = Date.now() + processExitWaitMs / 2;
+  let running = listProcessesUsingUserDataDir(userDataDir);
+  while (running.length > 0 && Date.now() < firstWaitEnds) {
+    await delay(500);
+    running = listProcessesUsingUserDataDir(userDataDir);
+  }
+  if (running.length === 0) return;
+  for (const entry of running) killProcess(entry.pid);
+  const secondWaitEnds = Date.now() + processExitWaitMs / 2;
+  while (running.length > 0 && Date.now() < secondWaitEnds) {
+    await delay(500);
+    running = listProcessesUsingUserDataDir(userDataDir);
+  }
+  if (running.length > 0) {
+    throw new Error(
+      `${running.length} process(es) still use ${userDataDir} after teardown:\n` +
+        running.map((entry) => `  pid ${entry.pid}: ${entry.command}`).join('\n'),
+    );
+  }
+}
+
+function killProcess(pid: number): void {
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true, timeout: 30_000 });
+    return;
+  }
+  try {
+    process.kill(pid, 'SIGKILL');
+  } catch {
+    // Already gone.
+  }
+}
+
+const windowsProcessQuery =
+  'Get-CimInstance Win32_Process | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress';
+
+/** Processes whose command line holds `--user-data-dir=<dir>` (case-insensitive on Windows). */
+function listProcessesUsingUserDataDir(userDataDir: string): Array<{ pid: number; command: string }> {
+  const windows = process.platform === 'win32';
+  const fold = (text: string): string => (windows ? text.toLowerCase() : text);
+  const userDataSwitch = fold(`--user-data-dir=${userDataDir}`);
+  let processes: Array<{ pid: number; command: string }>;
+  if (windows) {
+    const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', windowsProcessQuery], {
+      encoding: 'utf8',
+      windowsHide: true,
+      maxBuffer: 64 * 1024 * 1024,
+      timeout: 60_000,
+    });
+    if (result.status !== 0) throw new Error(`could not list processes with PowerShell: ${result.stderr}`);
+    const parsed = JSON.parse(result.stdout || '[]') as
+      Array<{ ProcessId: number; CommandLine: string | null }> | { ProcessId: number; CommandLine: string | null };
+    processes = [parsed].flat().map((entry) => ({ pid: entry.ProcessId, command: entry.CommandLine ?? '' }));
+  } else {
+    // -ww: never cut long command lines.
+    const result = spawnSync('ps', ['-A', '-ww', '-o', 'pid=,command='], { encoding: 'utf8', timeout: 60_000 });
+    if (result.status !== 0) throw new Error(`could not list processes with ps: ${result.stderr}`);
+    processes = result.stdout
+      .split('\n')
+      .map((line) => /^\s*(\d+)\s+(.*)$/.exec(line))
+      .filter((match): match is RegExpExecArray => match !== null)
+      .map((match) => ({ pid: Number(match[1]), command: match[2] ?? '' }));
+  }
+  return processes.filter((entry) => entry.pid !== process.pid && fold(entry.command).includes(userDataSwitch));
+}
+
+// ---------------------------------------------------------------------------
+// Small helpers
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<undefined>((resolveTimeout) => {
+    timer = setTimeout(() => resolveTimeout(undefined), ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+// ANSI colour codes start with the ESC control character.
+// eslint-disable-next-line no-control-regex
+const ansiPattern = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
+
+function stripAnsiCodes(text: string): string {
+  return text.replace(ansiPattern, '');
+}
+
+/** Keeps the start (where startup errors are) and the end of long output. */
+function clipOutput(output: string): string {
+  const text = output.trim();
+  if (text.length <= 16_000) return text;
+  return `${text.slice(0, 6_000)}\n...[${text.length - 16_000} characters cut]...\n${text.slice(-10_000)}`;
+}
