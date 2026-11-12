@@ -29,7 +29,7 @@
 | PLT-007 | Packaging is per app; App Store-unfriendly features are optional | not-started | — | — |  |
 | PLT-008 | Electron security baseline is enforced by gate tests | not-started | — | — | ADR 0004 |
 | PLT-009 | TypeScript and JavaScript for tooling; Python only with no JavaScript option | done | tools/repo/workspace-config | #12 |  |
-| PLT-010 | pnpm for packages; gh for GitHub; no AI co-author trailers | not-started | — | #12 | pnpm part in #12; trailers in #14 |
+| PLT-010 | pnpm for packages; gh for GitHub; no AI co-author trailers | done | tools/repo/workspace-config, tools/boundary-check | #12, #14 | pnpm in #12; co-author trailer rule in #14 |
 | PLT-011 | App Store builds run sandboxed: no built-in auto-update, limited file access | not-started | — | — |  |
 | PLT-012 | Success: security baseline gate tests pass in a packaged build | not-started | — | — |  |
 | PLT-013 | Native Node add-ons packaged per app | not-started | — | — | ADR 0004, ADR 0005 |
