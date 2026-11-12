@@ -9,6 +9,14 @@
 // Output: exit 0 and no output, or exit 1 and one line per violation,
 // `<short-sha>: <rule-id>: <message>`. A usage error exits 2.
 //
+// Task branches are never updated by merging main into them; when a branch
+// must move to a newer main, a new branch is built from main and the commits
+// are cherry-picked (ADR 0009 item 2). The check fails closed: every merge
+// commit in the range is rejected with `merge-commit`.
+//
+// Valid `Agent:` values are the closed list in `boundaryAgentRoles` (ADR 0009
+// item 1). The path rules apply only to a commit with exactly one valid role.
+//
 // The script uses only Node built-ins, so CI runs it with Node's type
 // stripping and no `pnpm install`. It is one file on purpose: CI runs the copy
 // on the base commit (ADR 0008 item 2).
@@ -47,9 +55,28 @@ const boundaryRule = {
   testChangeNotApproved: 'test-change-not-approved',
   coAuthorTrailer: 'co-author-trailer',
   invalidRange: 'invalid-range',
+  invalidAgentTrailer: 'invalid-agent-trailer',
+  mergeCommit: 'merge-commit',
 } as const;
 
 type BoundaryRuleId = (typeof boundaryRule)[keyof typeof boundaryRule];
+
+/** Valid `Agent:` values (ADR 0009 item 1): the six sub-agents and the orchestrator. */
+const boundaryAgentRoles = [
+  'planner',
+  'researcher',
+  'test-author',
+  'developer',
+  'reviewer',
+  'verifier',
+  'orchestrator',
+] as const;
+
+type BoundaryAgentRole = (typeof boundaryAgentRoles)[number];
+
+function isBoundaryAgentRole(value: string): value is BoundaryAgentRole {
+  return (boundaryAgentRoles as readonly string[]).includes(value);
+}
 
 const taskBranchPrefix = 'task/';
 const approvedTestChangeValue = /^approved #\d+$/;
@@ -204,32 +231,40 @@ function readRangeCommits(input: BoundaryCheckInput): { baseSha: string; commits
     throw new BoundaryRangeError(`${input.base} and ${input.head} have no common ancestor`);
   }
 
-  const recordSeparator = '\u001e';
-  const fieldSeparator = '\u001f';
-  const log = gitOrRangeError(
-    [
-      'log',
-      '--reverse',
-      `--format=%H${fieldSeparator}%h${fieldSeparator}%P${fieldSeparator}%(trailers:only,unfold)${recordSeparator}`,
-      `${baseSha}..${headSha}`,
-      '--',
-    ],
-    `git log ${range}`,
+  // `rev-list --parents` prints only hex object names, so no commit text can
+  // change the list. Each commit's trailers are then read on their own.
+  const list = gitOrRangeError(
+    ['rev-list', '--reverse', '--parents', `${baseSha}..${headSha}`, '--'],
+    `git rev-list ${range}`,
   );
-  const commits = log
-    .split(recordSeparator)
-    .map((record) => record.replace(/^\r?\n/, ''))
-    .filter((record) => record.trim() !== '')
-    .map((record): RangeCommit => {
-      const [sha = '', shortSha = '', parents = '', trailerText = ''] = record.split(fieldSeparator);
-      return {
-        sha,
-        shortSha,
-        parents: parents.split(' ').filter((parent) => parent !== ''),
-        trailers: parseTrailers(trailerText),
-      };
+  const commits = list
+    .split(/\r?\n/)
+    .filter((line) => line.trim() !== '')
+    .map((line): RangeCommit => {
+      const [sha = '', ...parents] = line.trim().split(' ');
+      if (!isObjectName(sha) || !parents.every(isObjectName)) {
+        throw new BoundaryRangeError(`git rev-list ${range} printed an unexpected line`);
+      }
+      return { sha, parents, ...readCommitTrailers(sha) };
     });
   return { baseSha, commits };
+}
+
+function isObjectName(text: string): boolean {
+  return /^[0-9a-f]{40,64}$/.test(text);
+}
+
+/** The short SHA and trailers of one commit, read with one git call for that commit only. */
+function readCommitTrailers(sha: string): { shortSha: string; trailers: CommitTrailer[] } {
+  const text = gitOrRangeError(
+    ['log', '-1', '--format=%h%n%(trailers:only,unfold)', sha, '--'],
+    `git log ${sha.slice(0, 12)}`,
+  );
+  const [shortSha = '', ...trailerLines] = text.split(/\r?\n/);
+  if (!/^[0-9a-f]{4,64}$/.test(shortSha) || !sha.startsWith(shortSha)) {
+    throw new BoundaryRangeError(`git log ${sha.slice(0, 12)} printed an unexpected short SHA`);
+  }
+  return { shortSha, trailers: parseTrailers(trailerLines.join('\n')) };
 }
 
 function parseTrailers(text: string): CommitTrailer[] {
@@ -278,6 +313,11 @@ function readCommitChanges(commit: RangeCommit): CommitPathChange[] {
 // ---------------------------------------------------------------------------
 // Rules
 
+/** A trailer value in the output, quoted so control bytes and spaces stay visible. */
+function quoteValue(value: string): string {
+  return JSON.stringify(value);
+}
+
 function trailerValues(commit: RangeCommit, key: string): string[] {
   return commit.trailers.filter((trailer) => trailer.key === key).map((trailer) => trailer.value);
 }
@@ -291,18 +331,34 @@ function checkCommit(
   const report = (rule: BoundaryRuleId, message: string): void => {
     violations.push({ shortSha: commit.shortSha, rule, message });
   };
-  const agents = trailerValues(commit, 'agent').map((value) => value.toLowerCase());
+  const agents = trailerValues(commit, 'agent');
 
   if (input.branch.startsWith(taskBranchPrefix)) {
     if (!trailerValues(commit, 'task').some((value) => value !== '')) {
       report(boundaryRule.missingTaskTrailer, `a commit on ${input.branch} must have a Task: #<issue> trailer`);
     }
-    if (!agents.some((value) => value !== '')) {
+    if (agents.length === 0) {
       report(boundaryRule.missingAgentTrailer, `a commit on ${input.branch} must have an Agent: <role> trailer`);
     }
   }
 
-  for (const agent of agents.filter((value) => value === 'reviewer' || value === 'verifier')) {
+  // ADR 0009 item 1: exactly one Agent: trailer, from the closed list.
+  if (agents.length > 1) {
+    report(
+      boundaryRule.invalidAgentTrailer,
+      `a commit must have exactly one Agent: trailer; found ${agents.length}: ${agents.map(quoteValue).join(', ')}`,
+    );
+  }
+  for (const agent of agents.filter((value) => !isBoundaryAgentRole(value))) {
+    report(
+      boundaryRule.invalidAgentTrailer,
+      `Agent: ${quoteValue(agent)} is not a role; valid roles are ${boundaryAgentRoles.join(', ')}`,
+    );
+  }
+  const role: BoundaryAgentRole | undefined =
+    agents.length === 1 && isBoundaryAgentRole(agents[0] ?? '') ? (agents[0] as BoundaryAgentRole) : undefined;
+
+  for (const agent of new Set(agents.filter((value) => value === 'reviewer' || value === 'verifier'))) {
     report(
       boundaryRule.reviewerOrVerifierCommit,
       `Agent: ${agent} commits are not allowed; the ${agent} never commits`,
@@ -313,10 +369,19 @@ function checkCommit(
     report(boundaryRule.coAuthorTrailer, 'Co-Authored-By: trailers are not allowed (PLT-010)');
   }
 
+  // ADR 0009 item 2: fail closed; a merge would attribute main's changes to this commit's agent.
+  if (commit.parents.length > 1) {
+    report(
+      boundaryRule.mergeCommit,
+      'merge commits are not allowed in the range; rebuild the task branch from main and cherry-pick the commits',
+    );
+    return violations;
+  }
+
   const changes = readCommitChanges(commit);
   const touched = [...new Set(changes.flatMap((change) => change.touched))];
 
-  if (agents.includes('developer')) {
+  if (role === 'developer') {
     for (const path of touched.filter(isDeveloperProtectedPath)) {
       report(
         boundaryRule.developerTouchesGateTest,
@@ -325,7 +390,7 @@ function checkCommit(
     }
   }
 
-  if (agents.includes('test-author')) {
+  if (role === 'test-author') {
     for (const path of touched.filter((entry) => !isTestPath(entry))) {
       report(
         boundaryRule.testAuthorTouchesSource,

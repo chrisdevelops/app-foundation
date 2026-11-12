@@ -54,7 +54,8 @@ jobs:
   # ADR 0008 item 2: it runs the script as it is on the base commit, so a pull
   # request cannot change the check that judges it. Only when the base has no
   # script (the pull request that adds it) does it run the pull request version,
-  # with a notice. The script uses only Node built-ins, so no install is needed.
+  # with a notice. An unreadable base commit fails the job (ADR 0009 item 3).
+  # The script uses only Node built-ins, so no install is needed.
   boundary-check:
     name: boundary-check
     if: github.event_name == 'pull_request'
@@ -82,6 +83,10 @@ jobs:
           BRANCH_NAME: ${{ github.head_ref }}
           BOUNDARY_CHECK_ENTRY: tools/boundary-check/boundary-check.ts
         run: |
+          if ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            echo "::error title=boundary-check::The base commit $BASE_SHA cannot be read, so the boundary check cannot run (ADR 0009)."
+            exit 1
+          fi
           script_root="."
           if git cat-file -e "$BASE_SHA:$BOUNDARY_CHECK_ENTRY" 2>/dev/null; then
             script_root="$RUNNER_TEMP/boundary-check-base"
