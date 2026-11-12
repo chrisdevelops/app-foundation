@@ -22,14 +22,14 @@
 | --- | --- | --- | --- | --- | --- |
 | PLT-001 | Agent documentation is in scope for the foundation | not-started | — | — |  |
 | PLT-002 | React is the UI framework | not-started | — | — |  |
-| PLT-003 | pnpm monorepo with the foundation as a workspace package | not-started | — | — | ADR 0004 |
-| PLT-004 | Turborepo is the task runner | not-started | — | — |  |
+| PLT-003 | pnpm monorepo with the foundation as a workspace package | done | tools/repo/workspace-config, clean-clone | #12 | ADR 0004 |
+| PLT-004 | Turborepo is the task runner | done | tools/repo/clean-clone | #12 |  |
 | PLT-005 | Electron Forge with its Vite plugin, version pinned | not-started | — | — |  |
-| PLT-006 | ESLint and Prettier are the linter and formatter | not-started | — | — |  |
+| PLT-006 | ESLint and Prettier are the linter and formatter | not-started | — | #12 | base config in #12; plugin rules later |
 | PLT-007 | Packaging is per app; App Store-unfriendly features are optional | not-started | — | — |  |
 | PLT-008 | Electron security baseline is enforced by gate tests | not-started | — | — | ADR 0004 |
-| PLT-009 | TypeScript and JavaScript for tooling; Python only with no JavaScript option | not-started | — | — |  |
-| PLT-010 | pnpm for packages; gh for GitHub; no AI co-author trailers | not-started | — | — |  |
+| PLT-009 | TypeScript and JavaScript for tooling; Python only with no JavaScript option | done | tools/repo/workspace-config | #12 |  |
+| PLT-010 | pnpm for packages; gh for GitHub; no AI co-author trailers | not-started | — | #12 | pnpm part in #12; trailers in #14 |
 | PLT-011 | App Store builds run sandboxed: no built-in auto-update, limited file access | not-started | — | — |  |
 | PLT-012 | Success: security baseline gate tests pass in a packaged build | not-started | — | — |  |
 | PLT-013 | Native Node add-ons packaged per app | not-started | — | — | ADR 0004, ADR 0005 |

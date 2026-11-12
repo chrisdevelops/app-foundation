@@ -10,15 +10,15 @@
 
 | Issue | Title | Stage | Attempt | Next action |
 | --- | --- | --- | --- | --- |
-| #12 | Monorepo: set up pnpm workspace, Turborepo, TypeScript and Vitest | tests | 1 | Check test-author envelope and red run on `task/12-monorepo-setup` |
+| #13 | CI: run typecheck, lint and tests on Windows, macOS and Linux | tests | 1 | Check test-author envelope and red run on `task/13-ci-three-platforms` |
 
 ## Last action
 
-Phase 1 planned: #12 to #30 in one strict chain (#30 sits between #24 and #25); ADR 0006 accepted.
+#12 merged (PR #31, attempt 2, reviewer approve); ledger: PLT-003, PLT-004, PLT-009 done.
 
 ## Next action
 
-Task loop on #12, then each next issue in the chain.
+Task loop on #13, then each next issue in the chain.
 
 ## Open escalations
 
