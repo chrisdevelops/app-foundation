@@ -19,12 +19,6 @@ export default defineConfig(
       },
     },
   },
-  {
-    // The gate helper strips ANSI colour codes, which start with the ESC
-    // control character, so the regular expression must contain it.
-    files: ['tools/repo/support/run-repo-command.ts'],
-    rules: {
-      'no-control-regex': 'off',
-    },
-  },
+  // tools/repo/test-support/run-repo-command.ts turns off no-control-regex
+  // with an inline directive for its ANSI pattern; no file-level override here.
 );

@@ -1,6 +1,7 @@
 # CI for every pull request to main and every push to main (#13).
 # Runs the same commands developers run locally on Windows, macOS and Linux.
 # Requirements: TST-015 (partial), TOK-128 (partial).
+# The boundary-check job (#14) runs on pull requests only.
 # Only actions/checkout, actions/setup-node and pnpm/action-setup are allowed,
 # each pinned to the commit of a release tag. Any other action needs an ADR.
 # DEFERRED: TST-015 packaged build and smoke tests on three platforms (#17).
@@ -47,3 +48,45 @@ jobs:
 
       - name: Typecheck, lint and test
         run: pnpm turbo run typecheck lint test
+
+  # Boundary check (#14): rejects pull request commits that break the agent
+  # role boundaries (implementation/ORCHESTRATOR.md section 6, PLT-010).
+  # ADR 0008 item 2: it runs the script as it is on the base commit, so a pull
+  # request cannot change the check that judges it. Only when the base has no
+  # script (the pull request that adds it) does it run the pull request version,
+  # with a notice. The script uses only Node built-ins, so no install is needed.
+  boundary-check:
+    name: boundary-check
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      # Full history: the check reads every commit from the base to the head.
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Node version comes from package.json engines.node; it strips the types.
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: package.json
+
+      # Pull request values come through env, never pasted into the script.
+      - name: Check role boundaries
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BRANCH_NAME: ${{ github.head_ref }}
+          BOUNDARY_CHECK_ENTRY: tools/boundary-check/boundary-check.ts
+        run: |
+          script_root="."
+          if git cat-file -e "$BASE_SHA:$BOUNDARY_CHECK_ENTRY" 2>/dev/null; then
+            script_root="$RUNNER_TEMP/boundary-check-base"
+            git worktree add --quiet --detach "$script_root" "$BASE_SHA"
+          else
+            echo "::notice title=boundary-check::The base commit has no $BOUNDARY_CHECK_ENTRY, so this job runs the version from the pull request (ADR 0008)."
+          fi
+          node "$script_root/$BOUNDARY_CHECK_ENTRY" --base "$BASE_SHA" --head "$HEAD_SHA" --branch "$BRANCH_NAME"
