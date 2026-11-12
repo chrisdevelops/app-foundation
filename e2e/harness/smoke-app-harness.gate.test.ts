@@ -15,6 +15,10 @@
 //   points it at a packaged executable.
 // Fixture builds are copies of the Electron distribution with the app in
 // resources/app, started by path like a packaged executable.
+// Packaged launches (fixture builds, and SMOKE_APP_EXECUTABLE) set
+// FOUNDATION_ALLOW_PACKAGED_CDP=1, as every packaged launch must (#18; ADR 0004
+// decision 2 B). The fixture app has no CDP guard of its own; the variable makes
+// these launches match a real packaged launch. Dev launches never set it.
 // Requirements: TST-007, TST-009 (dev build part), TST-010 (partial), XC-004.
 import { existsSync, readFileSync, readdirSync, rmSync, statSync, realpathSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
@@ -29,6 +33,7 @@ import {
   removeAppFolderAfterExit,
 } from '../../tools/test-support/app-process-cleanup';
 import { describeRepoCommand, repoGateRootDir, runRepoCommand } from '../../tools/test-support/run-repo-command';
+import { packagedCdpEnabledValue, packagedCdpVariableName } from '../../tools/test-support/packaged-cdp-variable';
 import {
   createSmokeFixtureBuild,
   smokeFixtureSecondWindowTitle,
@@ -77,6 +82,12 @@ function fixtureTarget(): ExpectedSmokeAppLaunchOptions['target'] {
   return { kind: 'packaged', executablePath: requireFixture().executablePath };
 }
 
+/** #18: a packaged launch carries the CDP variable (ADR 0004 decision 2 B); a dev launch is left as it is. */
+function withPackagedCdpVariable(options: ExpectedSmokeAppLaunchOptions): ExpectedSmokeAppLaunchOptions {
+  if (options.target.kind !== 'packaged') return options;
+  return { ...options, env: { [packagedCdpVariableName]: packagedCdpEnabledValue, ...options.env } };
+}
+
 type Outcome<T> =
   | { readonly settled: 'resolved'; readonly value: T; readonly elapsedMs: number }
   | { readonly settled: 'rejected'; readonly error: unknown; readonly elapsedMs: number };
@@ -106,7 +117,7 @@ async function launch(
   options: ExpectedSmokeAppLaunchOptions,
 ): Promise<ExpectedSmokeApp> {
   const outcome = await settleWithin(
-    harness.launchSmokeApp(options),
+    harness.launchSmokeApp(withPackagedCdpVariable(options)),
     (options.startupTimeoutMs ?? fixtureStartupTimeoutMs) + failureCleanupGraceMs,
     'launchSmokeApp',
   );
@@ -130,7 +141,11 @@ async function expectLaunchFailure(
   codes: readonly ExpectedSmokeHarnessErrorCode[],
 ): Promise<{ error: ExpectedSmokeHarnessError; elapsedMs: number }> {
   const limitMs = (options.startupTimeoutMs ?? fixtureStartupTimeoutMs) + failureCleanupGraceMs;
-  const outcome = await settleWithin(harness.launchSmokeApp(options), limitMs, 'launchSmokeApp');
+  const outcome = await settleWithin(
+    harness.launchSmokeApp(withPackagedCdpVariable(options)),
+    limitMs,
+    'launchSmokeApp',
+  );
   if (outcome.settled === 'resolved') {
     startedApps.push(outcome.value);
     userDataDirs.add(outcome.value.userDataDir);
@@ -690,7 +705,10 @@ describe('smoke harness: targets and the smoke command', () => {
       const result = runRepoCommand('pnpm', ['run', 'smoke'], {
         cwd: root,
         timeoutMs: 840_000,
-        env: { [smokeAppExecutableVariableName]: build.executablePath },
+        env: {
+          [smokeAppExecutableVariableName]: build.executablePath,
+          [packagedCdpVariableName]: packagedCdpEnabledValue,
+        },
       });
       expect(
         existsSync(build.launchedFile),
@@ -717,7 +735,7 @@ describe('smoke harness: targets and the smoke command', () => {
       const result = runRepoCommand('pnpm', ['run', 'smoke'], {
         cwd: root,
         timeoutMs: 540_000,
-        env: { [smokeAppExecutableVariableName]: missing },
+        env: { [smokeAppExecutableVariableName]: missing, [packagedCdpVariableName]: packagedCdpEnabledValue },
       });
       expect(result.exitCode, describeRepoCommand(result)).not.toBe(0);
       expect(result.output, describeRepoCommand(result)).toContain('executable-not-found');

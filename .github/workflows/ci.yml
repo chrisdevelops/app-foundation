@@ -151,10 +151,13 @@ jobs:
 
       # SMOKE_APP_EXECUTABLE comes from the copy step. The harness writes
       # failure evidence into SMOKE_EVIDENCE_DIR (ADR 0012).
-      # DEFERRED: TST-010 (set the variable that enables CDP in packaged builds; named in #18)
+      # FOUNDATION_ALLOW_PACKAGED_CDP=1 lets the packaged app open its CDP port
+      # for the harness (#18; ADR 0004 decision 2 B). Set here only, never at
+      # job or workflow level.
       - name: Run the smoke suite against the packaged app
         env:
           SMOKE_EVIDENCE_DIR: ${{ runner.temp }}/smoke-evidence
+          FOUNDATION_ALLOW_PACKAGED_CDP: '1'
         run: pnpm run smoke
 
       # ADR 0012: only on failure, only the harness evidence folder, kept 7 days.

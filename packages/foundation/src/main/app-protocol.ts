@@ -15,11 +15,15 @@
 // - A file whose real path (links and junctions resolved) is outside the real
 //   path of `rendererDir` answers 404; links that stay inside are served.
 //   `fs.promises.realpath` works inside app.asar (Electron's asar fs support).
+// - Every Response, served or refused, carries the Content-Security-Policy
+//   header `appProtocolContentSecurityPolicy` (#18; PLT-008, PLT-012; ADR 0004
+//   decision 9 B): `script-src 'self'` with no inline scripts and no eval;
+//   `style-src` allows `'unsafe-inline'` (react-aria injects inline styles).
+//   `about:blank` child windows inherit it from their opener.
 //
 // This module has no runtime import of `electron`, so it runs in plain Node
 // (the gate test runs it on every OS). The Electron side is in
 // `app-protocol-registration.ts`.
-// DEFERRED: PLT-012 (the Content-Security-Policy header on served pages; #18)
 import { readFile, realpath, stat } from 'node:fs/promises';
 import { extname, isAbsolute, join, relative, resolve } from 'node:path';
 
@@ -60,13 +64,31 @@ const appProtocolContentTypes: Readonly<Record<string, string>> = {
 
 const appProtocolFallbackContentType = 'application/octet-stream';
 
+/**
+ * The Content-Security-Policy on every `app://` response (ADR 0004 decision 9 B).
+ * Scripts only from the app's own origin; inline styles allowed, with no nonce or
+ * hash in `style-src` (either would make browsers ignore `'unsafe-inline'`).
+ */
+export const appProtocolContentSecurityPolicy = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+  "frame-ancestors 'none'",
+].join('; ');
+
 // After decoding, a segment must not hold a separator, a drive or stream
 // colon, a percent sign (double encoding) or a control character.
 // eslint-disable-next-line no-control-regex
 const unsafeDecodedSegment = /[/\\:%\u0000-\u001f\u007f]/;
 
 function refuse(status: 400 | 403 | 404): Response {
-  return new Response(null, { status });
+  return new Response(null, { status, headers: { 'content-security-policy': appProtocolContentSecurityPolicy } });
 }
 
 /** The decoded path segments of `pathname`, or undefined when any segment is unsafe. */
@@ -132,7 +154,10 @@ export function createAppProtocolHandler(options: AppProtocolHandlerOptions): Ap
       if (!(await stat(realFilePath)).isFile()) return refuse(404);
       const body = await readFile(realFilePath);
       const contentType = appProtocolContentTypes[extname(filePath).toLowerCase()] ?? appProtocolFallbackContentType;
-      return new Response(new Uint8Array(body), { status: 200, headers: { 'content-type': contentType } });
+      return new Response(new Uint8Array(body), {
+        status: 200,
+        headers: { 'content-type': contentType, 'content-security-policy': appProtocolContentSecurityPolicy },
+      });
     } catch {
       return refuse(404);
     }

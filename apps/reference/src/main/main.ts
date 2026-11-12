@@ -1,6 +1,6 @@
-// Main process of the reference app (#15; PLT-005, PLT-008). The protocol
-// handler and the window factory are foundation systems; this file only
-// wires them up.
+// Main process of the reference app (#15, #18; PLT-005, PLT-008, TST-009). The
+// debugging-switch guard, the protocol handler and the window factory are
+// foundation systems; this file only wires them up.
 import { join } from 'node:path';
 import { app } from 'electron';
 import {
@@ -9,6 +9,11 @@ import {
   registerAppProtocolScheme,
 } from '@foundation/foundation/main/app-protocol-registration';
 import { createAppWindow } from '@foundation/foundation/main/app-window';
+import { enforcePackagedCdpGuard } from '@foundation/foundation/main/packaged-cdp-guard';
+
+// First, before `ready`: a packaged build refuses the DevTools port unless its
+// environment enables it, and never starts a Node debugger (#18; TST-009).
+enforcePackagedCdpGuard();
 
 /** The app:// host of the reference app (`rf`, ADR 0006 item 4). */
 const referenceAppProtocolHost = 'rf';
