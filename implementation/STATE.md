@@ -10,15 +10,15 @@
 
 | Issue | Title | Stage | Attempt | Next action |
 | --- | --- | --- | --- | --- |
-| #13 | CI: run typecheck, lint and tests on Windows, macOS and Linux | tests | 1 | Check test-author envelope and red run on `task/13-ci-three-platforms` |
+| #14 | Boundary check: reject commits that break agent role boundaries | tests | 1 | Check test-author envelope and red run on `task/14-boundary-check` |
 
 ## Last action
 
-#12 merged (PR #31, attempt 2, reviewer approve); ledger: PLT-003, PLT-004, PLT-009 done.
+#13 merged (PR #32, developer attempt 2, reviewer approve); CI green on Windows, macOS and Linux; push run on `main` started (43150236574).
 
 ## Next action
 
-Task loop on #13, then each next issue in the chain.
+Task loop on #14, then each next issue in the chain.
 
 ## Open escalations
 
@@ -37,4 +37,4 @@ None.
 - #18 may find the CDP guard impossible (Chromium opens the port before main runs); the developer returns `needs-decision`.
 - `docs/upstream/react-aria-second-window-overlays.md` is a draft the human posts; do not post it.
 - Open human decision in the specs: re-validation after a failed submit.
-- The human approves spec-changing merges; orchestrator merges can trigger the auto mode classifier.
+- Merges: a local allow rule for `gh pr merge` lets the orchestrator merge after reviewer approval and green CI; the human still approves spec-changing PRs.

@@ -174,7 +174,7 @@
 | TOK-125 | TOKENS.md Source column is file and token path | not-started | — | — |  |
 | TOK-126 | TOKENS.md Used by column lists CSS files from a var scan | not-started | — | — |  |
 | TOK-127 | TOKENS.md Status column shows deprecation and replacement | not-started | — | — |  |
-| TOK-128 | All lint layers run locally and in CI; errors unless marked | not-started | — | — |  |
+| TOK-128 | All lint layers run locally and in CI; errors unless marked | not-started | — | #13 | CI runs typecheck, lint and test in #13; drift checks in phase 2 |
 | TOK-129 | core/required-type is an error | not-started | — | — |  |
 | TOK-130 | core/descriptions is an error | not-started | — | — |  |
 | TOK-131 | core/consistent-naming is an error with a custom validator | not-started | — | — | ADR 0004 |
@@ -269,7 +269,7 @@
 | TST-012 | Test infrastructure and gate tests come before each system's implementation | not-started | — | — |  |
 | TST-013 | Reference app comes before the smoke suite and create-app | not-started | — | — |  |
 | TST-014 | Success: create-app output launches with shell features and no manual wiring | not-started | — | — |  |
-| TST-015 | Success: reference app smoke suite passes on three platforms in CI | not-started | — | — |  |
+| TST-015 | Success: reference app smoke suite passes on three platforms in CI | not-started | — | #13 | CI on three OS in #13; smoke and packaging in #17 |
 | TST-016 | Success: every component passes gate tests, zero axe violations, all theme and density screenshots | not-started | — | — |  |
 | TST-017 | Success: an AI agent can attach to a development build over CDP with the documented setup | not-started | — | — |  |
 | XC-001 | One name, one definition site | not-started | — | — |  |
