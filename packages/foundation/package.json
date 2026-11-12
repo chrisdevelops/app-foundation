@@ -8,7 +8,9 @@
     "./main/app-protocol": "./src/main/app-protocol.ts",
     "./main/app-protocol-registration": "./src/main/app-protocol-registration.ts",
     "./main/app-window": "./src/main/app-window.ts",
-    "./main/packaged-cdp-guard": "./src/main/packaged-cdp-guard.ts"
+    "./main/packaged-cdp-guard": "./src/main/packaged-cdp-guard.ts",
+    "./main/test-background-mode": "./src/main/test-background-mode.ts",
+    "./main/test-background-variable": "./src/main/test-background-variable.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

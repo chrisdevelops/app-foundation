@@ -7,7 +7,13 @@
 // same locked web preferences, whatever its features string asks for, and its
 // own `window.open` follows the same rule. Every other URL is denied,
 // including the app's own `app://` pages: `window.open` returns null.
+//
+// Background test mode (#46; TST-018; ADR 0013 rule 1): when
+// FOUNDATION_TEST_BACKGROUND=1 (test-background-mode.ts), every window and
+// every `window.open` child is created hidden and is never shown or focused.
+// Hidden windows still paint, so screenshots and CDP input keep working.
 import { BrowserWindow, type WebContents, type WebPreferences } from 'electron';
+import { isTestBackgroundModeEnabled } from './test-background-mode';
 
 export interface CreateAppWindowOptions {
   /** URL to load: the Vite dev server in development, `app://<host>/...` in packaged builds. */
@@ -41,7 +47,10 @@ function applyAppWindowOpenPolicy(contents: WebContents): void {
     if (url !== appChildWindowUrl) return { action: 'deny' };
     return {
       action: 'allow',
-      overrideBrowserWindowOptions: { webPreferences: { ...appWindowLockedWebPreferences } },
+      overrideBrowserWindowOptions: {
+        ...(isTestBackgroundModeEnabled() ? { show: false } : {}),
+        webPreferences: { ...appWindowLockedWebPreferences },
+      },
     };
   });
   contents.on('did-create-window', (child) => applyAppWindowOpenPolicy(child.webContents));
@@ -53,6 +62,8 @@ export async function createAppWindow(options: CreateAppWindowOptions): Promise<
     title: options.title,
     width: options.width ?? defaultAppWindowWidth,
     height: options.height ?? defaultAppWindowHeight,
+    // Background test mode: never shown, so never focused (ADR 0013 rule 1).
+    ...(isTestBackgroundModeEnabled() ? { show: false } : {}),
     webPreferences: {
       ...appWindowLockedWebPreferences,
       preload: options.preloadPath,

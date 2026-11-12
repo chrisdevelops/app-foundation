@@ -9,7 +9,8 @@
       "outputs": []
     },
     "test": {
-      "outputs": []
+      "outputs": [],
+      "env": ["FOUNDATION_TEST_FOREGROUND"]
     },
     "//#typecheck": {
       "outputs": []
@@ -28,7 +29,8 @@
         "!apps/*/out/**",
         "!**/.turbo/**",
         "!**/*.tsbuildinfo"
-      ]
+      ],
+      "env": ["FOUNDATION_TEST_FOREGROUND"]
     },
     "@foundation/e2e#test": {
       "dependsOn": ["//#test"],
@@ -44,7 +46,8 @@
         "!$TURBO_ROOT$/apps/*/out/**",
         "!$TURBO_ROOT$/**/.turbo/**",
         "!$TURBO_ROOT$/**/*.tsbuildinfo"
-      ]
+      ],
+      "env": ["FOUNDATION_TEST_FOREGROUND"]
     }
   }
 }
