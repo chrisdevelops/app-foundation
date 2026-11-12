@@ -382,7 +382,12 @@ interface ScriptSourceFixture {
  */
 function runJobAgainstFixture(
   entry: BoundaryCheckJob,
-  options: { baseScriptExitCode?: number; pullRequestScriptExitCode: number },
+  options: {
+    baseScriptExitCode?: number;
+    pullRequestScriptExitCode: number;
+    /** A base SHA to pass instead of the real base commit, for example one that is not in the repository. */
+    eventBaseSha?: string;
+  },
 ): ScriptSourceFixture {
   const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'boundary-check-ci-gate-')));
   emulationRoots.push(root);
@@ -438,7 +443,7 @@ function runJobAgainstFixture(
     defaultRef: headSha,
     env,
     expressions: {
-      'github.event.pull_request.base.sha': baseSha,
+      'github.event.pull_request.base.sha': options.eventBaseSha ?? baseSha,
       'github.event.pull_request.head.sha': headSha,
       'github.event.pull_request.head.ref': fixtureBranch,
       'github.event.pull_request.base.ref': 'main',
@@ -450,7 +455,7 @@ function runJobAgainstFixture(
       'runner.temp': join(runnerDir, 'runner-temp'),
     },
   });
-  return { baseSha, headSha, result };
+  return { baseSha: options.eventBaseSha ?? baseSha, headSha, result };
 }
 
 function describeJobRun(run: ScriptSourceFixture): string {
@@ -533,4 +538,43 @@ describe('boundary check script source (ADR 0008)', () => {
       `a fallback notice appeared although the base has the script:\n${describeJobRun(run)}`,
     ).toEqual([]);
   });
+});
+
+describe('unreadable base commit (ADR 0009 item 3)', () => {
+  const slow = { timeout: 120_000 };
+  const missingSha = '0123456789abcdef0123456789abcdef01234567';
+
+  // ADR 0009 item 3: a base commit that cannot be read is not "a base without the script"
+  it.each([0, 1])(
+    'ADR 0009: when the base commit is not in the repository, the job fails and runs no copy of the script (pull request script exit %i)',
+    (pullRequestExitCode) => {
+      const entry = readBoundaryCheckJob();
+      const run = runJobAgainstFixture(entry, {
+        baseScriptExitCode: 0,
+        pullRequestScriptExitCode: pullRequestExitCode,
+        eventBaseSha: missingSha,
+      });
+      const output = describeJobRun(run);
+      expect(run.result.exitCode, `an unreadable base commit must fail the job:\n${output}`).not.toBe(0);
+      expect(run.result.output, `the pull request version must not run as a fallback:\n${output}`).not.toContain(
+        pullRequestScriptMarker,
+      );
+      expect(run.result.output, `no base version can run:\n${output}`).not.toContain(baseScriptMarker);
+    },
+    slow.timeout,
+  );
+
+  // ADR 0009 item 3: the fallback stays for a readable base without the script
+  it(
+    'ADR 0009: a readable base commit without the script still uses the pull request version with a notice',
+    slow,
+    () => {
+      const entry = readBoundaryCheckJob();
+      const run = runJobAgainstFixture(entry, { pullRequestScriptExitCode: 0 });
+      const output = describeJobRun(run);
+      expect(run.result.exitCode, output).toBe(0);
+      expect(run.result.output, output).toContain(pullRequestScriptMarker);
+      expect(run.result.output, output).toMatch(fallbackNoticePattern);
+    },
+  );
 });

@@ -13,7 +13,16 @@
 //
 // Every fixture is a temporary git repository with its own empty git config,
 // so the developer's or runner's git settings never change the result.
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -42,6 +51,10 @@ const boundaryRule = {
   testChangeNotApproved: 'test-change-not-approved',
   coAuthorTrailer: 'co-author-trailer',
   invalidRange: 'invalid-range',
+  // ADR 0009 item 1
+  invalidAgentTrailer: 'invalid-agent-trailer',
+  // ADR 0009 item 2: fail closed on merge commits; the id is chosen here
+  mergeCommit: 'merge-commit',
 } as const;
 
 type BoundaryRuleId = (typeof boundaryRule)[keyof typeof boundaryRule];
@@ -204,6 +217,17 @@ class FixtureRepo {
     const messageFile = join(this.root, `message-${this.messageCount}.txt`);
     writeFileSync(messageFile, `${parts.join('\n\n')}\n`);
     this.git(['commit', '--quiet', '--no-verify', '--allow-empty', '--cleanup=strip', '-F', messageFile]);
+    const sha = this.git(['rev-parse', 'HEAD']);
+    this.commits.push(sha);
+    return sha;
+  }
+
+  /** Merges a ref into the current branch with a merge commit (never a fast-forward). */
+  merge(ref: string, subject: string, trailers: readonly string[]): string {
+    this.messageCount += 1;
+    const messageFile = join(this.root, `message-${this.messageCount}.txt`);
+    writeFileSync(messageFile, `${[subject, trailers.join('\n')].join('\n\n')}\n`);
+    this.git(['merge', '--quiet', '--no-ff', '--no-verify', '-F', messageFile, ref]);
     const sha = this.git(['rev-parse', 'HEAD']);
     this.commits.push(sha);
     return sha;
@@ -954,6 +978,293 @@ describe('invalid range (failure mode)', () => {
       expect(run.result.output, `a missing option is a usage error, not a crash:\n${output}`).not.toMatch(
         /^\s+at\s.+[:(]/m,
       );
+    },
+    slow.timeout,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Review of #14 (attempt 1 of the developer) and ADR 0009.
+
+/**
+ * Like `expectViolations`, but only requires the listed violations to be among
+ * the output, and requires every line to name a real fixture commit, so a
+ * forged record can never appear as a commit.
+ */
+function expectViolationsInclude(repo: FixtureRepo, run: CheckRun, expected: readonly ExpectedViolation[]): void {
+  const output = describeCheckRun(run);
+  expect(run.result.exitCode, `the check must fail closed, never exit 0:\n${output}`).not.toBe(0);
+  expect(run.result.exitCode, `the check must finish, not crash:\n${output}`).toBe(1);
+  expect(run.strayLines, `every output line must be \`<short-sha>: <rule-id>: <message>\`:\n${output}`).toEqual([]);
+  for (const violation of run.violations) {
+    expect(
+      repo.commits,
+      `"${violation.line}" must name a commit of the range, not a forged or unknown SHA:\n${output}`,
+    ).toContain(repo.resolveShortSha(violation.shortSha));
+  }
+  const actual = new Set(run.violations.map((entry) => `${repo.resolveShortSha(entry.shortSha)} ${entry.rule}`));
+  for (const violation of expected) {
+    expect(
+      actual.has(`${violation.sha} ${violation.rule}`),
+      `the output must have a ${violation.rule} line for ${violation.sha.slice(0, 7)}:\n${output}`,
+    ).toBe(true);
+    if (violation.path !== undefined) {
+      expect(
+        run.violations.some(
+          (entry) =>
+            entry.rule === violation.rule &&
+            repo.resolveShortSha(entry.shortSha) === violation.sha &&
+            entry.line.includes(violation.path as string),
+        ),
+        `the ${violation.rule} line for ${violation.sha.slice(0, 7)} must name ${violation.path}:\n${output}`,
+      ).toBe(true);
+    }
+  }
+}
+
+const coAuthorTrailerLine = 'Co-Authored-By: Assistant <assistant@example.invalid>';
+
+describe('control bytes in trailers (review finding 1)', () => {
+  // Review finding 1: a unit separator (\x1f) after a value must not hide the trailers after it
+  it(
+    '#14: Agent: developer<0x1f> followed by Agent: reviewer and Co-Authored-By: hides no trailer and never exits 0',
+    slow,
+    () => {
+      const repo = new FixtureRepo().seed();
+      repo.edit(baseFiles.source).commit('Valid commit', taskTrailers('developer'));
+      const bad = repo
+        .edit(baseFiles.source)
+        .commit('Control byte', ['Task: #14', 'Agent: developer\u001f', 'Agent: reviewer', coAuthorTrailerLine]);
+      expectViolationsInclude(repo, repo.check(), [
+        { sha: bad, rule: boundaryRule.reviewerOrVerifierCommit },
+        { sha: bad, rule: boundaryRule.coAuthorTrailer },
+        { sha: bad, rule: boundaryRule.invalidAgentTrailer },
+      ]);
+    },
+  );
+
+  // Review finding 1: a record separator (\x1e) must not end the commit's record early
+  it('#14: Agent: test-author<0x1e> followed by Co-Authored-By: hides no trailer and never exits 0', slow, () => {
+    const repo = new FixtureRepo().seed();
+    const bad = repo
+      .write('src/new.gate.test.ts')
+      .commit('Record separator', ['Task: #14', 'Agent: test-author\u001e', coAuthorTrailerLine]);
+    expectViolationsInclude(repo, repo.check(), [{ sha: bad, rule: boundaryRule.coAuthorTrailer }]);
+  });
+
+  // Review finding 1: text after \x1e that looks like a new record must not become a commit
+  it('#14: a forged record after <0x1e> neither appears as a commit nor hides the real commit trailers', slow, () => {
+    const repo = new FixtureRepo().seed();
+    const valid = repo.edit(baseFiles.source).commit('Valid commit', taskTrailers('developer'));
+    const forged = `${valid}\u001f${valid.slice(0, 7)}\u001f${repo.commits[0] ?? ''}\u001fAgent: developer`;
+    const bad = repo
+      .write('src/new.gate.test.ts')
+      .commit('Forged record', [
+        'Task: #14',
+        `Agent: developer\u001e${forged}`,
+        'Agent: reviewer',
+        coAuthorTrailerLine,
+      ]);
+    expectViolationsInclude(repo, repo.check(), [
+      { sha: bad, rule: boundaryRule.reviewerOrVerifierCommit },
+      { sha: bad, rule: boundaryRule.coAuthorTrailer },
+    ]);
+  });
+});
+
+describe('Agent: roles (ADR 0009 item 1)', () => {
+  const validRoles = ['planner', 'researcher', 'test-author', 'developer', 'reviewer', 'verifier', 'orchestrator'];
+
+  // ADR 0009 item 1: each valid role passes the trailer rules (reviewer and verifier still never commit)
+  it.each(validRoles)(
+    'ADR 0009: an empty Agent: %s commit on a task branch passes the Agent: trailer rules',
+    (role) => {
+      const repo = new FixtureRepo().seed();
+      const sha = repo.commit(`Empty ${role} commit`, taskTrailers(role));
+      const run = repo.check();
+      if (role === 'reviewer' || role === 'verifier') {
+        expectViolations(repo, run, [{ sha, rule: boundaryRule.reviewerOrVerifierCommit }]);
+      } else {
+        expectPass(run);
+      }
+    },
+    slow.timeout,
+  );
+
+  // ADR 0009 item 1 (review finding 2): an unknown role must not skip the path rules
+  it.each(['dev', 'test author', 'human', 'developer, reviewer', 'claude'])(
+    'ADR 0009: an Agent: %s commit that adds a gate test is rejected with invalid-agent-trailer',
+    (value) => {
+      const repo = new FixtureRepo().seed();
+      const bad = repo.write('src/new.gate.test.ts').commit('Unknown role', ['Task: #14', `Agent: ${value}`]);
+      expectViolationsInclude(repo, repo.check(), [{ sha: bad, rule: boundaryRule.invalidAgentTrailer }]);
+    },
+    slow.timeout,
+  );
+
+  // ADR 0009 item 1: the role list applies on any branch
+  it('ADR 0009: an Agent: dev commit on a non-task branch is rejected with invalid-agent-trailer', slow, () => {
+    const branch = 'spike/7-cdp';
+    const repo = new FixtureRepo().seed(branch);
+    const bad = repo.edit(baseFiles.source).commit('Unknown role', ['Agent: dev']);
+    expectViolations(repo, repo.check({ head: branch, branch }), [
+      { sha: bad, rule: boundaryRule.invalidAgentTrailer },
+    ]);
+  });
+
+  // ADR 0009 item 1 (review mutant M10): every Agent: trailer counts, not only the first
+  it.each([
+    ['test-author', 'developer'],
+    ['developer', 'test-author'],
+    ['developer', 'developer'],
+  ] as const)(
+    'ADR 0009: a commit with Agent: %s and Agent: %s is rejected with invalid-agent-trailer',
+    (first, second) => {
+      const repo = new FixtureRepo().seed();
+      const bad = repo
+        .write('src/new.gate.test.ts')
+        .commit('Two roles', ['Task: #14', `Agent: ${first}`, `Agent: ${second}`, 'Attempt: 1']);
+      expectViolationsInclude(repo, repo.check(), [{ sha: bad, rule: boundaryRule.invalidAgentTrailer }]);
+    },
+    slow.timeout,
+  );
+
+  // ADR 0009 item 1: a missing Agent: trailer stays missing-agent-trailer
+  it(
+    'ADR 0009: a task-branch commit with no Agent: trailer is still missing-agent-trailer, not invalid-agent-trailer',
+    slow,
+    () => {
+      const repo = new FixtureRepo().seed();
+      const bad = repo.edit(baseFiles.source).commit('No agent', ['Task: #14', 'Attempt: 1']);
+      expectViolations(repo, repo.check(), [{ sha: bad, rule: boundaryRule.missingAgentTrailer }]);
+    },
+  );
+});
+
+describe('merge commits (ADR 0009 item 2)', () => {
+  // ADR 0009 item 2: task branches are never updated by merging main; the check fails closed
+  it.each([
+    ['README.md only', baseFiles.readme],
+    ['an existing gate test', baseFiles.gateTest],
+  ] as const)(
+    'ADR 0009: a merge of main into a task branch, where main changed %s, is rejected with merge-commit naming the merge',
+    (_what, mainPath) => {
+      const repo = new FixtureRepo().seed();
+      repo.edit(baseFiles.source).commit('Developer work', taskTrailers('developer'));
+      repo.checkout('main');
+      repo.edit(mainPath).commit('main moves on', [...taskTrailers('orchestrator'), approvedTestChange]);
+      repo.checkout(taskBranch);
+      const merge = repo.merge('main', 'Merge main into the task branch', taskTrailers('developer'));
+      expectViolationsInclude(repo, repo.check(), [{ sha: merge, rule: boundaryRule.mergeCommit }]);
+    },
+    slow.timeout,
+  );
+
+  // ADR 0009 item 2: the limit is stated in the script header
+  it('ADR 0009: the script header states that task branches are never updated by merging main', () => {
+    expect(existsSync(boundaryCheckEntry), `${boundaryCheckEntryRelativePath} must exist`).toBe(true);
+    const lines = readFileSync(boundaryCheckEntry, 'utf8').split(/\r?\n/);
+    const header: string[] = [];
+    for (const line of lines) {
+      if (!/^\s*\/\//.test(line)) break;
+      header.push(line.replace(/^\s*\/\/\s?/, ''));
+    }
+    const text = header.join(' ').replace(/\s+/g, ' ');
+    expect(
+      text,
+      'the leading comment block must say that a task branch is never updated by merging main (ADR 0009 item 2)',
+    ).toMatch(/task branch(es)?\b[^.]*\bnever\b[^.]*\bmerg\w*[^.]*\bmain\b/i);
+  });
+});
+
+describe('range completeness (review mutants M6 and M8)', () => {
+  // Review mutant M6: a shallow repository fails closed even when base and head are present
+  it('#14: a shallow clone that has the base and every range commit still fails with invalid-range', slow, () => {
+    const repo = new FixtureRepo();
+    for (const path of Object.values(baseFiles)) repo.write(path);
+    repo.commit('first', []);
+    repo.edit(baseFiles.readme).commit('second', []);
+    const base = repo.edit(baseFiles.readme).commit('base', []);
+    repo.git(['checkout', '--quiet', '-b', taskBranch]);
+    repo.edit(baseFiles.source).commit('Valid work', taskTrailers('developer'));
+    const head = repo.edit(baseFiles.source).commit('More valid work', taskTrailers('developer'));
+    const shallowDir = join(repo.root, 'shallow');
+    const clone = runRepoCommand(
+      'git',
+      [
+        'clone',
+        '--quiet',
+        '--depth=3',
+        '--no-single-branch',
+        '--branch',
+        taskBranch,
+        pathToFileURL(repo.dir).href,
+        shallowDir,
+      ],
+      { cwd: repo.root, env: repo.env },
+    );
+    expect(clone.exitCode, describeRepoCommand(clone)).toBe(0);
+    const probe = (args: readonly string[]): RepoCommandResult =>
+      runRepoCommand('git', args, { cwd: shallowDir, env: repo.env });
+    expect(probe(['rev-parse', '--is-shallow-repository']).stdout.trim(), 'the fixture clone must be shallow').toBe(
+      'true',
+    );
+    for (const sha of [base, head, repo.commits[3] as string]) {
+      expect(probe(['cat-file', '-e', `${sha}^{commit}`]).exitCode, `the shallow clone must contain ${sha}`).toBe(0);
+    }
+    expect(probe(['merge-base', base, head]).exitCode, 'base and head must have a merge base in the clone').toBe(0);
+    const run = runBoundaryCheck(shallowDir, repo.env, ['--base', base, '--head', head, '--branch', taskBranch]);
+    expectInvalidRange(run);
+  });
+
+  // Review mutant M8: a head with no common ancestor with the base fails closed
+  it('#14: a head on an unrelated history (no merge base with the base) fails with invalid-range', slow, () => {
+    const repo = new FixtureRepo().seed();
+    const orphanBranch = 'task/14-orphan';
+    repo.git(['checkout', '--quiet', '--orphan', orphanBranch]);
+    repo.git(['rm', '-r', '-q', '-f', '.']);
+    repo.write('src/unrelated.ts').commit('Unrelated history', taskTrailers('developer'));
+    expect(
+      runRepoCommand('git', ['merge-base', 'main', orphanBranch], { cwd: repo.dir, env: repo.env }).exitCode,
+      'the fixture branch must share no history with main',
+    ).not.toBe(0);
+    expectInvalidRange(repo.check({ head: orphanBranch, branch: orphanBranch }));
+  });
+});
+
+describe('existing fixtures and snapshots (review finding 5, reading (a))', () => {
+  const fixtureFiles = [baseFiles.fixture, baseFiles.snapshot] as const;
+
+  // Reading (a): an updated existing fixture or snapshot needs Test-Change
+  it.each(fixtureFiles)(
+    '#14: an Agent: test-author commit that modifies %s, which exists on the base ref, is rejected with test-change-not-approved',
+    (path) => {
+      const repo = new FixtureRepo().seed();
+      const bad = repo.edit(path).commit('Update test data', taskTrailers('test-author'));
+      expectViolations(repo, repo.check(), [{ sha: bad, rule: boundaryRule.testChangeNotApproved, path }]);
+    },
+    slow.timeout,
+  );
+
+  // Reading (a): the developer may touch fixtures, but an existing one still needs Test-Change
+  it.each(fixtureFiles)(
+    '#14: an Agent: developer commit that modifies %s without Test-Change is rejected with test-change-not-approved only',
+    (path) => {
+      const repo = new FixtureRepo().seed();
+      const bad = repo.edit(path).commit('Update test data', taskTrailers('developer'));
+      expectViolations(repo, repo.check(), [{ sha: bad, rule: boundaryRule.testChangeNotApproved, path }]);
+    },
+    slow.timeout,
+  );
+
+  // Reading (a): with the trailer it passes
+  it.each(fixtureFiles)(
+    '#14: commits that modify and delete %s pass with Test-Change: approved #14',
+    (path) => {
+      const repo = new FixtureRepo().seed();
+      repo.edit(path).commit('Approved update', [...taskTrailers('test-author'), approvedTestChange]);
+      repo.remove(path).commit('Approved removal', [...taskTrailers('test-author'), approvedTestChange]);
+      expectPass(repo.check());
     },
     slow.timeout,
   );
