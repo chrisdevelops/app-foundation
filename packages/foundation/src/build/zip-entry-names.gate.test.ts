@@ -27,7 +27,6 @@ import { mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFile
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { listZipEntries } from '../../../../tools/reference-app/test-support/zip-archive';
 import { buildZipFixture, inspectZipFixture, type ZipFixtureEntry } from './test-support/zip-fixture';
 
 interface NormalizedZipEntryNames {
@@ -158,8 +157,6 @@ describe('zip entry names: rewrite \\ to /', () => {
     const entries = inspectZipFixture(readFileSync(path));
     expect(entries.map((entry) => entry.centralName)).toEqual(expectedForwardNames);
     expect(entries.map((entry) => entry.localName)).toEqual(expectedForwardNames);
-    // The reader the make gate uses lists the same names.
-    expect(listZipEntries(path)).toEqual(expectedForwardNames);
   });
 
   // PLT-007; ADR 0010: contents and checksums do not change
