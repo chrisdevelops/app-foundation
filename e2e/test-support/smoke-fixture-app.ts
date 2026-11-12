@@ -11,8 +11,8 @@ import { mkdirSync, mkdtempSync, realpathSync, writeFileSync, cpSync, rmSync, ex
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { repoGateRootDir } from '../../tools/repo/test-support/run-repo-command';
-import { readPackagedAppLayout } from '../../tools/reference-app/test-support/packaged-app-layout';
+import { repoGateRootDir } from '../../tools/test-support/run-repo-command';
+import { readPackagedAppLayout } from '../../tools/test-support/packaged-app-layout';
 
 export type SmokeFixtureMode =
   /** Opens one window; on `#open-second-window` in that window the main process opens a second one. */

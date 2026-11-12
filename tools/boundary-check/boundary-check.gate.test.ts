@@ -32,7 +32,7 @@ import {
   repoGateRootDir,
   runRepoCommand,
   type RepoCommandResult,
-} from '../repo/test-support/run-repo-command';
+} from '../test-support/run-repo-command';
 
 /** The script the contract is about, relative to the repository root. */
 const boundaryCheckEntryRelativePath = 'tools/boundary-check/boundary-check.ts';

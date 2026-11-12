@@ -27,8 +27,8 @@ import {
   listProcessesUsing,
   listRunningProcesses,
   removeAppFolderAfterExit,
-} from '../../tools/reference-app/test-support/app-process-cleanup';
-import { describeRepoCommand, repoGateRootDir, runRepoCommand } from '../../tools/repo/test-support/run-repo-command';
+} from '../../tools/test-support/app-process-cleanup';
+import { describeRepoCommand, repoGateRootDir, runRepoCommand } from '../../tools/test-support/run-repo-command';
 import {
   createSmokeFixtureBuild,
   smokeFixtureSecondWindowTitle,

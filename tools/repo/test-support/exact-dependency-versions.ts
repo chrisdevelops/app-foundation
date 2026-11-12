@@ -1,7 +1,7 @@
 // Test-only helper for the repo gate tests (#12, ADR 0004 decision 10).
 // Finds every dependency in every workspace package.json that is not pinned
 // to an exact version.
-import { listWorkspaceProjects, readPackageManifest } from './workspace-projects';
+import { listWorkspaceProjects, readPackageManifest } from '../../test-support/workspace-projects';
 
 /** Dependency fields that must hold exact versions. peerDependencies are out of scope (see envelope). */
 export const exactVersionDependencyFields = [

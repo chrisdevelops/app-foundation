@@ -10,8 +10,8 @@ import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { stripAnsiCodes } from '../../repo/test-support/run-repo-command';
-import { removeAppFolderAfterExit } from './app-process-cleanup';
+import { stripAnsiCodes } from '../../test-support/run-repo-command';
+import { removeAppFolderAfterExit } from '../../test-support/app-process-cleanup';
 
 export interface ElectronAppProcess {
   readonly userDataDir: string;

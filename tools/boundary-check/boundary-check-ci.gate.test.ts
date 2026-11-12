@@ -27,9 +27,9 @@ import {
   workflowValueText,
   type WorkflowJob,
   type WorkflowMapping,
-} from '../repo/test-support/github-workflow';
-import { describeRepoCommand, repoGateRootDir, runRepoCommand } from '../repo/test-support/run-repo-command';
-import type { WorkflowYamlValue } from '../repo/test-support/workflow-yaml-reader';
+} from '../test-support/github-workflow';
+import { describeRepoCommand, repoGateRootDir, runRepoCommand } from '../test-support/run-repo-command';
+import type { WorkflowYamlValue } from '../test-support/workflow-yaml-reader';
 import { emulateWorkflowJob, type EmulatedJobResult } from './test-support/workflow-job-emulator';
 
 const root = repoGateRootDir;
