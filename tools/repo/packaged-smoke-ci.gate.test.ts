@@ -58,6 +58,7 @@ import {
 import { readPackagedAppLayout } from '../test-support/packaged-app-layout';
 import { repoGateRootDir } from '../test-support/run-repo-command';
 import { smokeEvidenceDirVariableName } from '../test-support/smoke-evidence';
+import { packagedCdpEnabledValue, packagedCdpVariableName } from '../test-support/packaged-cdp-variable';
 import {
   buildExpressionContext,
   emulateWorkflowJob,
@@ -315,6 +316,44 @@ describe('packaged smoke job: workflow shape on all three runners', () => {
     }
   });
 
+  // TST-009; issue #18 acceptance criterion 8; ADR 0004 decision 2 B: CDP is never enabled by accident
+  it(`TST-009: ${packagedCdpVariableName} is set in every workflow only in the env of the packaged smoke step, to ${packagedCdpEnabledValue}`, () => {
+    const workflow = readCiWorkflow();
+    const smokeStepEnvs: string[] = [];
+    for (const entry of requirePackagedSmokeCombinations(workflow)) {
+      entry.steps.forEach((step, index) => {
+        if (!stepDoes(workflow, entry.job, step, 'smoke')) return;
+        const env = isWorkflowMapping(step.env) ? step.env : {};
+        const value = env[packagedCdpVariableName];
+        expect(
+          value === undefined || value === null ? undefined : workflowValueText(value),
+          `${label(entry)} steps[${index}] (the smoke step) must set env ${packagedCdpVariableName}: '${packagedCdpEnabledValue}'`,
+        ).toBe(packagedCdpEnabledValue);
+        smokeStepEnvs.push(`jobs.${entry.job.id}.steps[${index}]`);
+      });
+    }
+    const allowed = new Set(smokeStepEnvs);
+    const elsewhere: string[] = [];
+    for (const relativePath of listWorkflowFiles(root)) {
+      const parsed = readWorkflow(root, relativePath);
+      if (isWorkflowMapping(parsed.env) && packagedCdpVariableName in parsed.env) elsewhere.push(`${relativePath} env`);
+      for (const job of listWorkflowJobs(parsed)) {
+        if (isWorkflowMapping(job.definition.env) && packagedCdpVariableName in job.definition.env) {
+          elsewhere.push(`${relativePath} jobs.${job.id}.env`);
+        }
+        listJobSteps(job).forEach((step, index) => {
+          const where = `jobs.${job.id}.steps[${index}]`;
+          const inEnv = isWorkflowMapping(step.env) && packagedCdpVariableName in step.env;
+          const inRun = typeof step.run === 'string' && step.run.includes(packagedCdpVariableName);
+          const inWith = isWorkflowMapping(step.with) && JSON.stringify(step.with).includes(packagedCdpVariableName);
+          if (relativePath === ciWorkflowRelativePath && allowed.has(where) && inEnv && !inRun && !inWith) return;
+          if (inEnv || inRun || inWith) elsewhere.push(`${relativePath} ${where}`);
+        });
+      }
+    }
+    expect(elsewhere, `${packagedCdpVariableName} may be set only in the packaged smoke step env`).toEqual([]);
+  });
+
   // TST-015: the same bash steps run on all three runners, and stop at the first failing command
   it('TST-015: every run step of the packaged smoke job that runs on windows-latest uses bash', () => {
     const workflow = readCiWorkflow();
@@ -395,9 +434,11 @@ function runHostJob(options: { smokeExitCode?: number; packageExitCode?: number 
       [fakeCiEnvNames.marker]: marker,
       [fakeCiEnvNames.smokeExitCode]: String(options.smokeExitCode ?? 0),
       [fakeCiEnvNames.packageExitCode]: String(options.packageExitCode ?? 0),
-      [fakeCiEnvNames.recordEnv]: smokeEvidenceDirVariableName,
+      [fakeCiEnvNames.recordEnv]: `${smokeEvidenceDirVariableName},${packagedCdpVariableName}`,
       // Only the workflow may name the evidence folder (ADR 0012).
       [smokeEvidenceDirVariableName]: '',
+      // Only the workflow may enable CDP in the packaged app (#18; ADR 0004 decision 2 B).
+      [packagedCdpVariableName]: '',
       // GitHub-hosted runners have no display; only the workflow can provide one.
       DISPLAY: '',
       WAYLAND_DISPLAY: '',
@@ -566,8 +607,20 @@ describe(`packaged smoke job: emulated run on this runner (${hostLabel})`, () =>
     it.todo(`TST-010: smoke suite on ${hostLabel} (${adr0011SkipReason}; DEFERRED: TST-010)`);
   }
 
-  // DEFERRED: TST-010 (issue #17 acceptance criterion 2): the CDP variable's name is defined in #18.
-  it.todo('TST-010: the smoke step sets the variable that enables CDP in packaged builds (name defined in #18)');
+  // TST-009, TST-010; issue #17 acceptance criterion 2 and issue #18 acceptance criterion 8
+  it.skipIf(!hostRunsSmoke)(
+    `TST-009: on ${hostLabel} the smoke suite runs with ${packagedCdpVariableName}=${packagedCdpEnabledValue}, so the packaged app opens its CDP port`,
+    slow,
+    () => {
+      const run = runHostJob();
+      const smoke = run.records.filter((record) => record.kind === 'smoke');
+      expect(smoke, `the smoke suite must run exactly once:\n${run.describe()}`).toHaveLength(1);
+      expect(
+        smoke[0]?.recordedEnv?.[packagedCdpVariableName],
+        `the smoke step must set ${packagedCdpVariableName}=${packagedCdpEnabledValue}:\n${run.describe()}`,
+      ).toBe(packagedCdpEnabledValue);
+    },
+  );
 });
 
 // ---------------------------------------------------------------------------

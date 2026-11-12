@@ -8,11 +8,22 @@
 //   React heading, no Node in the main world, and the app:// failure modes
 //   (traversal, absolute paths, unknown hosts) through Chromium.
 // - `make`: exit 0 and a zip that holds the packaged app.
-// Windows are read through the DevTools protocol on a free port; the CDP guard
-// for packaged builds comes in #18 (ADR 0004 decision 2 B), which then adds
-// its enabling variable to these launches.
+// Windows are read through the DevTools protocol on a free port. Packaged
+// launches set FOUNDATION_ALLOW_PACKAGED_CDP=1 (#18; ADR 0004 decision 2 B);
+// the dev launch runs without it.
+// - #18, the packaged CDP guard (TST-009), tested at the boundary: does a
+//   packaged app started with `--remote-debugging-port` expose a reachable
+//   DevTools endpoint? Without the variable (or with any value but `1`): no
+//   answer on the port at any moment, no DevToolsActivePort, a non-zero exit
+//   and a refusal on stderr that names the switch and the variable. With it:
+//   the endpoint answers. `--inspect` and `--inspect-brk` start no debugger,
+//   with or without the variable. The dev build answers on loopback only.
+// - #18, PLT-012: the smoke suite (e2e/smoke/, which holds the security
+//   baseline smoke tests) passes through the harness against the packaged
+//   copy. ADR 0011: that one test skips on Windows; the guard tests run there.
 // Requirements: PLT-002, PLT-005, PLT-007 (partial), PLT-008 (partial),
-// TST-011 (partial); ADR 0004 decisions 1 and 3; ADR 0007 items 5 and 7.
+// PLT-012, TST-009, TST-011 (partial); ADR 0004 decisions 1, 2 B and 3;
+// ADR 0007 items 5 and 7; ADR 0011.
 // All steps share one build, so they run in order in this one file.
 import { existsSync, mkdtempSync, readdirSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -26,6 +37,15 @@ import {
   type RepoCommandResult,
 } from '../test-support/run-repo-command';
 import { readPackageManifest } from '../test-support/workspace-projects';
+import { packagedCdpEnabledValue, packagedCdpVariableName } from '../test-support/packaged-cdp-variable';
+import {
+  findFreeLoopbackPort,
+  listNonLoopbackIpv4Addresses,
+  probeDebugEndpoint,
+  waitForAppExit,
+  watchDebugEndpoint,
+} from './test-support/devtools-endpoint-probe';
+import { listDevToolsTargets } from './test-support/devtools-protocol-client';
 import {
   openAppWindow,
   readMainWorldNodeGlobals,
@@ -57,6 +77,21 @@ const slow = { timeout: 600_000 };
 const launchTimeoutMs = 120_000;
 // Vite 8 warning for config files it cannot load natively (spike #6 failure mode 4).
 const configLoaderWarning = /configLoader/;
+/** The smoke suite's packaged-target variable (e2e/test-support/smoke-harness-contract.ts, #16). */
+const smokeAppExecutableVariable = 'SMOKE_APP_EXECUTABLE';
+/** Environment that enables the CDP port in a packaged launch (#18; ADR 0004 decision 2 B). */
+const packagedCdpEnabledEnv = { [packagedCdpVariableName]: packagedCdpEnabledValue };
+/** Chromium prints this when its DevTools endpoint opens. */
+const devToolsListening = /DevTools listening on/;
+/** Node prints this when its inspector starts. */
+const nodeInspectorListening = /Debugger listening on/;
+
+/** A fresh user data folder (and the macOS mock keychain) without any DevTools switch; `extra` follows. */
+function launchSwitchesWithoutDevTools(userDataDir: string, extra: readonly string[]): string[] {
+  const switches = [`--user-data-dir=${userDataDir}`];
+  if (process.platform === 'darwin') switches.push('--use-mock-keychain');
+  return [...switches, ...extra];
+}
 
 function pnpmInReferenceApp(args: readonly string[]): RepoCommandResult {
   return runRepoCommand('pnpm', args, { cwd: referenceAppDir, timeoutMs: 600_000 });
@@ -103,10 +138,12 @@ describe.skipIf(isInsideCleanClone(root))('reference app: dev, package, launch a
             `${referenceAppRelativeDir}/package.json has no dev or start script that runs electron-forge start`,
           );
         // `pnpm run <script> -- <switches>`: Forge passes the switches after `--` to Electron.
+        // #18: the dev build accepts the port without the packaged CDP variable.
         devApp = startElectronAppProcess({
           command: 'pnpm',
           args: (userDataDir) => ['run', script, '--', ...devToolsLaunchSwitches(userDataDir)],
           cwd: referenceAppDir,
+          withoutEnv: [packagedCdpVariableName],
         });
         return openAppWindow(devApp, launchTimeoutMs);
       })();
@@ -137,6 +174,28 @@ describe.skipIf(isInsideCleanClone(root))('reference app: dev, package, launch a
       await ensureDevWindow();
       expect(devApp?.output() ?? '', devApp?.describe()).not.toMatch(configLoaderWarning);
     });
+
+    // TST-009; issue #18 acceptance criterion 6: dev builds accept the port, on localhost only
+    it(
+      `TST-009: the dev build, started without ${packagedCdpVariableName}, answers on its DevTools port on 127.0.0.1 and on no other IPv4 address of this machine`,
+      slow,
+      async (context) => {
+        const { port } = await ensureDevWindow();
+        const loopback = await probeDebugEndpoint('127.0.0.1', port);
+        expect(loopback.answered, `control: the dev DevTools endpoint must answer on 127.0.0.1:${port}`).toBe(true);
+        const addresses = listNonLoopbackIpv4Addresses();
+        if (addresses.length === 0) {
+          context.skip('this machine has no non-loopback IPv4 address to probe');
+          return;
+        }
+        const reachable: string[] = [];
+        for (const address of addresses) {
+          const answer = await probeDebugEndpoint(address, port, 2_000);
+          if (answer.answered) reachable.push(`${address}:${port} ${answer.detail}`);
+        }
+        expect(reachable, 'the DevTools endpoint must listen on loopback only').toEqual([]);
+      },
+    );
   });
 
   describe('electron-forge package and the packaged app', () => {
@@ -174,10 +233,12 @@ describe.skipIf(isInsideCleanClone(root))('reference app: dev, package, launch a
     function ensurePackagedWindow(): Promise<OpenAppWindow> {
       packagedWindow ??= (async () => {
         const copy = requirePackagedCopy();
+        // #18: packaged builds open the CDP port only with the variable (ADR 0004 decision 2 B).
         packagedApp = startElectronAppProcess({
           command: copy.executablePath,
           args: (userDataDir) => devToolsLaunchSwitches(userDataDir),
           cwd: copy.rootDir,
+          env: packagedCdpEnabledEnv,
         });
         return openAppWindow(packagedApp, launchTimeoutMs);
       })();
@@ -320,6 +381,176 @@ describe.skipIf(isInsideCleanClone(root))('reference app: dev, package, launch a
           module: 'undefined',
           global: 'undefined',
         });
+      },
+    );
+
+    describe('packaged CDP guard (TST-009; ADR 0004 decision 2 B)', () => {
+      /** Time a refused launch has to exit; the guard runs before Chromium opens the port. */
+      const refusalExitMs = 30_000;
+      /** Time an `--inspect` launch is watched for a debugger. */
+      const inspectWatchMs = 12_000;
+      const guardedApps: ElectronAppProcess[] = [];
+
+      afterAll(async () => {
+        for (const app of guardedApps) await app.stop().catch(() => undefined);
+      }, 180_000);
+
+      /** Starts the packaged copy with `extra` switches; `cdpValue` undefined means the variable is not in its environment. */
+      function startPackagedCopy(extra: readonly string[], cdpValue: string | undefined): ElectronAppProcess {
+        const copy = requirePackagedCopy();
+        const app = startElectronAppProcess({
+          command: copy.executablePath,
+          args: (userDataDir) => launchSwitchesWithoutDevTools(userDataDir, extra),
+          cwd: copy.rootDir,
+          env: cdpValue === undefined ? {} : { [packagedCdpVariableName]: cdpValue },
+          withoutEnv: [packagedCdpVariableName],
+        });
+        guardedApps.push(app);
+        return app;
+      }
+
+      const refusedSettings: ReadonlyArray<[string, string | undefined]> = [
+        ['not set', undefined],
+        ['set to an empty value', ''],
+        ['set to 0', '0'],
+        ['set to false', 'false'],
+      ];
+
+      // TST-009; issue #18 acceptance criterion 5 (failure mode); ADR 0004 decision 2 B
+      it.each(refusedSettings)(
+        `TST-009: with ${packagedCdpVariableName} %s, a packaged app started with --remote-debugging-port=<free port> never answers on that port, writes no DevToolsActivePort and exits non-zero`,
+        slow,
+        async (_label, cdpValue) => {
+          const port = await findFreeLoopbackPort();
+          const app = startPackagedCopy([`--remote-debugging-port=${port}`], cdpValue);
+          try {
+            const watch = await watchDebugEndpoint(app, port, { windowMs: refusalExitMs });
+            expect(
+              watch.answers,
+              `no DevTools endpoint may answer on 127.0.0.1:${port} (${watch.probes} probes in ${watch.elapsedMs} ms):\n${app.describe()}`,
+            ).toEqual([]);
+            expect(
+              existsSync(join(app.userDataDir, 'DevToolsActivePort')),
+              `the refused app must not write DevToolsActivePort:\n${app.describe()}`,
+            ).toBe(false);
+            expect(app.output(), 'Chromium must not report an open DevTools endpoint').not.toMatch(devToolsListening);
+            const exitCode = await waitForAppExit(app, 5_000);
+            expect(exitCode, `the refused app must exit within ${refusalExitMs} ms:\n${app.describe()}`).not.toBeNull();
+            expect(exitCode, `the refused app must exit with a non-zero code:\n${app.describe()}`).not.toBe(0);
+          } finally {
+            await app.stop();
+          }
+        },
+      );
+
+      // TST-009; issue #18 acceptance criterion 5: stderr names the refusal
+      it(
+        `TST-009: a refused packaged launch names --remote-debugging-port and ${packagedCdpVariableName} on stderr`,
+        slow,
+        async () => {
+          const port = await findFreeLoopbackPort();
+          const app = startPackagedCopy([`--remote-debugging-port=${port}`], undefined);
+          try {
+            const exitCode = await waitForAppExit(app, refusalExitMs);
+            expect(exitCode, `the refused app must exit:\n${app.describe()}`).not.toBeNull();
+            const stderr = app.errorOutput();
+            expect(stderr, `stderr must name the refused switch:\n${app.describe()}`).toContain(
+              '--remote-debugging-port',
+            );
+            expect(stderr, `stderr must name the variable that enables it:\n${app.describe()}`).toContain(
+              packagedCdpVariableName,
+            );
+          } finally {
+            await app.stop();
+          }
+        },
+      );
+
+      // TST-009; issue #18 acceptance criterion 5: the port-0 form the gates and the harness use
+      it(
+        `TST-009: without ${packagedCdpVariableName}, --remote-debugging-port=0 writes no DevToolsActivePort and the packaged app exits non-zero`,
+        slow,
+        async () => {
+          const app = startPackagedCopy(['--remote-debugging-port=0'], undefined);
+          try {
+            const exitCode = await waitForAppExit(app, refusalExitMs);
+            expect(
+              existsSync(join(app.userDataDir, 'DevToolsActivePort')),
+              `the refused app must not write DevToolsActivePort:\n${app.describe()}`,
+            ).toBe(false);
+            expect(app.output()).not.toMatch(devToolsListening);
+            expect(exitCode, `the refused app must exit within ${refusalExitMs} ms:\n${app.describe()}`).not.toBeNull();
+            expect(exitCode, app.describe()).not.toBe(0);
+          } finally {
+            await app.stop();
+          }
+        },
+      );
+
+      // TST-009; issue #18 acceptance criterion 6 (control for the refusals above)
+      it(
+        `TST-009: with ${packagedCdpVariableName}=${packagedCdpEnabledValue}, the packaged app answers on 127.0.0.1 at the requested port and lists its window`,
+        slow,
+        async () => {
+          const port = await findFreeLoopbackPort();
+          const app = startPackagedCopy([`--remote-debugging-port=${port}`], packagedCdpEnabledValue);
+          try {
+            const reported = await app.waitForDevToolsPort(launchTimeoutMs);
+            expect(reported, 'the app must open the requested port').toBe(port);
+            const answer = await probeDebugEndpoint('127.0.0.1', port);
+            expect(answer.answered, `the DevTools endpoint must answer: ${answer.detail}`).toBe(true);
+            await expect
+              .poll(async () => (await listDevToolsTargets(port)).filter((target) => target.type === 'page').length, {
+                timeout: 30_000,
+              })
+              .toBeGreaterThan(0);
+          } finally {
+            await app.stop();
+          }
+        },
+      );
+
+      // TST-009, PLT-008; issue #18 acceptance criterion 7: no Node debugger in a packaged build, with or without the variable
+      it.each([
+        ['--inspect', 'not set'],
+        ['--inspect-brk', 'not set'],
+        ['--inspect', `set to ${packagedCdpEnabledValue}`],
+        ['--inspect-brk', `set to ${packagedCdpEnabledValue}`],
+      ])(
+        `PLT-008: a packaged app started with %s=<free port> and ${packagedCdpVariableName} %s starts no debugger on that port`,
+        slow,
+        async (inspectSwitch, setting) => {
+          const port = await findFreeLoopbackPort();
+          const enabled = setting !== 'not set';
+          const app = startPackagedCopy([`${inspectSwitch}=${port}`], enabled ? packagedCdpEnabledValue : undefined);
+          try {
+            const watch = await watchDebugEndpoint(app, port, { windowMs: inspectWatchMs });
+            expect(
+              watch.answers,
+              `no debugger may answer on 127.0.0.1:${port} (${watch.probes} probes):\n${app.describe()}`,
+            ).toEqual([]);
+            expect(app.output(), app.describe()).not.toMatch(nodeInspectorListening);
+          } finally {
+            await app.stop();
+          }
+        },
+      );
+    });
+
+    // PLT-012, TST-009, TST-010; issue #18: the security baseline smoke tests pass through the harness in a packaged build
+    it.skipIf(process.platform === 'win32')(
+      `PLT-012: pnpm run smoke passes through the harness against the packaged copy with ${packagedCdpVariableName}=${packagedCdpEnabledValue} (skipped on Windows: ADR 0011, #39)`,
+      { timeout: 900_000 },
+      () => {
+        const copy = requirePackagedCopy();
+        const result = runRepoCommand('pnpm', ['run', 'smoke'], {
+          cwd: root,
+          timeoutMs: 840_000,
+          env: { [smokeAppExecutableVariable]: copy.executablePath, ...packagedCdpEnabledEnv },
+        });
+        expect(result.exitCode, describeRepoCommand(result)).toBe(0);
+        expect(result.output, describeRepoCommand(result)).toContain('security-baseline.smoke.test.ts');
+        expect(result.output, describeRepoCommand(result)).not.toMatch(/no test files found/i);
       },
     );
 

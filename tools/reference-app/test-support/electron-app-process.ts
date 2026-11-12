@@ -17,6 +17,8 @@ export interface ElectronAppProcess {
   readonly userDataDir: string;
   /** Combined stdout and stderr so far, without ANSI codes. */
   output(): string;
+  /** Stderr alone so far, without ANSI codes (#18: a refused CDP port is named on stderr). */
+  errorOutput(): string;
   /** Exit code, or null while the process runs. */
   exitCode(): number | null;
   /** Resolves with the DevTools port the app opened; rejects when the app exits or the time runs out. */
@@ -34,11 +36,12 @@ export interface ElectronAppProcess {
 const inheritedVariablePrefixes = ['npm_', 'TURBO_', 'VITEST', 'PNPM_SCRIPT'];
 const inheritedVariableNames = ['NODE_ENV', 'TEST', 'INIT_CWD', 'ELECTRON_RUN_AS_NODE', 'NODE_OPTIONS'];
 
-function buildAppEnv(extra: Record<string, string>): NodeJS.ProcessEnv {
+function buildAppEnv(extra: Record<string, string>, without: readonly string[]): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
   for (const [key, value] of Object.entries(process.env)) {
     if (inheritedVariableNames.includes(key)) continue;
     if (inheritedVariablePrefixes.some((prefix) => key.startsWith(prefix))) continue;
+    if (without.includes(key)) continue;
     env[key] = value;
   }
   return { ...env, FORCE_COLOR: '0', NO_COLOR: '1', ...extra };
@@ -77,6 +80,8 @@ export function startElectronAppProcess(options: {
   args: (userDataDir: string) => readonly string[];
   cwd: string;
   env?: Record<string, string>;
+  /** Variables the app must not inherit from this process (#18: a launch that must run without the CDP variable). */
+  withoutEnv?: readonly string[];
 }): ElectronAppProcess {
   const userDataDir = realpathSync.native(mkdtempSync(join(tmpdir(), 'rf-gate-user-data-')));
   let command = options.command;
@@ -88,7 +93,7 @@ export function startElectronAppProcess(options: {
   const throughShell = process.platform === 'win32' && command === 'pnpm';
   const spawnOptions = {
     cwd: options.cwd,
-    env: buildAppEnv(options.env ?? {}),
+    env: buildAppEnv(options.env ?? {}, options.withoutEnv ?? []),
     stdio: ['ignore', 'pipe', 'pipe'] as ['ignore', 'pipe', 'pipe'],
     detached: process.platform !== 'win32',
     windowsHide: true,
@@ -97,10 +102,14 @@ export function startElectronAppProcess(options: {
     ? spawn([command, ...args.map(quoteForWindowsShell)].join(' '), { ...spawnOptions, shell: true })
     : spawn(command, args, spawnOptions);
   let output = '';
+  let errorOutput = '';
   let spawnError: Error | undefined;
   let exitCode: number | null = null;
   child.stdout?.on('data', (data: Buffer) => (output += String(data)));
-  child.stderr?.on('data', (data: Buffer) => (output += String(data)));
+  child.stderr?.on('data', (data: Buffer) => {
+    output += String(data);
+    errorOutput += String(data);
+  });
   child.on('error', (error) => (spawnError = error));
   const exited = new Promise<void>((resolve) => {
     child.on('exit', (code, signal) => {
@@ -120,6 +129,7 @@ export function startElectronAppProcess(options: {
   return {
     userDataDir,
     output: () => stripAnsiCodes(output),
+    errorOutput: () => stripAnsiCodes(errorOutput),
     exitCode: () => exitCode,
     describe,
     async waitForDevToolsPort(timeoutMs: number): Promise<number> {
