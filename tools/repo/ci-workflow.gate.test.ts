@@ -476,3 +476,147 @@ describe('CI actions', () => {
     }
   }, 120_000);
 });
+
+function isSetupStep(step: WorkflowMapping): boolean {
+  const repository = usesRepository(step);
+  return (
+    repository === 'actions/checkout' ||
+    repository === 'actions/setup-node' ||
+    repository === 'pnpm/action-setup' ||
+    listRunCommandLines(step).some((line) => /^corepack\s+enable(\s|$)/.test(line))
+  );
+}
+
+function defaultRunWorkingDirectory(scope: WorkflowMapping): WorkflowYamlValue | undefined {
+  const defaults = scope.defaults;
+  if (!isWorkflowMapping(defaults)) return undefined;
+  const run = defaults.run;
+  return isWorkflowMapping(run) ? run['working-directory'] : undefined;
+}
+
+/** True for a working directory that is the repository root. */
+function isRepositoryRoot(directory: WorkflowYamlValue | undefined): boolean {
+  return directory === undefined || directory === '.' || directory === './';
+}
+
+function listAllWorkflows(): Array<{ file: string; workflow: WorkflowMapping }> {
+  readCiWorkflow();
+  return listWorkflowFiles(root).map((file) => ({ file, workflow: readWorkflow(root, file) }));
+}
+
+/** The only token permissions CI may have (#13 review, finding 4). */
+const allowedTokenPermissions: Readonly<Record<string, readonly string[]>> = { contents: ['read', 'none'] };
+
+describe('CI working directory and setup steps', () => {
+  // TOK-128 (failure mode): Turborepo 2 started in a package folder checks only that package
+  it('TOK-128: install and check commands run at the repository root, with no working-directory other than .', () => {
+    const workflow = readCiWorkflow();
+    expect(
+      defaultRunWorkingDirectory(workflow),
+      'defaults.run.working-directory at workflow level would run install and turbo outside the repository root',
+    ).toSatisfy(isRepositoryRoot);
+    for (const job of listCheckJobs(workflow)) {
+      expect(
+        defaultRunWorkingDirectory(job.definition),
+        `jobs.${job.id}.defaults.run.working-directory would run install and turbo outside the repository root`,
+      ).toSatisfy(isRepositoryRoot);
+      listJobSteps(job).forEach((step, index) => {
+        const lines = listRunCommandLines(step);
+        if (!lines.some((line) => isInstallCommand(line) || isTurboCheckCommand(line))) return;
+        expect(
+          step['working-directory'],
+          `${stepLabel(job, index, step)}.working-directory: Turborepo started in a package folder checks only that package`,
+        ).toSatisfy(isRepositoryRoot);
+      });
+    }
+  });
+
+  // TST-015 (failure mode): a skipped setup step makes the job run on the runner's defaults
+  it('TST-015: the checkout, setup-node and pnpm setup steps have no if: condition', () => {
+    for (const job of listCheckJobs(readCiWorkflow())) {
+      listJobSteps(job).forEach((step, index) => {
+        if (!isSetupStep(step)) return;
+        expect(
+          step.if,
+          `${stepLabel(job, index, step)}.if could skip a setup step, so the job would run on the runner's default checkout, Node or pnpm`,
+        ).toBeUndefined();
+      });
+    }
+  });
+
+  // TST-015: CI checks the commit that triggered it
+  it('TST-015: actions/checkout has no ref or repository input, so CI checks the triggering commit', () => {
+    for (const job of listCheckJobs(readCiWorkflow())) {
+      listJobSteps(job).forEach((step, index) => {
+        if (usesRepository(step) !== 'actions/checkout') return;
+        const inputs = stepInputs(step);
+        for (const input of ['ref', 'repository']) {
+          expect(
+            inputs[input],
+            `${stepLabel(job, index, step)} with.${input} would check out something other than the triggering commit`,
+          ).toBeUndefined();
+        }
+      });
+    }
+  });
+});
+
+describe('CI security', () => {
+  // TST-015 (#13 review, finding 5a): the token is not left in .git/config for later steps
+  it('TST-015: every actions/checkout step sets persist-credentials: false', () => {
+    const checkouts = listAllWorkflows().flatMap(({ file, workflow }) =>
+      listWorkflowJobs(workflow).flatMap((job) =>
+        listJobSteps(job).flatMap((step, index) =>
+          usesRepository(step) === 'actions/checkout'
+            ? [{ label: `${file} ${stepLabel(job, index, step)}`, step }]
+            : [],
+        ),
+      ),
+    );
+    expect(checkouts.length, 'the CI workflow must use actions/checkout').toBeGreaterThan(0);
+    for (const { label, step } of checkouts) {
+      const persist = stepInputs(step)['persist-credentials'];
+      expect(
+        persist === false || persist === 'false',
+        `${label} must set with.persist-credentials: false (found ${JSON.stringify(persist ?? 'not set, which defaults to true')})`,
+      ).toBe(true);
+    }
+  });
+
+  // TST-015 (#13 review, finding 4): least-privilege token
+  it('TST-015: the workflow token is limited to contents: read, at workflow and job level', () => {
+    const workflow = readCiWorkflow();
+    expect(
+      workflow.permissions,
+      `${ciWorkflowRelativePath} must set top-level permissions to exactly { contents: read }; without it the token gets the repository default`,
+    ).toEqual({ contents: 'read' });
+    for (const job of listWorkflowJobs(workflow)) {
+      const permissions = job.definition.permissions;
+      if (permissions === undefined) continue;
+      expect(
+        isWorkflowMapping(permissions),
+        `jobs.${job.id}.permissions must be a mapping, not ${JSON.stringify(permissions)} (read-all and write-all are too wide)`,
+      ).toBe(true);
+      const wider = Object.entries(permissions as WorkflowMapping).filter(
+        ([scope, level]) => !(allowedTokenPermissions[scope] ?? ['none']).includes(workflowValueText(level)),
+      );
+      expect(
+        wider.map(([scope, level]) => `${scope}: ${workflowValueText(level)}`),
+        `jobs.${job.id}.permissions is wider than { contents: read }`,
+      ).toEqual([]);
+    }
+  });
+
+  // TST-015 (#13 review, finding 4): no trigger that runs with secrets on untrusted code
+  it('TST-015: no workflow triggers on pull_request_target or workflow_run', () => {
+    const unsafe = listAllWorkflows().flatMap(({ file, workflow }) =>
+      ['pull_request_target', 'workflow_run']
+        .filter((event) => readTrigger(workflow, event) !== undefined)
+        .map((event) => `${file}: on.${event}`),
+    );
+    expect(
+      unsafe,
+      `${unsafe.join(', ')}: pull_request_target and workflow_run run with a privileged token on code from a pull request`,
+    ).toEqual([]);
+  });
+});
