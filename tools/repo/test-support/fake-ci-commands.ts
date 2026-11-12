@@ -15,7 +15,8 @@
 //   binaries. `FAKE_CI_PACKAGE_EXIT_CODE` makes it fail and write nothing.
 // - The smoke suite (`pnpm run smoke` at the root, or the e2e package's
 //   `smoke` script) records SMOKE_APP_EXECUTABLE and what that file holds at
-//   the moment of the call, then exits with `FAKE_CI_SMOKE_EXIT_CODE`.
+//   the moment of the call, and the variables named in FAKE_CI_RECORD_ENV,
+//   then exits with `FAKE_CI_SMOKE_EXIT_CODE`.
 // - `xvfb-run [options] <command>` runs the command with DISPLAY set and
 //   records that a virtual display wrapped it. `sudo` records and passes.
 // - Any other pnpm call fails with exit code 97 and says so, so a gate never
@@ -47,6 +48,8 @@ export const fakeCiEnvNames = {
   smokeExitCode: 'FAKE_CI_SMOKE_EXIT_CODE',
   packageExitCode: 'FAKE_CI_PACKAGE_EXIT_CODE',
   virtualDisplay: 'FAKE_CI_VIRTUAL_DISPLAY',
+  /** Comma-separated names of variables whose values the smoke call records. */
+  recordEnv: 'FAKE_CI_RECORD_ENV',
 } as const;
 
 const unsupportedExitCode = 97;
@@ -74,6 +77,8 @@ export interface FakeCiRecord {
   readonly waylandDisplay?: string;
   /** True when `xvfb-run` started this call. */
   readonly underVirtualDisplay?: boolean;
+  /** Values of the variables named in FAKE_CI_RECORD_ENV, as the smoke call saw them (null when unset). */
+  readonly recordedEnv?: Readonly<Record<string, string | null>>;
 }
 
 /** Folder names of the workspace packages a filter can name. */
@@ -366,7 +371,13 @@ function runFakePnpm(args: readonly string[]): number {
   };
   if (invocation.kind === 'smoke') {
     const executable = process.env.SMOKE_APP_EXECUTABLE;
-    record({ ...base, smokeAppExecutable: executable, executableAtCall: describeFile(executable) });
+    const recordedEnv = Object.fromEntries(
+      (process.env[fakeCiEnvNames.recordEnv] ?? '')
+        .split(',')
+        .filter((name) => name !== '')
+        .map((name) => [name, process.env[name] ?? null]),
+    );
+    record({ ...base, smokeAppExecutable: executable, executableAtCall: describeFile(executable), recordedEnv });
     const code = exitCodeFromEnv(fakeCiEnvNames.smokeExitCode);
     console.log(code === 0 ? 'fake smoke suite: passed' : `fake smoke suite: failed (exit ${code})`);
     return code;

@@ -26,6 +26,9 @@
 //   `sudo` and `xvfb-run` (test-support/fake-ci-commands.ts), so the gate sees
 //   which commands the job runs, in which order, and with which environment.
 //   CI runs these gates on each of its three runners.
+// Failure evidence (ADR 0012): one actions/upload-artifact step, only in the
+// packaged smoke job, only on failure, uploading only the folder that the
+// smoke step names in SMOKE_EVIDENCE_DIR (under runner.temp), kept 7 days.
 // What only a real CI run proves (the real packaged app passes the smoke suite
 // on macOS and Linux; a deliberately failing smoke test fails the job; the
 // fuse gates from #15 pass on each runner) is collected with `gh run` by the
@@ -41,6 +44,7 @@ import {
   isWorkflowMapping,
   listJobSteps,
   listRunCommandLines,
+  listWorkflowFiles,
   listWorkflowJobs,
   readWorkflow,
   resolveMatrixJobs,
@@ -53,6 +57,7 @@ import {
 } from '../test-support/github-workflow';
 import { readPackagedAppLayout } from '../test-support/packaged-app-layout';
 import { repoGateRootDir } from '../test-support/run-repo-command';
+import { smokeEvidenceDirVariableName } from '../test-support/smoke-evidence';
 import {
   buildExpressionContext,
   emulateWorkflowJob,
@@ -337,6 +342,8 @@ interface HostJobRun {
   readonly records: FakeCiRecord[];
   readonly marker: string;
   readonly workspace: string;
+  /** RUNNER_TEMP of the emulated run. */
+  readonly runnerTemp: string;
   readonly entry: PackagedSmokeCombination;
   readonly workflow: WorkflowMapping;
   describe(): string;
@@ -388,6 +395,9 @@ function runHostJob(options: { smokeExitCode?: number; packageExitCode?: number 
       [fakeCiEnvNames.marker]: marker,
       [fakeCiEnvNames.smokeExitCode]: String(options.smokeExitCode ?? 0),
       [fakeCiEnvNames.packageExitCode]: String(options.packageExitCode ?? 0),
+      [fakeCiEnvNames.recordEnv]: smokeEvidenceDirVariableName,
+      // Only the workflow may name the evidence folder (ADR 0012).
+      [smokeEvidenceDirVariableName]: '',
       // GitHub-hosted runners have no display; only the workflow can provide one.
       DISPLAY: '',
       WAYLAND_DISPLAY: '',
@@ -399,6 +409,7 @@ function runHostJob(options: { smokeExitCode?: number; packageExitCode?: number 
     records,
     marker,
     workspace,
+    runnerTemp: join(runnerDir, 'runner-temp'),
     entry,
     workflow,
     describe: () =>
@@ -557,8 +568,142 @@ describe(`packaged smoke job: emulated run on this runner (${hostLabel})`, () =>
 
   // DEFERRED: TST-010 (issue #17 acceptance criterion 2): the CDP variable's name is defined in #18.
   it.todo('TST-010: the smoke step sets the variable that enables CDP in packaged builds (name defined in #18)');
+});
 
-  // Needs a decision (issue #17 acceptance criterion 6): uploading artifacts needs actions/upload-artifact,
-  // which is not on the CI action allowlist (#13).
-  it.todo('TST-010: on failure, harness logs and screenshots are uploaded as artifacts');
+// ---------------------------------------------------------------------------
+// Failure evidence upload (ADR 0012)
+// ---------------------------------------------------------------------------
+
+/** The one upload path ADR 0012 allows: a folder under `${{ runner.temp }}`, no globs, no `..`. */
+const evidenceUploadPath = /^\$\{\{\s*runner\.temp\s*\}\}\/[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*\/?$/;
+
+interface UploadStep {
+  readonly file: string;
+  readonly job: WorkflowJob;
+  readonly index: number;
+  readonly step: WorkflowMapping;
+}
+
+function listUploadSteps(): UploadStep[] {
+  return listWorkflowFiles(root).flatMap((file) =>
+    listWorkflowJobs(readWorkflow(root, file)).flatMap((job) =>
+      listJobSteps(job).flatMap((step, index) =>
+        usesRepository(step) === 'actions/upload-artifact' ? [{ file, job, index, step }] : [],
+      ),
+    ),
+  );
+}
+
+function requireEvidenceUploadStep(): UploadStep {
+  const workflow = readCiWorkflow();
+  const smokeJobIds = new Set(requirePackagedSmokeCombinations(workflow).map((entry) => entry.job.id));
+  const uploads = listUploadSteps();
+  const inSmokeJob = uploads.filter(
+    (upload) => upload.file === ciWorkflowRelativePath && smokeJobIds.has(upload.job.id),
+  );
+  expect(
+    inSmokeJob.map((upload) => `jobs.${upload.job.id}.steps[${upload.index}]`),
+    'the packaged smoke job must have exactly one actions/upload-artifact step (ADR 0012)',
+  ).toHaveLength(1);
+  return inSmokeJob[0] as UploadStep;
+}
+
+function uploadInputs(upload: UploadStep): WorkflowMapping {
+  return isWorkflowMapping(upload.step.with) ? upload.step.with : {};
+}
+
+describe('failure evidence upload: workflow shape (ADR 0012)', () => {
+  // TST-010; ADR 0012 item 2: only in the packaged smoke job
+  it('TST-010: actions/upload-artifact is used once, in the packaged smoke job, and in no other job or workflow', () => {
+    const upload = requireEvidenceUploadStep();
+    const elsewhere = listUploadSteps().filter(
+      (entry) =>
+        entry !== upload &&
+        !(entry.file === upload.file && entry.job.id === upload.job.id && entry.index === upload.index),
+    );
+    expect(
+      elsewhere.map((entry) => `${entry.file} jobs.${entry.job.id}.steps[${entry.index}]`),
+      'no other step may upload artifacts',
+    ).toEqual([]);
+  });
+
+  // TST-010; ADR 0012 item 2: only when an earlier step failed
+  it('TST-010: the upload step runs only on failure (if: failure())', () => {
+    const upload = requireEvidenceUploadStep();
+    expect(workflowValueText(upload.step.if ?? null)).toMatch(/^\s*(\$\{\{\s*)?failure\(\)\s*(\}\}\s*)?$/);
+  });
+
+  // TST-010; ADR 0012 items 2 and 3: only the harness evidence folder, nothing from the workspace or home
+  it('TST-010: the upload step uploads one folder under runner.temp, with no glob, no .. and no workspace or home path', () => {
+    const upload = requireEvidenceUploadStep();
+    const path = uploadInputs(upload).path;
+    expect(typeof path, 'with.path must be one string').toBe('string');
+    const text = (path as string).trim();
+    expect(text.split(/\r?\n/), 'with.path must name one path').toHaveLength(1);
+    expect(text, 'with.path must be a folder under ${{ runner.temp }}, with no glob or ..').toMatch(evidenceUploadPath);
+    const afterRunnerTemp = text.replace(/^\$\{\{\s*runner\.temp\s*\}\}/, '');
+    expect(afterRunnerTemp, 'the folder name must hold no glob, .., ~, $ or expression').not.toMatch(
+      /\.\.|[*?[\]{}!~$]|github\.workspace|GITHUB_WORKSPACE|HOME/,
+    );
+  });
+
+  // TST-010; ADR 0012 items 3, 4 and 5
+  it('TST-010: the upload step keeps artifacts 7 days, uploads no hidden files, and passes no token, secret or env', () => {
+    const upload = requireEvidenceUploadStep();
+    const inputs = uploadInputs(upload);
+    expect(workflowValueText(inputs['retention-days'] ?? null), 'with.retention-days must be 7').toBe('7');
+    expect(workflowValueText(inputs['include-hidden-files'] ?? false), 'hidden files must not be uploaded').not.toBe(
+      'true',
+    );
+    expect(upload.step.env, 'the upload step must not set env').toBeUndefined();
+    for (const [name, value] of Object.entries(inputs)) {
+      expect(workflowValueText(value), `with.${name} must not pass a secret or token`).not.toMatch(
+        /secrets\.|github\.token|GITHUB_TOKEN/i,
+      );
+    }
+    const permissions = upload.job.definition.permissions;
+    if (permissions !== undefined) {
+      expect(permissions, `jobs.${upload.job.id}.permissions must stay { contents: read }`).toEqual({
+        contents: 'read',
+      });
+    }
+  });
+});
+
+describe(`failure evidence upload: emulated run on this runner (${hostLabel}) (ADR 0012)`, () => {
+  // TST-010; ADR 0012 item 2
+  it(`TST-010: on ${hostLabel} a passing job uploads nothing`, slow, () => {
+    const run = runHostJob();
+    expect(run.result.exitCode, run.describe()).toBe(0);
+    expect(run.result.actionCalls, `no artifact may be uploaded when the job passes:\n${run.describe()}`).toEqual([]);
+  });
+
+  // TST-010; issue #17 acceptance criterion 6; ADR 0012 items 2 and 3
+  it.skipIf(!hostRunsSmoke)(
+    `TST-010: on ${hostLabel} a failing smoke suite uploads exactly the folder the smoke step names in ${smokeEvidenceDirVariableName}`,
+    slow,
+    () => {
+      const run = runHostJob({ smokeExitCode: 1 });
+      const smoke = run.records.find((record) => record.kind === 'smoke');
+      expect(smoke, `the smoke suite must run:\n${run.describe()}`).toBeDefined();
+      const evidenceDir = smoke?.recordedEnv?.[smokeEvidenceDirVariableName] ?? '';
+      expect(evidenceDir, `the smoke step must set ${smokeEvidenceDirVariableName}:\n${run.describe()}`).not.toBe('');
+      expect(isAbsolute(evidenceDir), `${smokeEvidenceDirVariableName} must be absolute: ${evidenceDir}`).toBe(true);
+      expect(isInside(run.runnerTemp, evidenceDir), `${evidenceDir} must be inside RUNNER_TEMP ${run.runnerTemp}`).toBe(
+        true,
+      );
+      expect(isInside(run.workspace, evidenceDir), `${evidenceDir} must be outside the workspace`).toBe(false);
+
+      const smokeStepIndex = run.result.steps.find((step) => step.exitCode !== 0)?.index ?? -1;
+      expect(run.result.actionCalls, `exactly one upload must run after the failure:\n${run.describe()}`).toHaveLength(
+        1,
+      );
+      const call = run.result.actionCalls[0] as { index: number; inputs: Readonly<Record<string, string>> };
+      expect(call.index, 'the upload must run after the failing smoke step').toBeGreaterThan(smokeStepIndex);
+      expect(
+        resolve(call.inputs.path ?? '').replace(/[\\/]+$/, ''),
+        `the upload path must be the evidence folder ${evidenceDir}`,
+      ).toBe(resolve(evidenceDir).replace(/[\\/]+$/, ''));
+    },
+  );
 });

@@ -25,6 +25,7 @@ import {
   type WorkflowMapping,
 } from '../test-support/github-workflow';
 import { describeRepoCommand, repoGateRootDir, runRepoCommand } from '../test-support/run-repo-command';
+import { conditionUsesStatusFunction } from '../test-support/workflow-job-emulator';
 import type { WorkflowYamlValue } from '../test-support/workflow-yaml-reader';
 
 const root = repoGateRootDir;
@@ -36,8 +37,16 @@ const requiredRunners: Readonly<Record<string, RegExp>> = {
   'ubuntu-latest': /ubuntu|linux/i,
 };
 
-/** The only actions CI may use (#13). Any other action is a new dependency and needs an ADR. */
-const allowedActionRepositories = ['actions/checkout', 'actions/setup-node', 'pnpm/action-setup'] as const;
+/**
+ * The only actions CI may use (#13; ADR 0012 adds actions/upload-artifact for
+ * failure evidence). Any other action is a new dependency and needs an ADR.
+ */
+const allowedActionRepositories = [
+  'actions/checkout',
+  'actions/setup-node',
+  'pnpm/action-setup',
+  'actions/upload-artifact',
+] as const;
 
 const turboTasks = ['typecheck', 'lint', 'test'] as const;
 
@@ -416,7 +425,7 @@ describe('CI actions', () => {
   }
 
   // TST-015; CLAUDE.md: a new dependency needs an ADR
-  it('TST-015: workflows use only actions/checkout, actions/setup-node and pnpm/action-setup', () => {
+  it('TST-015: workflows use only actions/checkout, actions/setup-node, pnpm/action-setup and actions/upload-artifact (ADR 0012)', () => {
     const references = listAllActionReferences();
     expect(references.length, 'the CI workflow must use actions/checkout and actions/setup-node').toBeGreaterThan(0);
     const outside = references.filter((reference) => {
@@ -618,5 +627,46 @@ describe('CI security', () => {
       unsafe,
       `${unsafe.join(', ')}: pull_request_target and workflow_run run with a privileged token on code from a pull request`,
     ).toEqual([]);
+  });
+});
+
+/** `failure()`, with or without the `${{ }}` wrapper. */
+const failureOnlyCondition = /^\s*(\$\{\{\s*)?failure\(\)\s*(\}\}\s*)?$/;
+
+describe('CI step conditions (ADR 0012)', () => {
+  // TST-015 (failure mode): a status function (always(), success() || ..., !cancelled()) could run steps
+  // after a failure or hide one; ADR 0012 allows exactly one case: the evidence upload on failure.
+  it('TST-015: a step condition uses a status function only as exactly `if: failure()` on an actions/upload-artifact step', () => {
+    const offending = listAllWorkflows().flatMap(({ file, workflow }) =>
+      listWorkflowJobs(workflow).flatMap((job) =>
+        listJobSteps(job).flatMap((step, index) => {
+          if (step.if === undefined || step.if === null) return [];
+          const condition = workflowValueText(step.if);
+          if (!conditionUsesStatusFunction(condition)) return [];
+          const allowed = usesRepository(step) === 'actions/upload-artifact' && failureOnlyCondition.test(condition);
+          return allowed ? [] : [`${file} ${stepLabel(job, index, step)}: if: ${condition}`];
+        }),
+      ),
+    );
+    expect(offending, 'only an actions/upload-artifact step may use a status function, as `if: failure()`').toEqual([]);
+  });
+
+  // TST-010; ADR 0012 item 2: evidence is uploaded only when an earlier step failed
+  it('TST-010: every actions/upload-artifact step has exactly `if: failure()`', () => {
+    const uploads = listAllWorkflows().flatMap(({ file, workflow }) =>
+      listWorkflowJobs(workflow).flatMap((job) =>
+        listJobSteps(job).flatMap((step, index) =>
+          usesRepository(step) === 'actions/upload-artifact'
+            ? [{ label: `${file} ${stepLabel(job, index, step)}`, condition: step.if }]
+            : [],
+        ),
+      ),
+    );
+    for (const upload of uploads) {
+      expect(
+        typeof upload.condition === 'string' && failureOnlyCondition.test(upload.condition),
+        `${upload.label} must have if: failure() (found ${JSON.stringify(upload.condition ?? 'no condition')})`,
+      ).toBe(true);
+    }
   });
 });

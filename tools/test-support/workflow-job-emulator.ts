@@ -10,6 +10,8 @@
 // - `actions/checkout`: a full clone of `originDir` into the workspace or
 //   into `with.path`, checked out at `with.ref` (default: `defaultRef`).
 //   `with.repository` is not supported.
+// - `actions/upload-artifact`: recorded with its inputs (expressions
+//   substituted) in `actionCalls`; nothing is uploaded.
 // - `actions/setup-node` and `pnpm/action-setup`: no-ops; the Node that runs
 //   the tests is first on PATH (after `pathPrepend`).
 // - `run` steps with the runner's default shell on Linux and macOS
@@ -71,6 +73,12 @@ export interface EmulatedStepResult {
   readonly output: string;
 }
 
+export interface EmulatedActionCall {
+  readonly index: number;
+  readonly repository: string;
+  readonly inputs: Readonly<Record<string, string>>;
+}
+
 export interface EmulatedJobResult {
   /** 0 when every step that ran passed, otherwise the exit code of the first failing step. */
   readonly exitCode: number;
@@ -78,6 +86,8 @@ export interface EmulatedJobResult {
   readonly steps: EmulatedStepResult[];
   /** Indexes of the steps whose `if:` condition was false. */
   readonly skippedStepIndexes: number[];
+  /** Recorded action steps that ran (`actions/upload-artifact`), with their inputs. */
+  readonly actionCalls: EmulatedActionCall[];
   /** The output of every step that ran, in order. */
   readonly output: string;
 }
@@ -465,6 +475,7 @@ export function emulateWorkflowJob(
   const exportedPath: string[] = [];
   const steps: EmulatedStepResult[] = [];
   const skippedStepIndexes: number[] = [];
+  const actionCalls: EmulatedActionCall[] = [];
 
   if (job.definition['continue-on-error'] !== undefined) {
     throw new WorkflowJobEmulationUnsupportedError(`jobs.${job.id}`, 'continue-on-error is not supported');
@@ -489,6 +500,12 @@ export function emulateWorkflowJob(
 
     if (typeof step.uses === 'string') {
       const repository = splitActionReference(step.uses)?.repository;
+      if (repository === 'actions/upload-artifact') {
+        const recorded = Object.fromEntries(Object.keys(inputs).map((name) => [name, input(name) ?? '']));
+        actionCalls.push({ index, repository, inputs: recorded });
+        steps.push({ index, exitCode: 0, output: '' });
+        return;
+      }
       if (repository === 'actions/setup-node' || repository === 'pnpm/action-setup') {
         steps.push({ index, exitCode: 0, output: '' });
         return;
@@ -577,6 +594,7 @@ export function emulateWorkflowJob(
     exitCode: failed?.exitCode ?? 0,
     steps,
     skippedStepIndexes,
+    actionCalls,
     output: steps.map((entry) => `--- step ${entry.index} (exit ${entry.exitCode})\n${entry.output.trim()}`).join('\n'),
   };
 }
