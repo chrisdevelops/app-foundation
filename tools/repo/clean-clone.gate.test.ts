@@ -5,7 +5,7 @@
 // Requirements: PLT-003, PLT-004, PLT-006, PLT-009, PLT-010; ADR 0004 decision 3.
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { builtinModules } from 'node:module';
-import { join, relative } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createCleanClone, isInsideCleanClone, removeCleanClone } from './support/clean-clone';
 import {
@@ -20,7 +20,12 @@ import {
   runRepoCommand,
   type RepoCommandResult,
 } from './support/run-repo-command';
-import { listWorkspaceProjects, readPackageManifest, type WorkspaceProject } from './support/workspace-projects';
+import {
+  listWorkspaceProjects,
+  readPackageManifest,
+  resolveCanonicalPath,
+  type WorkspaceProject,
+} from './support/workspace-projects';
 
 const slow = { timeout: 600_000 };
 const turboTasks = ['typecheck', 'lint', 'test'] as const;
@@ -209,11 +214,14 @@ describe.skipIf(isInsideCleanClone(repoGateRootDir))('clean clone of the workspa
     const foundation = foundationProject();
     const prettier = pnpm(['exec', 'prettier', '--find-config-path', 'package.json'], foundation.dir);
     expect(prettier.exitCode, describeRepoCommand(prettier)).toBe(0);
-    const prettierConfig = prettier.stdout.trim().split('\n').pop() ?? '';
+    const prettierConfig = (prettier.stdout.trim().split('\n').pop() ?? '').trim();
+    const prettierConfigPath = resolve(foundation.dir, prettierConfig);
+    expect(existsSync(prettierConfigPath), `Prettier reported a config that does not exist: ${prettierConfig}`).toBe(true);
+    // Canonical paths, so the check holds with `/` or `\\` separators and Windows short names (#13).
     expect(
-      relative(cloneDir, join(foundation.dir, prettierConfig)).includes('/'),
+      resolveCanonicalPath(dirname(prettierConfigPath)),
       `Prettier must use the root config, not ${prettierConfig}`,
-    ).toBe(false);
+    ).toBe(resolveCanonicalPath(cloneDir));
 
     const sampleFile = readdirSync(foundationGateTestDir(foundation)).find((entry) => /\.gate\.test\.tsx?$/.test(entry));
     const samplePath = join(foundationGateTestDir(foundation), sampleFile as string);

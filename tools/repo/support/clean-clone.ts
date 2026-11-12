@@ -29,7 +29,8 @@ export function createCleanClone(repoRootDir: string): string {
     throw new Error(`git could not list the working tree:\n${describeRepoCommand(listed)}`);
   }
   // Real path, so it matches the paths pnpm and Turborepo print.
-  const cloneDir = realpathSync(mkdtempSync(join(tmpdir(), 'repo-gate-clone-')));
+  // realpathSync.native also expands Windows 8.3 short names such as RUNNER~1.
+  const cloneDir = realpathSync.native(mkdtempSync(join(tmpdir(), 'repo-gate-clone-')));
   const files = listed.stdout.split('\0').filter((file) => file !== '');
   for (const file of files) {
     if (file.split('/').some((segment) => skippedPathSegments.has(segment))) continue;
