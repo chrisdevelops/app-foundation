@@ -15,11 +15,16 @@
 //   is in use before the launch fails at once and starts nothing. The harness
 //   connects only when the endpoint on the port names the browser that the app
 //   wrote in DevToolsActivePort in its own user data folder.
-// - Every wait is bounded. A modal error dialog in the main process (ADR 0005)
-//   keeps the app running without an endpoint; the launch then fails with
-//   `startup-timeout` and kills the app.
-// - Teardown kills the whole process tree, waits until no process uses the
-//   user data folder, and is safe to call twice.
+// - Every wait is bounded. A main script that throws while it loads (ADR 0005)
+//   shows a modal dialog on macOS and Windows and the endpoint never opens; on
+//   Linux the app keeps running and opens the endpoint with no window. Both
+//   fail with `startup-timeout` and the app is killed; on Linux the harness
+//   reads Electron's error line instead of waiting for the timeout.
+// - Any failure after the app started stops it before the error is thrown.
+// - Teardown signals the process group (POSIX) or the tree (Windows), and
+//   also every process found by ancestry or by `--user-data-dir` in a snapshot
+//   taken before the first signal. It waits until none of them is left and is
+//   safe to call twice.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { connect, createServer } from 'node:net';
@@ -178,20 +183,33 @@ export async function launchSmokeApp(options: SmokeAppLaunchOptions): Promise<Sm
     });
   };
 
-  const endpoint = await waitForOwnedEndpoint(processTree, port, userDataDir, deadline);
-  if (endpoint.kind === 'failed') {
-    return fail(endpoint.code, endpoint.summary, { exitCode: endpoint.exitCode, cause: endpoint.cause });
-  }
-
   let browser: Browser;
   try {
-    browser = await chromium.connectOverCDP(endpoint.webSocketUrl, {
-      timeout: Math.max(deadline - Date.now(), 5_000),
-    });
+    const endpoint = await waitForOwnedEndpoint(processTree, port, userDataDir, deadline);
+    if (endpoint.kind === 'failed') {
+      return await fail(endpoint.code, endpoint.summary, { exitCode: endpoint.exitCode, cause: endpoint.cause });
+    }
+    try {
+      browser = await chromium.connectOverCDP(endpoint.webSocketUrl, {
+        timeout: Math.max(deadline - Date.now(), 5_000),
+      });
+    } catch (error) {
+      return await fail(
+        'startup-timeout',
+        `could not connect over CDP to ${endpoint.webSocketUrl}: ${errorText(error)}`,
+        { cause: error },
+      );
+    }
+    // Electron prints the main-process error before it opens the endpoint; check once more in
+    // case the output arrived while the harness connected.
+    if (mainProcessStartupErrorPattern.test(processTree.output())) {
+      await withTimeout(browser.close(), 5_000).catch(() => undefined);
+      return await fail('startup-timeout', mainProcessStartupErrorSummary);
+    }
   } catch (error) {
-    return fail('startup-timeout', `could not connect over CDP to ${endpoint.webSocketUrl}: ${errorText(error)}`, {
-      cause: error,
-    });
+    if (error instanceof SmokeHarnessError) throw error;
+    // Any other failure after the spawn: never leave the app running.
+    return fail('startup-timeout', `the launch failed unexpectedly: ${errorText(error)}`, { cause: error });
   }
 
   const windows = (): Page[] =>
@@ -236,6 +254,16 @@ type EndpointResult =
  */
 const devToolsBindFailurePattern = /Cannot start http server for devtools/i;
 
+/**
+ * Electron's output when the main script throws while it loads (ADR 0005). On
+ * macOS and Windows a modal dialog then blocks the app before the endpoint
+ * opens. On Linux the app keeps running and still opens the endpoint, with no
+ * window; without this check the harness would report it ready.
+ */
+const mainProcessStartupErrorPattern = /A JavaScript error occurred in the main process|App threw an error during load/;
+const mainProcessStartupErrorSummary =
+  'the main process threw while it loaded (Electron printed "A JavaScript error occurred in the main process"), so the app can never become ready';
+
 async function waitForOwnedEndpoint(
   processTree: ProcessTree,
   port: number,
@@ -264,6 +292,9 @@ async function waitForOwnedEndpoint(
         summary: `the app exited with code ${exit.code ?? 'none'}${exit.signal ? ` (signal ${exit.signal})` : ''} before its DevTools endpoint on port ${port} was ready`,
         exitCode: exit.code,
       };
+    }
+    if (mainProcessStartupErrorPattern.test(processTree.output())) {
+      return { kind: 'failed', code: 'startup-timeout', summary: mainProcessStartupErrorSummary };
     }
     if (devToolsBindFailurePattern.test(processTree.output())) {
       return {
@@ -493,24 +524,29 @@ function startProcessTree(options: SmokeAppLaunchOptions, port: number, userData
 
   let stopPromise: Promise<void> | undefined;
   const stop = async (): Promise<void> => {
-    const pid = child.pid;
-    if (pid !== undefined) {
-      if (process.platform === 'win32') {
-        if (exit === undefined) {
-          spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true, timeout: 30_000 });
-        }
-        await Promise.race([exited, delay(gracefulStopMs)]);
-      } else {
-        if (exit === undefined) {
-          signalProcessGroup(pid, 'SIGTERM');
-          await Promise.race([exited, delay(gracefulStopMs)]);
-        }
-        // Helpers and children of the main process can outlive it; the group signal reaches them.
-        signalProcessGroup(pid, 'SIGKILL');
+    const rootPid = exit === undefined ? child.pid : undefined;
+    // Snapshot before any signal: once a parent dies, its children are re-parented and
+    // can no longer be found by ancestry.
+    const known = collectAppProcesses(rootPid, userDataDir, new Map());
+    if (process.platform === 'win32') {
+      if (rootPid !== undefined) {
+        spawnSync('taskkill', ['/pid', String(rootPid), '/T', '/F'], { windowsHide: true, timeout: 30_000 });
+      }
+      for (const pid of known.keys()) killProcess(pid);
+      await Promise.race([exited, delay(gracefulStopMs)]);
+    } else {
+      if (rootPid !== undefined) {
+        signalProcessGroup(rootPid, 'SIGTERM');
+        for (const pid of known.keys()) signalProcess(pid, 'SIGTERM');
         await Promise.race([exited, delay(gracefulStopMs)]);
       }
+      // The group signal reaches every process that stayed in the group; the snapshot
+      // reaches any process that left it.
+      if (child.pid !== undefined) signalProcessGroup(child.pid, 'SIGKILL');
+      for (const pid of collectAppProcesses(undefined, userDataDir, known).keys()) signalProcess(pid, 'SIGKILL');
+      await Promise.race([exited, delay(gracefulStopMs)]);
     }
-    await waitUntilUserDataDirIsFree(userDataDir);
+    await waitUntilAppProcessesExit(userDataDir, known);
     await Promise.race([closed, delay(2_000)]);
     rmSync(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
   };
@@ -534,31 +570,11 @@ function signalProcessGroup(pid: number, signal: NodeJS.Signals): void {
   }
 }
 
-/**
- * Waits until no process runs with `--user-data-dir=<dir>`. Processes that are
- * still there after the wait (for example, children of a main process that
- * already exited on Windows, where no process group exists) are killed one by
- * one, then waited for again; any that survive fail the teardown with their command lines.
- */
-async function waitUntilUserDataDirIsFree(userDataDir: string): Promise<void> {
-  const firstWaitEnds = Date.now() + processExitWaitMs / 2;
-  let running = listProcessesUsingUserDataDir(userDataDir);
-  while (running.length > 0 && Date.now() < firstWaitEnds) {
-    await delay(500);
-    running = listProcessesUsingUserDataDir(userDataDir);
-  }
-  if (running.length === 0) return;
-  for (const entry of running) killProcess(entry.pid);
-  const secondWaitEnds = Date.now() + processExitWaitMs / 2;
-  while (running.length > 0 && Date.now() < secondWaitEnds) {
-    await delay(500);
-    running = listProcessesUsingUserDataDir(userDataDir);
-  }
-  if (running.length > 0) {
-    throw new Error(
-      `${running.length} process(es) still use ${userDataDir} after teardown:\n` +
-        running.map((entry) => `  pid ${entry.pid}: ${entry.command}`).join('\n'),
-    );
+function signalProcess(pid: number, signal: NodeJS.Signals): void {
+  try {
+    process.kill(pid, signal);
+  } catch {
+    // Already gone.
   }
 }
 
@@ -567,23 +583,94 @@ function killProcess(pid: number): void {
     spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true, timeout: 30_000 });
     return;
   }
-  try {
-    process.kill(pid, 'SIGKILL');
-  } catch {
-    // Already gone.
+  signalProcess(pid, 'SIGKILL');
+}
+
+/**
+ * Waits until no process of the app is left: none runs with
+ * `--user-data-dir=<dir>`, none from the snapshot taken before the kill, and
+ * no descendant of either. Processes still there after half the wait are killed
+ * one by one; any that survive fail the teardown with their pids and command lines.
+ */
+async function waitUntilAppProcessesExit(userDataDir: string, known: ReadonlyMap<number, string>): Promise<void> {
+  const firstWaitEnds = Date.now() + processExitWaitMs / 2;
+  let running = collectAppProcesses(undefined, userDataDir, known);
+  while (running.size > 0 && Date.now() < firstWaitEnds) {
+    await delay(500);
+    running = collectAppProcesses(undefined, userDataDir, known);
+  }
+  if (running.size === 0) return;
+  for (const pid of running.keys()) killProcess(pid);
+  const secondWaitEnds = Date.now() + processExitWaitMs / 2;
+  while (running.size > 0 && Date.now() < secondWaitEnds) {
+    await delay(500);
+    running = collectAppProcesses(undefined, userDataDir, known);
+  }
+  if (running.size > 0) {
+    throw new Error(
+      `${running.size} process(es) of the app that used ${userDataDir} are still running after teardown:\n` +
+        [...running].map(([pid, command]) => `  pid ${pid}: ${command}`).join('\n'),
+    );
   }
 }
 
-const windowsProcessQuery =
-  'Get-CimInstance Win32_Process | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress';
+interface ListedProcess {
+  readonly pid: number;
+  readonly parentPid: number;
+  readonly command: string;
+}
 
-/** Processes whose command line holds `--user-data-dir=<dir>` (case-insensitive on Windows). */
-function listProcessesUsingUserDataDir(userDataDir: string): Array<{ pid: number; command: string }> {
+/**
+ * The app's processes (pid to command line): the root process (when given),
+ * every process with `--user-data-dir=<dir>` (case-insensitive on Windows),
+ * every process in `known` that still runs with the same command line (so a
+ * reused pid never counts), and every descendant of these. Linux zygotes and
+ * renderers carry no `--user-data-dir`; they are found as descendants.
+ */
+function collectAppProcesses(
+  rootPid: number | undefined,
+  userDataDir: string,
+  known: ReadonlyMap<number, string>,
+): Map<number, string> {
   const windows = process.platform === 'win32';
   const fold = (text: string): string => (windows ? text.toLowerCase() : text);
   const userDataSwitch = fold(`--user-data-dir=${userDataDir}`);
-  let processes: Array<{ pid: number; command: string }>;
-  if (windows) {
+  const listed = listProcesses().filter((entry) => entry.pid !== process.pid);
+  const found = new Map<number, string>();
+  for (const entry of listed) {
+    if (
+      entry.pid === rootPid ||
+      fold(entry.command).includes(userDataSwitch) ||
+      known.get(entry.pid) === entry.command
+    ) {
+      found.set(entry.pid, entry.command);
+    }
+  }
+  let added = true;
+  while (added) {
+    added = false;
+    for (const entry of listed) {
+      if (!found.has(entry.pid) && found.has(entry.parentPid)) {
+        found.set(entry.pid, entry.command);
+        added = true;
+      }
+    }
+  }
+  return found;
+}
+
+const windowsProcessQuery =
+  'Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Json -Compress';
+
+interface WindowsProcessEntry {
+  readonly ProcessId: number;
+  readonly ParentProcessId: number;
+  readonly CommandLine: string | null;
+}
+
+/** Every running process, from PowerShell on Windows and `ps` elsewhere. */
+function listProcesses(): ListedProcess[] {
+  if (process.platform === 'win32') {
     const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', windowsProcessQuery], {
       encoding: 'utf8',
       windowsHide: true,
@@ -591,20 +678,21 @@ function listProcessesUsingUserDataDir(userDataDir: string): Array<{ pid: number
       timeout: 60_000,
     });
     if (result.status !== 0) throw new Error(`could not list processes with PowerShell: ${result.stderr}`);
-    const parsed = JSON.parse(result.stdout || '[]') as
-      Array<{ ProcessId: number; CommandLine: string | null }> | { ProcessId: number; CommandLine: string | null };
-    processes = [parsed].flat().map((entry) => ({ pid: entry.ProcessId, command: entry.CommandLine ?? '' }));
-  } else {
-    // -ww: never cut long command lines.
-    const result = spawnSync('ps', ['-A', '-ww', '-o', 'pid=,command='], { encoding: 'utf8', timeout: 60_000 });
-    if (result.status !== 0) throw new Error(`could not list processes with ps: ${result.stderr}`);
-    processes = result.stdout
-      .split('\n')
-      .map((line) => /^\s*(\d+)\s+(.*)$/.exec(line))
-      .filter((match): match is RegExpExecArray => match !== null)
-      .map((match) => ({ pid: Number(match[1]), command: match[2] ?? '' }));
+    const parsed = JSON.parse(result.stdout || '[]') as WindowsProcessEntry[] | WindowsProcessEntry;
+    return [parsed].flat().map((entry) => ({
+      pid: entry.ProcessId,
+      parentPid: entry.ParentProcessId,
+      command: entry.CommandLine ?? '',
+    }));
   }
-  return processes.filter((entry) => entry.pid !== process.pid && fold(entry.command).includes(userDataSwitch));
+  // -ww: never cut long command lines.
+  const result = spawnSync('ps', ['-A', '-ww', '-o', 'pid=,ppid=,command='], { encoding: 'utf8', timeout: 60_000 });
+  if (result.status !== 0) throw new Error(`could not list processes with ps: ${result.stderr}`);
+  return result.stdout
+    .split('\n')
+    .map((line) => /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line))
+    .filter((match): match is RegExpExecArray => match !== null)
+    .map((match) => ({ pid: Number(match[1]), parentPid: Number(match[2]), command: match[3] ?? '' }));
 }
 
 // ---------------------------------------------------------------------------
