@@ -261,10 +261,10 @@
 | TST-004 | Visual tests on one CI platform with a fixed font | not-started | — | — |  |
 | TST-005 | One example file per component, shared by workbench, visual tests and agents | not-started | — | — |  |
 | TST-006 | Simple workbench now; in-house design tool later; no Storybook | not-started | — | — |  |
-| TST-007 | Playwright for end-to-end, connecting over CDP | not-started | — | — |  |
+| TST-007 | Playwright for end-to-end, connecting over CDP | done | e2e/harness/smoke-app-harness.gate | #16 |  |
 | TST-008 | Test-only main-process bridge, absent from packaged builds | not-started | — | — |  |
-| TST-009 | CDP port in development builds; packaged builds only with an environment variable | not-started | — | — | ADR 0004 |
-| TST-010 | Small cross-process smoke suite per app on Windows, macOS and Linux | not-started | — | — |  |
+| TST-009 | CDP port in development builds; packaged builds only with an environment variable | not-started | — | #16 | ADR 0004; dev build part in #16; packaged guard in #18 |
+| TST-010 | Small cross-process smoke suite per app on Windows, macOS and Linux | not-started | — | #16 | harness and smoke suite on macOS and Linux in #16; packaged smoke in CI in #17; Windows deferred (ADR 0011, #39) |
 | TST-011 | Reference app is end-to-end target and template; create-app script | not-started | — | #15 | reference app in #15; create-app in phase 5 |
 | TST-012 | Test infrastructure and gate tests come before each system's implementation | not-started | — | — |  |
 | TST-013 | Reference app comes before the smoke suite and create-app | done | tools/reference-app/reference-app-build | #15 |  |
@@ -275,7 +275,7 @@
 | XC-001 | One name, one definition site | not-started | — | — |  |
 | XC-002 | No barrel files or export * | not-started | — | — |  |
 | XC-003 | Black-box systems with gate tests before implementation | not-started | — | — |  |
-| XC-004 | Failure modes are part of every contract and are tested | not-started | — | — |  |
+| XC-004 | Failure modes are part of every contract and are tested | not-started | — | #12-#16 | applied in every task; closed when phase 1 ends |
 | XC-005 | Accessibility: keyboard, screen readers, forced colours, right-to-left readiness | not-started | — | — |  |
 | XC-006 | Generated files committed and never hand-edited; CI fails on drift | not-started | — | — |  |
 | XC-007 | Token names, command IDs, message keys, icon names and IPC payloads are typed | not-started | — | — |  |
