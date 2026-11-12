@@ -500,13 +500,15 @@ describe.skipIf(isInsideCleanClone(root))('reference app: dev, package, launch a
         const layout = readPackagedAppLayout(findPackagedAppDir(forgeOutDir));
         const executableEntry = relative(layout.rootDir, layout.executablePath).split('\\').join('/');
         const entries = zips.flatMap((zip) => listZipEntries(zip));
+        // JSON-quoted so a backslash separator is visible; ZIP entry names use '/' (APPNOTE 4.4.17).
+        const shownEntries = `zips ${JSON.stringify(zips)}; first 50 of ${entries.length} entries ${JSON.stringify(entries.slice(0, 50))}; entries containing "asar" ${JSON.stringify(entries.filter((entry) => entry.includes('asar')))}`;
         expect(
           entries.some((entry) => entry.endsWith(executableEntry)),
-          `a zip must hold ${executableEntry}`,
+          `a zip must hold ${executableEntry}; ${shownEntries}`,
         ).toBe(true);
         expect(
           entries.some((entry) => entry.endsWith('/app.asar')),
-          'a zip must hold app.asar',
+          `a zip must hold app.asar; ${shownEntries}`,
         ).toBe(true);
       },
     );
