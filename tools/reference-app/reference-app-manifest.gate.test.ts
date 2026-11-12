@@ -6,9 +6,9 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { readPnpmWorkspaceSettings } from '../repo/test-support/pnpm-workspace-file';
-import { repoGateRootDir } from '../repo/test-support/run-repo-command';
-import { listWorkspaceProjects, readPackageManifest } from '../repo/test-support/workspace-projects';
+import { readPnpmWorkspaceSettings } from '../test-support/pnpm-workspace-file';
+import { repoGateRootDir } from '../test-support/run-repo-command';
+import { listWorkspaceProjects, readPackageManifest } from '../test-support/workspace-projects';
 import {
   findReferenceAppDevScript,
   readReferenceAppDependencySpec,

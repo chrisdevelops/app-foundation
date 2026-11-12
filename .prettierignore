@@ -3,12 +3,12 @@ pnpm-lock.yaml
 
 # Gate tests and helpers that the test author formatted by hand and that
 # Prettier cannot accept unchanged. They are never reformatted (ADR 0007
-# item 3). Every other file in tools/repo/ is checked.
+# item 3). Every other file in tools/repo/ and tools/test-support/ is checked.
 tools/repo/clean-clone.gate.test.ts
 tools/repo/workspace-config.gate.test.ts
-tools/repo/test-support/clean-clone.ts
+tools/test-support/clean-clone.ts
 tools/repo/test-support/exact-dependency-versions.ts
-tools/repo/test-support/pnpm-workspace-file.ts
+tools/test-support/pnpm-workspace-file.ts
 tools/repo/test-support/public-hoist-allowlist.ts
 
 # Specs, ADRs and process documents are written by hand outside this toolchain.

@@ -24,8 +24,8 @@ import {
   workflowValueText,
   type WorkflowJob,
   type WorkflowMapping,
-} from '../../repo/test-support/github-workflow';
-import { describeRepoCommand, runRepoCommand } from '../../repo/test-support/run-repo-command';
+} from '../../test-support/github-workflow';
+import { describeRepoCommand, runRepoCommand } from '../../test-support/run-repo-command';
 
 export interface WorkflowJobEmulation {
   /** The repository that `actions/checkout` clones. */

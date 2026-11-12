@@ -1,6 +1,7 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+  - 'e2e' # smoke harness and smoke suite (#16; TST-007, TST-010)
 
 # Isolated layout (the pnpm default) on purpose: no `nodeLinker: hoisted` and
 # no `shamefullyHoist`, so a package can import only what it or the root

@@ -29,6 +29,22 @@
         "!**/.turbo/**",
         "!**/*.tsbuildinfo"
       ]
+    },
+    "@foundation/e2e#test": {
+      "dependsOn": ["//#test"],
+      "outputs": [],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/apps/**",
+        "$TURBO_ROOT$/packages/**",
+        "$TURBO_ROOT$/tools/test-support/**",
+        "!$TURBO_ROOT$/**/node_modules/**",
+        "!$TURBO_ROOT$/apps/*/.vite/**",
+        "!$TURBO_ROOT$/apps/*/out/**",
+        "!$TURBO_ROOT$/**/.turbo/**",
+        "!$TURBO_ROOT$/**/*.tsbuildinfo"
+      ]
     }
   }
 }

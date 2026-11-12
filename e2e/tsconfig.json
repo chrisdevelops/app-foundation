@@ -1,0 +1,6 @@
+{
+  // End-to-end harness, its gate tests and the smoke suite (#16). No DOM types:
+  // code that runs in a window is passed to Playwright as a string.
+  "extends": "../tsconfig.base.json",
+  "include": ["harness/**/*.ts", "smoke/**/*.ts", "test-support/**/*.ts", "*.config.ts", "vitest.global-setup.ts"]
+}

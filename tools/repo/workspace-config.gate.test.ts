@@ -9,14 +9,14 @@ import {
   readCommentedYamlSequence,
   readPnpmWorkspaceSettings,
   readPnpmWorkspaceText,
-} from './test-support/pnpm-workspace-file';
+} from '../test-support/pnpm-workspace-file';
 import { publicHoistPatternAllowlist } from './test-support/public-hoist-allowlist';
-import { repoGateRootDir, runRepoCommand } from './test-support/run-repo-command';
+import { repoGateRootDir, runRepoCommand } from '../test-support/run-repo-command';
 import {
   resolveEffectiveCompilerOptions,
   resolveTsconfigExtends,
 } from './test-support/tsconfig-chain';
-import { listWorkspaceProjects, readPackageManifest } from './test-support/workspace-projects';
+import { listWorkspaceProjects, readPackageManifest } from '../test-support/workspace-projects';
 
 const root = repoGateRootDir;
 const exactSemver = /^\d+\.\d+\.\d+$/;

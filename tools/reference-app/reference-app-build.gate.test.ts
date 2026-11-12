@@ -18,14 +18,14 @@ import { existsSync, mkdtempSync, readdirSync, realpathSync, rmSync, statSync } 
 import { tmpdir } from 'node:os';
 import { basename, isAbsolute, join, relative } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { isInsideCleanClone } from '../repo/test-support/clean-clone';
+import { isInsideCleanClone } from '../test-support/clean-clone';
 import {
   describeRepoCommand,
   repoGateRootDir,
   runRepoCommand,
   type RepoCommandResult,
-} from '../repo/test-support/run-repo-command';
-import { readPackageManifest } from '../repo/test-support/workspace-projects';
+} from '../test-support/run-repo-command';
+import { readPackageManifest } from '../test-support/workspace-projects';
 import {
   openAppWindow,
   readMainWorldNodeGlobals,
@@ -33,7 +33,7 @@ import {
   waitForAccessibleHeadingNames,
   type OpenAppWindow,
 } from './test-support/app-window-checks';
-import { removeAppFolderAfterExit } from './test-support/app-process-cleanup';
+import { removeAppFolderAfterExit } from '../test-support/app-process-cleanup';
 import { listAsarFiles, readAsarFile } from './test-support/asar-archive';
 import {
   devToolsLaunchSwitches,
@@ -46,7 +46,7 @@ import {
   findPackagedAppDir,
   readPackagedAppLayout,
   type PackagedAppLayout,
-} from './test-support/packaged-app-layout';
+} from '../test-support/packaged-app-layout';
 import { findReferenceAppDevScript, referenceAppRelativeDir } from './test-support/reference-app-paths';
 import { listZipEntries } from './test-support/zip-archive';
 
