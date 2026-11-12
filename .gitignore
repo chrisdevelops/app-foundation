@@ -7,3 +7,4 @@ node_modules/
 # Electron Forge and Vite build output (apps/*)
 apps/*/.vite/
 apps/*/out/
+artifacts/
