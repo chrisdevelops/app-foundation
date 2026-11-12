@@ -10,15 +10,15 @@
 
 | Issue | Title | Stage | Attempt | Next action |
 | --- | --- | --- | --- | --- |
-| #46 | Background test runs: no window shown, no focus taken (TST-018) | implementing | 1 | Developer running. Gates in 15e1913; decisions 1–2, readings 1–10 and the five items to build are on #46. |
+| #46 | Background test runs: no window shown, no focus taken (TST-018) | review | 1 (tests 2) | Reviewer and verifier running on PR #47; CI run 43324750319; then merge. |
 
 ## Last action
 
-#46 test author done (15e1913, `Test-Change: approved #46`, boundary check 0): gates red for the missing switch, harness default, `test:foreground` and CI step. Foreground group shape and switch failure modes accepted (minor).
+#46 developer done (b8898ac); fixture race found and fixed by the test author (07950f4; 5 clean e2e runs). Actions limit reached on the private repo; human made the repo public (ADR 0015). PR #47 open.
 
 ## Next action
 
-Check the #46 developer envelope; PR, CI (seven checks), reviewer (explicit `ci.yml` and `turbo.json` review) and verifier; merge. Then update `.claude/agents/verifier.md` and `test-author.md` (ADR 0013 follow-up).
+Act on the #46 reviewer and verifier envelopes; confirm seven checks on PR #47; merge. Then update `.claude/agents/verifier.md` and `test-author.md` (ADR 0013 follow-up).
 
 ## Open escalations
 
@@ -33,6 +33,7 @@ None.
 ## Notes for the next orchestrator
 
 - Order: #46, #19 … #24, #30, #25 … #29. Phase 1 is strictly sequential.
+- The repository is public (ADR 0015): Actions on standard runners are free. Local `user.email` is the GitHub noreply address.
 - Merge procedure (ADR 0009 item 4): reviewer `approve`; `gh pr checks` shows `boundary-check`, three `check (<os>)` and three `packaged-smoke (<os>)` checks `pass` (seven in total); explicit review of any diff to `.github/workflows/` or `tools/boundary-check/`. No branch protection (ADR 0009 item 5, human decision). A job cancelled because no runner was acquired, or a known Windows flake (#39 EBUSY), is rerun with `gh run rerun <id> --failed`; it is not a code failure. The human pre-approved `gh pr merge` with a local permission rule.
 - Windows: the human set a limit (ADR 0011). The smoke harness and smoke tests skip on Windows; no more phase 1 time on Windows harness work (#39); Windows keeps every other check. If a Windows-only failure needs real work, ask the human.
 - Task branches are never updated by merging `main`; force-push is blocked by the permission system. Rebuild on a new branch with cherry-picks and amend trailers before the first push (ADR 0009 item 2; done in #14 and #17).
