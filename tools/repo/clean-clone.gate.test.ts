@@ -9,6 +9,12 @@ import { join, relative } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createCleanClone, isInsideCleanClone, removeCleanClone } from './support/clean-clone';
 import {
+  isPublicHoistAllowed,
+  listUndeclaredRootModules,
+  publicHoistPatternAllowlist,
+  readPublicHoistedPackages,
+} from './support/public-hoist-allowlist';
+import {
   describeRepoCommand,
   repoGateRootDir,
   runRepoCommand,
@@ -102,6 +108,28 @@ describe.skipIf(isInsideCleanClone(repoGateRootDir))('clean clone of the workspa
     expect(existsSync(join(cloneDir, 'node_modules', '.pnpm')), 'the virtual store node_modules/.pnpm must exist').toBe(true);
     const nodeLinker = pnpm(['config', 'get', 'node-linker']).stdout.trim();
     expect(['isolated', 'undefined', '']).toContain(nodeLinker);
+  });
+
+  // PLT-003; ADR 0007 item 5
+  it('PLT-003: every package pnpm records as publicly hoisted matches the @types/* allowlist', slow, () => {
+    requireInstalled();
+    const hoisted = readPublicHoistedPackages(cloneDir);
+    const outside = hoisted.filter((name) => !isPublicHoistAllowed(name));
+    expect(
+      outside,
+      `node_modules/.modules.yaml records these public hoists outside ${JSON.stringify(publicHoistPatternAllowlist)}: ${outside.join(', ')}`,
+    ).toEqual([]);
+  });
+
+  // PLT-003; ADR 0007 item 5
+  it('PLT-003: the root node_modules holds only root-declared packages and @types/* packages', slow, () => {
+    requireInstalled();
+    const undeclared = listUndeclaredRootModules(cloneDir);
+    const outside = undeclared.filter((name) => !isPublicHoistAllowed(name));
+    expect(
+      outside,
+      `the root node_modules holds packages the root does not declare, outside ${JSON.stringify(publicHoistPatternAllowlist)}: ${outside.join(', ')}`,
+    ).toEqual([]);
   });
 
   // PLT-004

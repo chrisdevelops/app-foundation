@@ -10,6 +10,7 @@ import {
   readPnpmWorkspaceSettings,
   readPnpmWorkspaceText,
 } from './support/pnpm-workspace-file';
+import { publicHoistPatternAllowlist } from './support/public-hoist-allowlist';
 import { repoGateRootDir, runRepoCommand } from './support/run-repo-command';
 import {
   resolveEffectiveCompilerOptions,
@@ -59,6 +60,18 @@ describe('pnpm workspace file', () => {
         /[A-Za-z0-9@/._-]/,
       );
     }
+  });
+
+  // PLT-003; ADR 0007 item 5: public hoisting is limited to an allowlist
+  it('PLT-003: every publicHoistPattern entry is in the allowlist (@types/* only)', () => {
+    const settings = readPnpmWorkspaceSettings(root);
+    const patterns = (settings.publicHoistPattern ?? []) as string[];
+    expect(patterns.length, 'publicHoistPattern must be set').toBeGreaterThan(0);
+    const outside = patterns.filter((pattern) => !publicHoistPatternAllowlist.includes(pattern));
+    expect(
+      outside,
+      `publicHoistPattern entries outside the allowlist ${JSON.stringify(publicHoistPatternAllowlist)} (ADR 0007 item 5): ${outside.join(', ')}`,
+    ).toEqual([]);
   });
 
   // PLT-003: each publicHoistPattern entry carries its reason
