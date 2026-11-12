@@ -2,7 +2,7 @@
 
 > Pointer file, rewritten by the orchestrator whenever a task changes stage, a phase changes, or an escalation opens or closes. History lives in GitHub Issues and git.
 
-- **Updated:** 2026-11-12 (session handoff)
+- **Updated:** 2026-11-12
 - **Phase:** 1. Walking skeleton
 - **Phase exit gate:** Packaged-app smoke tests pass on macOS and Linux; on Windows the packaged app builds, starts and passes its build gates (ADR 0011); human walks through it by hand (menus: see ADR 0006)
 
@@ -10,21 +10,22 @@
 
 | Issue | Title | Stage | Attempt | Next action |
 | --- | --- | --- | --- | --- |
-| #18 | Security baseline: gate tests for isolation, CSP and the packaged CDP guard | implementing | 1 | Delegate to the developer (not started). Branch `task/18-security-baseline`, gates in a212c33; the envelope and accepted readings on #18 list the five things to build. |
+| #18 | Security baseline: gate tests for isolation, CSP and the packaged CDP guard | review | 1 | Reviewer and verifier running on PR #44; then seven CI checks, merge. |
+| #43 | Spike: Electron test runs that do not steal focus or come to the front | spike | 1 | Researcher running (human request). Results go to the human; a switch in the packaged app is a major decision (draft ADR). |
 
 ## Last action
 
-#18 test author done (a212c33, `Test-Change: approved #18`, boundary check 0): gates red for the missing guard, CSP, `window.open` denial and CI variable. The guard is possible (scratch probe). Variable `FOUNDATION_ALLOW_PACKAGED_CDP=1`. Envelope and 11 readings posted on #18.
+#18 developer done (c6141e6). Orchestrator re-ran typecheck, lint, format, boundary check and the fast gates: all 0. Readings 12 and 13 (stricter guard rules) accepted as minor and posted on #18. PR #44 open. Human approved deletion of `task/17-packaged-smoke-ci`; deleted locally and on origin.
 
 ## Next action
 
-Start the developer for #18 with the five items in the #18 envelope comment, then CI, reviewer (explicit `ci.yml` review) and verifier, then merge.
+Act on the #18 reviewer and verifier envelopes; confirm `gh pr checks 44` (seven checks); merge; write a minor ADR for readings 12 and 13 with the ledger update.
 
 ## Open escalations
 
 | Issue or ADR | Waiting on | Since |
 | --- | --- | --- |
-| Superseded branch `task/17-packaged-smoke-ci` | Human: approve deletion | 2026-11-12 |
+| None | | |
 
 ## Blockers
 
