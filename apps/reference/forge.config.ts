@@ -2,7 +2,8 @@
 // - The Vite plugin builds main, preload and the main_window renderer into .vite/.
 // - The fuses lock the packaged binary; GrantFileProtocolExtraPrivileges is off
 //   because the renderer loads through app:// (ADR 0004 decision 1 A).
-// - MakerZIP makes a zip on every platform.
+// - MakerZIP makes a zip on every platform; the postMake hook rewrites `\` to `/`
+//   in its entry names (Windows), through the foundation step (ADR 0010).
 // DEFERRED: PLT-011 (App Store builds; later phases)
 // DEFERRED: PLT-007 (code signing and the dmg and pkg makers; later phases)
 // DEFERRED: PLT-013 (native add-on copy hook; #29)
@@ -10,6 +11,12 @@ import { MakerZIP } from '@electron-forge/maker-zip';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
+import { normalizeZipEntryNames } from '@foundation/foundation/build/zip-entry-names';
+
+/** The part of a Forge make result this config reads. */
+interface MadeArtifacts {
+  readonly artifacts: readonly string[];
+}
 
 const forgeConfig = {
   packagerConfig: {
@@ -17,6 +24,13 @@ const forgeConfig = {
     executableName: 'reference',
   },
   makers: [new MakerZIP({}, ['darwin', 'linux', 'win32'])],
+  hooks: {
+    // Every zip `make` wrote gets `/` entry names on every platform (ADR 0010).
+    postMake: async (_forgeConfig: unknown, makeResults: readonly MadeArtifacts[]): Promise<void> => {
+      const zips = makeResults.flatMap((result) => result.artifacts).filter((path) => path.endsWith('.zip'));
+      for (const zipPath of zips) await normalizeZipEntryNames(zipPath);
+    },
+  },
   plugins: [
     new VitePlugin({
       build: [
