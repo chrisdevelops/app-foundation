@@ -32,7 +32,7 @@
 | PLT-010 | pnpm for packages; gh for GitHub; no AI co-author trailers | not-started | — | — |  |
 | PLT-011 | App Store builds run sandboxed: no built-in auto-update, limited file access | not-started | — | — |  |
 | PLT-012 | Success: security baseline gate tests pass in a packaged build | not-started | — | — |  |
-| PLT-013 | Native Node add-ons packaged per app | not-started | — | — | ADR 0004 |
+| PLT-013 | Native Node add-ons packaged per app | not-started | — | — | ADR 0004, ADR 0005 |
 | CMP-001 | React Aria Components wrapped in foundation components | not-started | — | — |  |
 | CMP-002 | High accessibility bar for components | not-started | — | — |  |
 | CMP-003 | Plain CSS with @layer order reset, tokens, foundation, app, overrides | not-started | — | — |  |
