@@ -15,13 +15,15 @@
 //   type).
 // - Everything else is refused: a missing file or a folder, `..` segments,
 //   encoded traversal (`%2e%2e`, `%2f`, `%5c`, double encoding), raw
-//   backslashes, absolute paths, NUL bytes and any host other than `<host>`.
+//   backslashes, absolute paths, NUL bytes, any host other than `<host>`, and
+//   symbolic links or junctions inside `rendererDir` whose target is outside it
+//   (links whose target is inside it are served).
 //   Refused means the promise rejects, or the response is an error response
 //   (status 0) or a 4xx; never a 2xx or 3xx, and never a byte of a file outside
 //   `rendererDir`.
 // The packaged-app gate (tools/reference-app) runs the same refusals through
 // Chromium in the packaged reference app.
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -265,5 +267,56 @@ describe('app:// protocol handler: failure modes', () => {
     const outcome = await requestApp(`app://${host}/index.html`);
     expect(outcome.status, describeOutcome(outcome)).toBe(200);
     expect(outcome.body).toContain('INDEX-MARKER-6f1c');
+  });
+});
+
+// PLT-008, failure mode: links inside rendererDir (review of #15, finding 2;
+// orchestrator decision 2). A link is created after the handler, which reads
+// the file system per request. Directory links are junctions on Windows, which
+// need no special permission, so those cases always run. File symbolic links
+// need the symlink privilege on Windows (developer mode or administrator);
+// where the OS refuses to create one, the file-link cases skip with the reason.
+describe('app:// protocol handler: symbolic links and junctions', () => {
+  const directoryLinkType = process.platform === 'win32' ? 'junction' : 'dir';
+  let fileLinkError: string | undefined;
+
+  beforeAll(() => {
+    // Directory links: an error here fails the tests below, never skips them.
+    symlinkSync(baseDir, join(rendererDir, 'updir'), directoryLinkType);
+    symlinkSync(join(rendererDir, 'assets'), join(rendererDir, 'assets-link'), directoryLinkType);
+    try {
+      symlinkSync(outsideSecretPath, join(rendererDir, 'link-outside.txt'), 'file');
+      symlinkSync(
+        join(rendererDir, 'assets', 'index-abc123.js'),
+        join(rendererDir, 'assets', 'link-inside.js'),
+        'file',
+      );
+    } catch (error) {
+      fileLinkError = `this OS refused to create a file symbolic link (${(error as NodeJS.ErrnoException).code ?? String(error)}); on Windows that needs developer mode or administrator rights`;
+    }
+  });
+
+  it('PLT-008: a file symbolic link inside the renderer output that points outside it is refused, never its content', async (context) => {
+    if (fileLinkError) context.skip(fileLinkError);
+    expectRefused(await requestApp(`app://${host}/link-outside.txt`));
+  });
+
+  it(`PLT-008: a directory link (${directoryLinkType}) inside the renderer output that points outside it is refused`, async () => {
+    expectRefused(await requestApp(`app://${host}/updir/secret.txt`));
+    expectRefused(await requestApp(`app://${host}/updir/renderer-sibling/secret.txt`));
+  });
+
+  // Controls: links whose target stays inside the renderer output are served.
+  it('PLT-008: control: a file symbolic link to a file inside the renderer output is served', async (context) => {
+    if (fileLinkError) context.skip(fileLinkError);
+    const outcome = await requestApp(`app://${host}/assets/link-inside.js`);
+    expect(outcome.status, describeOutcome(outcome)).toBe(200);
+    expect(outcome.body).toBe(scriptText);
+  });
+
+  it(`PLT-008: control: a directory link (${directoryLinkType}) to a folder inside the renderer output is served`, async () => {
+    const outcome = await requestApp(`app://${host}/assets-link/index-abc123.js`);
+    expect(outcome.status, describeOutcome(outcome)).toBe(200);
+    expect(outcome.body).toBe(scriptText);
   });
 });
