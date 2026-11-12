@@ -18,7 +18,7 @@
 // The refusal names the switch and the variable on stderr.
 // This file is the one definition site of the variable name (CLAUDE.md "one
 // name, one definition site"); other code imports `packagedCdpVariableName`.
-// DEFERRED: TST-009 (`--remote-debugging-pipe` in packaged builds; reading 9 on #18)
+// DEFERRED: TST-009 (`--remote-debugging-pipe` in packaged builds; #45)
 import { writeSync } from 'node:fs';
 import { app } from 'electron';
 
