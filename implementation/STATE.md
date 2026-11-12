@@ -4,30 +4,28 @@
 
 - **Updated:** 2026-11-11
 - **Phase:** 0. Preparation and spikes
-- **Phase exit gate:** Human approves requirement IDs (done), then the spike go/no-go
+- **Phase exit gate:** Human approves requirement IDs (done), then the spike go/no-go (done for #5 to #8; #9 pending)
 
 ## Active tasks
 
 | Issue | Title | Stage | Attempt | Next action |
 | --- | --- | --- | --- | --- |
-| #5 | Spike: Playwright over CDP | review | 1 | Human go/no-go |
-| #6 | Spike: Forge with Vite in a pnpm workspace | review | 1 | Human go/no-go |
-| #7 | Spike: Terrazzo profile rules and outputs | review | 1 | Human go/no-go |
-| #8 | Spike: React Aria overlays in child windows | review | 1 | Human go/no-go |
+| #9 | Spike: native Node add-ons with Forge and Vite | implementing | 1 | Check researcher envelope and branch `spike/9-native-addons` |
+| #10 | Specs: apply ADR 0004 | review | 1 | Human merges the PR |
 
 ## Last action
 
-All four spikes returned go-with-changes; orchestrator checked the evidence and posted the envelopes; ADR 0004 proposed.
+Human accepted ADR 0004 and gave spikes #5 to #8 a go; ADR 0004 applied on `task/10-apply-adr-0004`; spike #9 started.
 
 ## Next action
 
-After the human decides ADR 0004: apply it to the specs, close the spikes, end phase 0, and delegate phase 1 planning.
+After #9 finishes and the human gives it a go: end phase 0 with a digest, then delegate phase 1 planning.
 
 ## Open escalations
 
 | Issue or ADR | Waiting on | Since |
 | --- | --- | --- |
-| ADR 0004, ten spike decisions and the phase 0 go/no-go | Human decision | 2026-11-11 |
+| #10 PR merge | Human | 2026-11-11 |
 
 ## Blockers
 
@@ -36,6 +34,7 @@ None.
 ## Notes for the next orchestrator
 
 - Spike branches are never merged. Findings live in `docs/spikes/` on each spike branch.
-- Decisions expected after spikes: colour gamut (#7); how smoke tests reach a packaged build if fuses block CDP (#5, major).
+- `docs/upstream/react-aria-second-window-overlays.md` is a draft the human posts; do not post it.
+- First phase 1 task must check Turborepo and Vitest with the isolated pnpm layout (ADR 0004 decision 3).
 - Open human decision in the specs: re-validation after a failed submit.
-- Merges by the orchestrator can trigger the auto mode classifier; the human approves spec-changing merges.
+- The human approves spec-changing merges; orchestrator merges can trigger the auto mode classifier.

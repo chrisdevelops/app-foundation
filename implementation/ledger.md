@@ -22,16 +22,17 @@
 | --- | --- | --- | --- | --- | --- |
 | PLT-001 | Agent documentation is in scope for the foundation | not-started | — | — |  |
 | PLT-002 | React is the UI framework | not-started | — | — |  |
-| PLT-003 | pnpm monorepo with the foundation as a workspace package | not-started | — | — |  |
+| PLT-003 | pnpm monorepo with the foundation as a workspace package | not-started | — | — | ADR 0004 |
 | PLT-004 | Turborepo is the task runner | not-started | — | — |  |
 | PLT-005 | Electron Forge with its Vite plugin, version pinned | not-started | — | — |  |
 | PLT-006 | ESLint and Prettier are the linter and formatter | not-started | — | — |  |
 | PLT-007 | Packaging is per app; App Store-unfriendly features are optional | not-started | — | — |  |
-| PLT-008 | Electron security baseline is enforced by gate tests | not-started | — | — |  |
+| PLT-008 | Electron security baseline is enforced by gate tests | not-started | — | — | ADR 0004 |
 | PLT-009 | TypeScript and JavaScript for tooling; Python only with no JavaScript option | not-started | — | — |  |
 | PLT-010 | pnpm for packages; gh for GitHub; no AI co-author trailers | not-started | — | — |  |
 | PLT-011 | App Store builds run sandboxed: no built-in auto-update, limited file access | not-started | — | — |  |
 | PLT-012 | Success: security baseline gate tests pass in a packaged build | not-started | — | — |  |
+| PLT-013 | Native Node add-ons packaged per app | not-started | — | — | ADR 0004 |
 | CMP-001 | React Aria Components wrapped in foundation components | not-started | — | — |  |
 | CMP-002 | High accessibility bar for components | not-started | — | — |  |
 | CMP-003 | Plain CSS with @layer order reset, tokens, foundation, app, overrides | not-started | — | — |  |
@@ -157,12 +158,12 @@
 | TOK-109 | A deprecated token stays for at least one minor foundation release | not-started | — | — |  |
 | TOK-110 | Deprecated token in CSS warns; removing it while in use fails CI | not-started | — | — |  |
 | TOK-111 | One tz build per package writes three committed files, each with a do-not-edit header | not-started | — | — |  |
-| TOK-112 | tokens.css comes from plugin-css plus a source-comment step | not-started | — | — |  |
+| TOK-112 | tokens.css written by the profile plugin from plugin-css transforms, with source comments | not-started | — | — | ADR 0004 |
 | TOK-113 | token-names.ts comes from a custom Terrazzo plugin | not-started | — | — |  |
 | TOK-114 | TOKENS.md comes from a custom Terrazzo plugin plus a usage scan | not-started | — | — |  |
-| TOK-115 | CSS variable names come from variableName and equal the leaf key | not-started | — | — |  |
+| TOK-115 | variableName returns -- plus the leaf key | not-started | — | — | ADR 0004 |
 | TOK-116 | Selectors: one per context plus [data-theme] blocks for tooling, each in @layer tokens | not-started | — | — | ADR 0002 |
-| TOK-117 | Each CSS declaration has a trailing source comment with file and token path | not-started | — | — |  |
+| TOK-117 | Each CSS declaration has a trailing source comment with file and token path | not-started | — | — | ADR 0004 |
 | TOK-118 | tokens.css starts with the specified generated header | not-started | — | — | ADR 0002 |
 | TOK-119 | Tokens referenced from TypeScript go through UiTokenName | not-started | — | — |  |
 | TOK-120 | TOKENS.md has one section per tier and one row per token | not-started | — | — |  |
@@ -176,11 +177,11 @@
 | TOK-128 | All lint layers run locally and in CI; errors unless marked | not-started | — | — |  |
 | TOK-129 | core/required-type is an error | not-started | — | — |  |
 | TOK-130 | core/descriptions is an error | not-started | — | — |  |
-| TOK-131 | core/consistent-naming is an error with a custom validator | not-started | — | — |  |
+| TOK-131 | core/consistent-naming is an error with a custom validator | not-started | — | — | ADR 0004 |
 | TOK-132 | core/valid-* rules are all errors | not-started | — | — |  |
 | TOK-133 | core/valid-dimension is an error with units px and rem | not-started | — | — |  |
 | TOK-134 | core/required-modes is an error across all four theme contexts | not-started | — | — |  |
-| TOK-135 | core/max-gamut is an error with srgb | not-started | — | — |  |
+| TOK-135 | core/max-gamut with gamut: srgb; colours authored in oklch | not-started | — | — | ADR 0004 |
 | TOK-136 | a11y/min-contrast is an error at AA with pairs from contrastWith | not-started | — | — |  |
 | TOK-137 | core/duplicate-values warns with primitives ignored | not-started | — | — |  |
 | TOK-138 | Lint ui/unique-leaf-names | not-started | — | — | ADR 0002 |
@@ -235,7 +236,7 @@
 | CMD-008 | Alt and access keys supported | not-started | — | — |  |
 | CMD-009 | Context menus rendered with React Aria from the registry | not-started | — | — |  |
 | CMD-010 | *.commands.ts beside features; explicit registration list; one menu layout file per app with roles | not-started | — | — |  |
-| CMD-011 | Windows open only from a user gesture, which affects restoring torn-off windows | not-started | — | — |  |
+| CMD-011 | Windows open only from a user gesture, which affects restoring torn-off windows | not-started | — | — | ADR 0004 |
 | CMD-012 | macOS requires Electron Edit-menu roles for text-field copy, paste and undo | not-started | — | — |  |
 | CMD-013 | Command registry comes before menus, palette, context menus and title bar | not-started | — | — |  |
 | STA-001 | Four state homes chosen by owner, lifetime and sharing | not-started | — | — |  |
@@ -262,7 +263,7 @@
 | TST-006 | Simple workbench now; in-house design tool later; no Storybook | not-started | — | — |  |
 | TST-007 | Playwright for end-to-end, connecting over CDP | not-started | — | — |  |
 | TST-008 | Test-only main-process bridge, absent from packaged builds | not-started | — | — |  |
-| TST-009 | CDP port on localhost in development builds for AI agents | not-started | — | — |  |
+| TST-009 | CDP port in development builds; packaged builds only with an environment variable | not-started | — | — | ADR 0004 |
 | TST-010 | Small cross-process smoke suite per app on Windows, macOS and Linux | not-started | — | — |  |
 | TST-011 | Reference app is end-to-end target and template; create-app script | not-started | — | — |  |
 | TST-012 | Test infrastructure and gate tests come before each system's implementation | not-started | — | — |  |
