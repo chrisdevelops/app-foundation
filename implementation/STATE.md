@@ -10,15 +10,15 @@
 
 | Issue | Title | Stage | Attempt | Next action |
 | --- | --- | --- | --- | --- |
-| #46 | Background test runs: no window shown, no focus taken (TST-018) | tests | 1 | Test author: gate tests from ADR 0013 and the #46 criteria. Branch `task/46-background-test-runs`. |
+| #46 | Background test runs: no window shown, no focus taken (TST-018) | implementing | 1 | Developer running. Gates in 15e1913; decisions 1–2, readings 1–10 and the five items to build are on #46. |
 
 ## Last action
 
-#18 merged (b5e6b27, PR #44): reviewer approve, verifier pass, seven CI checks pass (macOS `check` rerun after no runner was acquired). Ledger updated (PLT-008, PLT-012, TST-009, TST-010); ADR 0014 (minor) records the stricter guard rules. #46 picked.
+#46 test author done (15e1913, `Test-Change: approved #46`, boundary check 0): gates red for the missing switch, harness default, `test:foreground` and CI step. Foreground group shape and switch failure modes accepted (minor).
 
 ## Next action
 
-Delegate #46 to the test author.
+Check the #46 developer envelope; PR, CI (seven checks), reviewer (explicit `ci.yml` and `turbo.json` review) and verifier; merge. Then update `.claude/agents/verifier.md` and `test-author.md` (ADR 0013 follow-up).
 
 ## Open escalations
 
