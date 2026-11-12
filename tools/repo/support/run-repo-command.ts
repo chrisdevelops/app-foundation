@@ -41,18 +41,35 @@ function buildRepoCommandEnv(extra: Record<string, string> = {}): NodeJS.Process
   return { ...env, ...extra };
 }
 
+// On Windows, pnpm is installed as a `pnpm.cmd` shim. Node starts `.cmd`
+// files only through cmd.exe (`shell: true`), and spawning `pnpm` without a
+// shell fails with ENOENT. cmd.exe returns the shim's exit code (#13).
+const windowsCmdShimCommands = new Set(['pnpm']);
+
+/** Quotes one argument for cmd.exe. Throws on characters cmd.exe would expand even inside quotes. */
+function quoteWindowsShellArgument(arg: string): string {
+  if (/[%!"\r\n]/.test(arg)) {
+    throw new Error(`argument cannot be passed through cmd.exe unchanged: ${JSON.stringify(arg)}`);
+  }
+  return /^[A-Za-z0-9_@+=:,./\\-]+$/.test(arg) ? arg : `"${arg}"`;
+}
+
 export function runRepoCommand(
   command: string,
   args: readonly string[],
   options: { cwd: string; env?: Record<string, string>; timeoutMs?: number },
 ): RepoCommandResult {
-  const result = spawnSync(command, [...args], {
+  const throughWindowsShell = process.platform === 'win32' && windowsCmdShimCommands.has(command);
+  const spawnOptions = {
     cwd: options.cwd,
     env: buildRepoCommandEnv(options.env),
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
     timeout: options.timeoutMs ?? 300_000,
-  });
+  } as const;
+  const result = throughWindowsShell
+    ? spawnSync([command, ...args.map(quoteWindowsShellArgument)].join(' '), { ...spawnOptions, shell: true })
+    : spawnSync(command, [...args], spawnOptions);
   const stdout = stripAnsiCodes(result.stdout ?? '');
   const stderr = stripAnsiCodes(result.stderr ?? '');
   const spawnError = result.error ? `\n[spawn error] ${result.error.message}` : '';
