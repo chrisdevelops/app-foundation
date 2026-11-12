@@ -22,7 +22,7 @@ import type { AddressInfo } from 'node:net';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, relative } from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import {
   listProcessesUsing,
   listRunningProcesses,

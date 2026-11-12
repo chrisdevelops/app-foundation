@@ -72,7 +72,7 @@ const expectedExports = ['launchSmokeApp', 'resolveSmokeAppTarget', 'SmokeHarnes
 export async function loadSmokeHarness(): Promise<ExpectedSmokeHarnessModule> {
   let loaded: Record<string, unknown>;
   try {
-    loaded = (await import('../harness/smoke-app-harness')) as Record<string, unknown>;
+    loaded = await import('../harness/smoke-app-harness');
   } catch (error) {
     throw new Error(
       `the smoke harness module ${smokeHarnessModulePath} could not be loaded (issue #16): ${error instanceof Error ? error.message : String(error)}`,
