@@ -7,7 +7,7 @@ import tseslint from 'typescript-eslint';
 
 export default defineConfig(
   {
-    ignores: ['**/node_modules/', '**/.turbo/', '**/dist/', '**/generated/'],
+    ignores: ['**/node_modules/', '**/.turbo/', '**/dist/', '**/generated/', 'apps/*/.vite/', 'apps/*/out/'],
   },
   eslint.configs.recommended,
   tseslint.configs.recommendedTypeChecked,

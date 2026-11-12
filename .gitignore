@@ -3,3 +3,7 @@ node_modules/
 .claude/worktrees/
 .turbo/
 *.tsbuildinfo
+
+# Electron Forge and Vite build output (apps/*)
+apps/*/.vite/
+apps/*/out/
