@@ -16,7 +16,7 @@ import {
 } from '../test-support/windows-smoke-deferral';
 
 /** The reference app's window title (apps/reference: main window title and index.html <title>). */
-const referenceAppTitle = 'Reference';
+const referenceAppTitle = 'Reference-PROBE-FAIL';
 /** Time the window list must stay unchanged before it counts as settled. */
 const windowSettleMs = 1_500;
 
