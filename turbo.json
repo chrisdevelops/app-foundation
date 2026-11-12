@@ -1,0 +1,32 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "globalDependencies": ["tsconfig.base.json", "eslint.config.ts"],
+  "tasks": {
+    "typecheck": {
+      "outputs": []
+    },
+    "lint": {
+      "outputs": []
+    },
+    "test": {
+      "outputs": []
+    },
+    "//#typecheck": {
+      "outputs": []
+    },
+    "//#lint": {
+      "outputs": []
+    },
+    "//#test": {
+      "outputs": [],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "packages/**",
+        "apps/**",
+        "!**/node_modules/**",
+        "!**/.turbo/**",
+        "!**/*.tsbuildinfo"
+      ]
+    }
+  }
+}

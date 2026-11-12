@@ -1,0 +1,17 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# Isolated layout (the pnpm default) on purpose: no `nodeLinker: hoisted` and
+# no `shamefullyHoist`, so a package can import only what it declares
+# (ADR 0004 decision 3 A).
+
+# Only these patterns are linked into the root node_modules. Keep the list
+# narrow; each entry carries its reason on the same line.
+publicHoistPattern:
+  - '*types*' # Electron Forge's install check needs a public hoist pattern in the isolated layout; type packages only (spike #6)
+
+# pnpm 11 runs no dependency build script unless the package is named here
+# (spike #9, "The method" item 1). Add one entry per package, never a wildcard.
+allowBuilds:
+  electron: true # Electron fetches its binary in postinstall; the reference app (#15) installs it
