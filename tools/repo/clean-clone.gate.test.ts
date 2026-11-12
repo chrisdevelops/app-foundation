@@ -24,6 +24,10 @@ import { listWorkspaceProjects, readPackageManifest, type WorkspaceProject } fro
 
 const slow = { timeout: 600_000 };
 const turboTasks = ['typecheck', 'lint', 'test'] as const;
+// Fixed log format for nested Turborepo runs. Under GitHub Actions, `auto`
+// switches to grouped `::group::` output with no per-line task prefix, and
+// `linesForTask` reads the prefix (#13).
+const turboLogFlags = ['--ui=stream', '--log-order=stream', '--log-prefix=task'] as const;
 
 let cloneDir = '';
 let installResult: RepoCommandResult | undefined;
@@ -53,7 +57,7 @@ function foundationProject(): WorkspaceProject {
 
 function ensureFirstTurboRun(): RepoCommandResult {
   requireInstalled();
-  firstTurboRun ??= pnpm(['turbo', 'run', ...turboTasks, '--ui=stream', '--output-logs=full']);
+  firstTurboRun ??= pnpm(['turbo', 'run', ...turboTasks, ...turboLogFlags, '--output-logs=full']);
   return firstTurboRun;
 }
 
@@ -190,7 +194,7 @@ describe.skipIf(isInsideCleanClone(repoGateRootDir))('clean clone of the workspa
   it('PLT-004: a second run with no changes is a full cache hit', slow, () => {
     const first = ensureFirstTurboRun();
     expect(first.exitCode, 'the first run must pass before the cache can be checked').toBe(0);
-    const second = pnpm(['turbo', 'run', ...turboTasks, '--ui=stream']);
+    const second = pnpm(['turbo', 'run', ...turboTasks, ...turboLogFlags]);
     expect(second.exitCode, describeRepoCommand(second)).toBe(0);
     const cached = /Cached:\s+(\d+) cached, (\d+) total/.exec(second.output);
     expect(cached, describeRepoCommand(second)).not.toBeNull();
@@ -226,7 +230,7 @@ describe.skipIf(isInsideCleanClone(repoGateRootDir))('clean clone of the workspa
     const fixturePath = join(foundationGateTestDir(foundation), 'lint-error-fixture.ts');
     writeFileSync(fixturePath, 'export function lintErrorFixture(): number {\n  debugger;\n  return 1;\n}\n');
     try {
-      const result = pnpm(['turbo', 'run', 'lint', `--filter=${foundation.name}`, '--ui=stream', '--output-logs=full']);
+      const result = pnpm(['turbo', 'run', 'lint', `--filter=${foundation.name}`, ...turboLogFlags, '--output-logs=full']);
       expect(result.exitCode, describeRepoCommand(result)).not.toBe(0);
       expect(result.output).toContain('lint-error-fixture.ts');
       expect(result.output).toContain('no-debugger');
@@ -264,7 +268,7 @@ describe.skipIf(isInsideCleanClone(repoGateRootDir))('clean clone of the workspa
         'test',
         `--filter=${project.name}`,
         '--continue',
-        '--ui=stream',
+        ...turboLogFlags,
         '--output-logs=full',
       ]);
     }
