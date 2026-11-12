@@ -7,8 +7,10 @@
 // - macOS: the `accessory` activation policy, set before `ready`, so the app
 //   gets no Dock icon and never activates (spike #43).
 // - Every platform: every window the foundation creates, and every
-//   `window.open` child, is created hidden and never shown or focused
-//   (app-window.ts reads `isTestBackgroundModeEnabled()`).
+//   `window.open` child, is created hidden and is never focused
+//   (app-window.ts reads `isTestBackgroundModeEnabled()`). On macOS it is
+//   never shown; on Linux and Windows it is shown without focus
+//   (`showInactive()`; ADR 0013 amendment 1).
 // Without the variable (or with any other value) nothing changes.
 // The switch does not touch fuses, CSP, the `app://` loader or the CDP guard,
 // and it exposes no code or data.

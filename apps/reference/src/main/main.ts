@@ -18,7 +18,8 @@ import { applyTestBackgroundMode } from '@foundation/foundation/main/test-backgr
 enforcePackagedCdpGuard();
 
 // Before `ready`: with FOUNDATION_TEST_BACKGROUND=1 (test runs) the app gets no
-// Dock icon on macOS and its windows are never shown or focused (#46; TST-018).
+// Dock icon on macOS and its windows are never focused; they are never shown on
+// macOS and shown without focus on Linux and Windows (#46; TST-018).
 applyTestBackgroundMode();
 
 /** The app:// host of the reference app (`rf`, ADR 0006 item 4). */
