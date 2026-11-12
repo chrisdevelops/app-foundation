@@ -4,19 +4,19 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { assertExactDependencyVersions } from './support/exact-dependency-versions';
+import { assertExactDependencyVersions } from './test-support/exact-dependency-versions';
 import {
   readCommentedYamlSequence,
   readPnpmWorkspaceSettings,
   readPnpmWorkspaceText,
-} from './support/pnpm-workspace-file';
-import { publicHoistPatternAllowlist } from './support/public-hoist-allowlist';
-import { repoGateRootDir, runRepoCommand } from './support/run-repo-command';
+} from './test-support/pnpm-workspace-file';
+import { publicHoistPatternAllowlist } from './test-support/public-hoist-allowlist';
+import { repoGateRootDir, runRepoCommand } from './test-support/run-repo-command';
 import {
   resolveEffectiveCompilerOptions,
   resolveTsconfigExtends,
-} from './support/tsconfig-chain';
-import { listWorkspaceProjects, readPackageManifest } from './support/workspace-projects';
+} from './test-support/tsconfig-chain';
+import { listWorkspaceProjects, readPackageManifest } from './test-support/workspace-projects';
 
 const root = repoGateRootDir;
 const exactSemver = /^\d+\.\d+\.\d+$/;

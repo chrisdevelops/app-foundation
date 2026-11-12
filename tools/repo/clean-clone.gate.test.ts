@@ -7,25 +7,25 @@ import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'no
 import { builtinModules } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createCleanClone, isInsideCleanClone, removeCleanClone } from './support/clean-clone';
+import { createCleanClone, isInsideCleanClone, removeCleanClone } from './test-support/clean-clone';
 import {
   isPublicHoistAllowed,
   listUndeclaredRootModules,
   publicHoistPatternAllowlist,
   readPublicHoistedPackages,
-} from './support/public-hoist-allowlist';
+} from './test-support/public-hoist-allowlist';
 import {
   describeRepoCommand,
   repoGateRootDir,
   runRepoCommand,
   type RepoCommandResult,
-} from './support/run-repo-command';
+} from './test-support/run-repo-command';
 import {
   listWorkspaceProjects,
   readPackageManifest,
   resolveCanonicalPath,
   type WorkspaceProject,
-} from './support/workspace-projects';
+} from './test-support/workspace-projects';
 
 const slow = { timeout: 600_000 };
 const turboTasks = ['typecheck', 'lint', 'test'] as const;
