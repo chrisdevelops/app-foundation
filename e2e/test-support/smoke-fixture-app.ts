@@ -14,7 +14,10 @@
 // never shown and never focused. It writes what it did to `window-state.json`
 // (`SmokeFixtureWindowState`) every 200 ms, so a gate can read, on every
 // platform, which value the launch got and whether a window was ever shown
-// or focused.
+// or focused. Each process writes through its own temporary file and ignores a
+// failed write, so concurrent launches of one build never collide; the file
+// holds the state of the instance that wrote last (gates that read it run one
+// instance at a time).
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync, cpSync, rmSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -146,7 +149,7 @@ function fixtureMainSource(config: SmokeFixtureAppConfig, stdoutMarker: string, 
 'use strict';
 const settings = ${JSON.stringify(settings)};
 const { spawn } = require('node:child_process');
-const { renameSync, writeFileSync } = require('node:fs');
+const { renameSync, rmSync, writeFileSync } = require('node:fs');
 const { join } = require('node:path');
 console.log(settings.stdoutMarker);
 console.error(settings.stderrMarker);
@@ -182,9 +185,24 @@ function writeWindowState() {
         everFocused: entry.everFocused,
       })),
   };
+  // Two instances of one fixture build share __dirname (TST-009: two launches at
+  // the same time), so each process writes its own temporary file and renames it
+  // into place: the rename is atomic and the last writer wins. A failed write
+  // must never raise an uncaught main-process error: that opens the modal error
+  // dialog (ADR 0005), which takes focus and stops the launch. The next write
+  // (200 ms later) tries again.
   const path = join(__dirname, 'window-state.json');
-  writeFileSync(path + '.tmp', JSON.stringify(state));
-  renameSync(path + '.tmp', path);
+  const temporaryPath = path + '.tmp.' + process.pid;
+  try {
+    writeFileSync(temporaryPath, JSON.stringify(state));
+    renameSync(temporaryPath, path);
+  } catch {
+    try {
+      rmSync(temporaryPath, { force: true });
+    } catch {
+      // The folder is gone or locked; nothing to clean up now.
+    }
+  }
 }
 writeWindowState();
 setInterval(writeWindowState, 200);
