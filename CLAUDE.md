@@ -21,7 +21,7 @@ If anything you're asked to do contradicts the specs or an accepted ADR, stop an
 - No barrel files and no `export *`. Re-export by name or import from the source module.
 - One name, one definition site: components, CSS classes, tokens, commands, stores, query keys, icons and messages each have one exact name used verbatim everywhere.
 - Black-box systems: defined inputs and outputs, gate tests before implementation, failure modes tested like any other output. Never import another system's internal files.
-- Gate tests are named `*.gate.test.ts` or `*.gate.test.tsx`; end-to-end smoke tests live in `e2e/smoke/`.
+- Gate tests are named `*.gate.test.ts` or `*.gate.test.tsx`; end-to-end smoke tests live in `e2e/smoke/`; shared gate-test helpers live in folders named `test-support/` (ADR 0008). All three are test code: only the test author changes them.
 - Generated files are never edited by hand.
 - Every commit on a task branch carries trailers:
   ```
