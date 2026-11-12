@@ -52,12 +52,13 @@ This summarises every decision from the foundation planning conversation. Once y
 | Decision | Rationale |
 | --- | --- |
 | [PLT-002] React | Highest AI familiarity; richest headless and desktop-grade libraries |
-| [PLT-003] pnpm monorepo; foundation as a workspace package | Apps keep receiving updates; agents can read foundation source in the same repo |
+| [PLT-003] pnpm monorepo; foundation as a workspace package | Apps keep receiving updates; agents can read foundation source in the same repo. Isolated layout with a narrow `public-hoist-pattern` for Forge (ADR 0004) |
 | [PLT-004] Turborepo task runner | Low configuration, caching, affected builds; our own scripts cover what Nx would add |
 | [PLT-005] Electron Forge with its Vite plugin, version pinned | Official tooling; one bundler shared with Vitest, Paraglide and the workbench |
 | [PLT-006] ESLint and Prettier | Needed for the TanStack Query plugin and our custom rules |
 | [PLT-007] Packaging per app; App Store-unfriendly features optional | Lets some apps ship to the Mac App Store without fighting the foundation |
-| [PLT-008] Security baseline enforced by gate tests | Context isolation, sandbox, no Node in renderers, strict CSP, validated IPC, fuses locked in packaged builds |
+| [PLT-008] Security baseline enforced by gate tests | Context isolation, sandbox, no Node in renderers, strict CSP (inline styles allowed), validated IPC, fuses locked in packaged builds, renderers loaded through a custom `app://` protocol (ADR 0004) |
+| [PLT-013] Native Node add-ons packaged per app (for example SQLite drivers, image processing, terminals) | Apps need them; the packaging method comes from spike #9 (ADR 0004) |
 
 ### Components and styling
 
@@ -137,7 +138,7 @@ This summarises every decision from the foundation planning conversation. Once y
 | [TST-006] Simple workbench now; in-house design tool later; no Storybook | Avoids another system with its own conventions |
 | [TST-007] Playwright for end-to-end, connecting over CDP | Same API as component tests; avoids launch-flag fragility; WebdriverIO as fallback |
 | [TST-008] Test-only main-process bridge, absent from packaged builds | Stub dialogs, set theme, run commands, read menus; no backdoor in production |
-| [TST-009] CDP port on localhost in development builds for AI agents | Agents can inspect and drive the running app |
+| [TST-009] CDP port on localhost in development builds for AI agents; packaged builds refuse it unless an environment variable enables it | Agents can inspect and drive the running app; testers can drive early packaged builds (ADR 0004) |
 | [TST-010] Small cross-process smoke suite per app on Windows, macOS and Linux | Launch, menus, palette, tear-off, theme, IPC; fake servers for network apps |
 | [TST-011] Reference app as end-to-end target and template; `create-app` script | Proves integration in foundation CI; new apps start from a clean shell |
 
@@ -170,10 +171,10 @@ Checked against official docs or primary sources during planning (November 2026)
 | DTCG reached its first stable version, 2025.10; names may not start with `$` or contain `{`, `}` or `.` | DTCG Format Module 2025.10 |
 | Terrazzo's CSS plugin supports custom `variableName` and resolver-driven `permutations`; built-in lint includes descriptions, required type and WCAG contrast | Terrazzo docs |
 | Setting `nativeTheme.themeSource` changes `prefers-color-scheme` in renderers | Electron nativeTheme tests |
-| Vitest 4.0 made Browser Mode stable and added visual regression testing | Vitest 4.0 announcement |
+| Vitest 4.0 made Browser Mode stable and added visual regression testing; the current major is 5 | Vitest 4.0 announcement; npm registry (2026-11-11) |
 | Playwright's Electron support is experimental but conservative in practice; native dialogs are not intercepted | Playwright docs and maintainer reply |
-| Electron Forge's Vite plugin is marked experimental since v7.5.0 | Electron Forge release notes |
-| Paraglide is on a stable v2, compiles messages to typed functions and needs no React provider | Paraglide repository |
+| Electron Forge's Vite plugin was experimental from v7.5.0 and is stable since Forge 8.0.0 (2026-09-29) | Electron Forge release notes |
+| Paraglide v2 compiles messages to typed functions and needs no React provider; the current major is 3, not yet checked for the same properties | Paraglide repository; npm registry (2026-11-11) |
 
 ## Assumptions, unknowns and open decisions
 
@@ -191,8 +192,8 @@ Checked against official docs or primary sources during planning (November 2026)
 
 ### Unknowns to resolve during implementation
 
-- [ ] Terrazzo lint behaviour with resolvers (naming validator input, required modes, contrast) — see the token spec
-- [ ] Playwright Electron package status and API after its April 2026 restructuring
+- [x] Terrazzo lint behaviour with resolvers (naming validator input, required modes, contrast) — see the token spec. Answered by spike #7.
+- [x] Playwright Electron package status and API after its April 2026 restructuring. Spike #5: the move was reverted; `_electron` stays in playwright-core.
 - [ ] Exact Stylelint plugins for the raw-value and logical-property rules
 - [ ] OS accent colour recipe that keeps contrast in all four themes
 - [ ] Performance budgets: token build time, component render time, app startup time
@@ -204,7 +205,7 @@ Checked against official docs or primary sources during planning (November 2026)
 - [PLT-010] **pnpm** as the package manager; **`gh`** for GitHub work; no AI co-author trailers on commits.
 - [CMP-014] **Electron's single Chromium target:** modern CSS is allowed, but there is no browser fallback to rely on.
 - [TOK-009] **DTCG dimensions accept only `px` and `rem`**, so percentages and `fr` stay in layout CSS.
-- [CMD-011] **Browsers only open windows from a user gesture**, which affects restoring torn-off windows automatically.
+- [CMD-011] **Browsers only open windows from a user gesture**, which affects restoring torn-off windows automatically. Spike #8 found that Electron on macOS does not enforce this; Windows and Linux are not verified.
 - [CMD-012] **macOS requires Electron's Edit-menu roles** for copy, paste and undo in text fields.
 - [PLT-011] **App Store builds run sandboxed:** no built-in auto-update, limited file access.
 
@@ -212,13 +213,13 @@ Checked against official docs or primary sources during planning (November 2026)
 
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
-| Playwright's Electron support is experimental and launch has broken in 2026 | End-to-end suite fails to start | Connect over CDP instead of launching; WebdriverIO as fallback |
-| Electron Forge's Vite plugin may break in minor releases | Build failures on upgrade | Pin versions; upgrade deliberately; evaluate alternatives in the first spike |
+| Playwright's Electron support is experimental and launch has broken in 2026 | End-to-end suite fails to start | Connect over CDP instead of launching (proven in spike #5); WebdriverIO as fallback |
+| Electron Forge's Vite plugin may break in minor releases | Build failures on upgrade | Pin versions; upgrade deliberately. Spike #6: the plugin is stable since Forge 8, so no alternatives evaluation is needed |
 | React Aria's API trips up agents (props, hidden context, collections) | Wrong code, wasted turns | Wrappers hide it from apps; TypeScript in the loop; conventions file; example files |
-| `UNSAFE_PortalProvider` is an escape hatch | Overlays misbehave in child windows | Cover child-window overlays in the smoke suite |
+| `UNSAFE_PortalProvider` is an escape hatch | Overlays misbehave in child windows | Foundation overlay wrapper with the spike #8 workarounds; react-aria pinned exactly; child-window overlays in the smoke suite; no `top` placements in child windows until upstream fixes land (ADR 0004) |
 | React Aria Table editing support is only months old | Editable grid harder than expected | Ship read-only grid first; extend with our own component when an app needs it |
 | Custom title bar and Menubar are ours to build and maintain | Extra effort; platform edge cases | Native window buttons; Menubar follows React Aria's patterns; smoke tests per OS |
-| Terrazzo lint may not cover resolver contexts as needed | Profile rules unenforced | Move checks into our own lint plugin |
+| Terrazzo lint may not cover resolver contexts as needed | Profile rules unenforced | Move checks into our own lint plugin. Spike #7: `core/required-modes` and `a11y/min-contrast` are replaced by profile rules |
 | Paraglide is not ICU-based | Friction with professional translation platforms later | Decide at the point a second language is added |
 | Phosphor has fewer icons than Lucide | Missing icons | Custom-icon pipeline with regular and fill weights |
 | A foundation change breaks all apps at once | Broad regressions | Reference app smoke suite in foundation CI; type checks across all apps |

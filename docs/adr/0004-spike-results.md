@@ -1,6 +1,6 @@
 # ADR 0004: Decisions from the phase 0 spikes
 
-- **Status:** proposed
+- **Status:** accepted
 - **Weight:** major
 - **Date:** 2026-11-11
 - **Raised by:** researchers, #5, #6, #7, #8
@@ -83,10 +83,23 @@ The Vite plugin is stable since Forge 8.0.0. Current majors are Vitest 5 and Par
 
 ## Decision
 
-Waiting on the human.
+The human decided on 2026-11-11 and gave the phase 0 spikes a go:
+
+| # | Choice | Notes |
+| --- | --- | --- |
+| 1 | A | Custom `app://` protocol; `GrantFileProtocolExtraPrivileges` off |
+| 2 | B | Packaged builds open the CDP port only when an environment variable is set; the human accepts the risk for early testing |
+| 3 | A | Isolated layout with a narrow `public-hoist-pattern` |
+| 4 | B | Native add-ons supported; new requirement PLT-013; method from spike #9 |
+| 5 | A | Keep `__`; the profile plugin writes `tokens.css` |
+| 6 | A | Strict error format through a wrapper |
+| 7 | A | sRGB only; colours authored in `oklch`; Display P3 later |
+| 8 | A | The human reviews and posts the upstream report draft in `docs/upstream/react-aria-second-window-overlays.md` |
+| 9 | B | `style-src` allows `'unsafe-inline'`; `script-src` stays strict |
+| 10 | A | Current majors, pinned exactly |
 
 ## Follow-up
 
-- [ ] Spec updated
-- [ ] Ledger updated
-- [ ] Issues created or changed: phase 1 planning
+- [x] Spec updated
+- [x] Ledger updated: PLT-013 added; affected rows note ADR 0004
+- [x] Issues created or changed: #9 (native add-on spike), #10
