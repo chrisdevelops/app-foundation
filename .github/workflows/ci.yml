@@ -1,0 +1,47 @@
+# CI for every pull request to main and every push to main (#13).
+# Runs the same commands developers run locally on Windows, macOS and Linux.
+# Requirements: TST-015 (partial), TOK-128 (partial).
+# Only actions/checkout, actions/setup-node and pnpm/action-setup are allowed,
+# each pinned to the commit of a release tag. Any other action needs an ADR.
+# DEFERRED: TST-015 packaged build and smoke tests on three platforms (#17).
+# DEFERRED: TOK-151, TOK-152, TOK-153, TOK-154, XC-006 drift checks (phase 2).
+# DEFERRED: TST-004 visual tests on one platform (phase 3).
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: check (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # pnpm version comes from package.json packageManager.
+      - name: Set up pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      # Node version comes from package.json engines.node.
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: package.json
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck, lint and test
+        run: pnpm turbo run typecheck lint test
