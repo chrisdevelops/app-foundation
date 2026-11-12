@@ -141,6 +141,7 @@ This summarises every decision from the foundation planning conversation. Once y
 | [TST-009] CDP port on localhost in development builds for AI agents; packaged builds refuse it unless an environment variable enables it | Agents can inspect and drive the running app; testers can drive early packaged builds (ADR 0004) |
 | [TST-010] Small cross-process smoke suite per app on Windows, macOS and Linux | Launch, menus, palette, tear-off, theme, IPC; fake servers for network apps |
 | [TST-011] Reference app as end-to-end target and template; `create-app` script | Proves integration in foundation CI; new apps start from a clean shell |
+| [TST-018] Automated test runs start the app in background mode by default: no window shown, no focus taken; tests that need real OS focus, native menus or dialogs run in a separate foreground group | A person can use the machine while agents test (ADR 0013) |
 
 ## Cross-cutting requirements
 

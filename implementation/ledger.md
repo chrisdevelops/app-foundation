@@ -272,6 +272,7 @@
 | TST-015 | Success: reference app smoke suite passes on three platforms in CI | not-started | — | #13, #17 | CI on three OS in #13; smoke and packaging in #17; packaged smoke job on three OS in #17 (smoke on macOS and Linux, Windows per ADR 0011) |
 | TST-016 | Success: every component passes gate tests, zero axe violations, all theme and density screenshots | not-started | — | — |  |
 | TST-017 | Success: an AI agent can attach to a development build over CDP with the documented setup | not-started | — | — |  |
+| TST-018 | Automated test runs start the app in background mode by default; foreground group for real focus, native menus and dialogs | not-started | — | #46 | ADR 0013; spike #43 |
 | XC-001 | One name, one definition site | not-started | — | — |  |
 | XC-002 | No barrel files or export * | not-started | — | — |  |
 | XC-003 | Black-box systems with gate tests before implementation | not-started | — | — |  |
