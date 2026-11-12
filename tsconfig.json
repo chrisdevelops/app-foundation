@@ -1,0 +1,5 @@
+{
+  // Root tooling: repository gate tests and the root config files.
+  "extends": "./tsconfig.base.json",
+  "include": ["tools/**/*.ts", "*.config.ts"]
+}
