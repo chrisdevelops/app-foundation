@@ -18,8 +18,13 @@ The specs name tools such as ESLint, Prettier, TypeScript, Vitest and Turborepo,
 1. **TypeScript 6.0.3**, pinned exactly, until typescript-eslint supports TypeScript 7. Decision 10 is read as "the newest major that works with the other named tools". Revisit when typescript-eslint supports 7.
 2. **Supporting packages of a named tool count as part of that tool:** for example `typescript-eslint` and `@eslint/js` for ESLint, `@types/node` for TypeScript and Node, and official plugins of a named tool. Each is pinned exactly. Any other new package needs an ADR, as the playbook says.
 3. **Gate test files are not reformatted.** The Prettier configuration must accept the existing gate tests unchanged; formatting is not a reason for a `Test-Change`.
-4. **The test author's eight readings for #12 are accepted** as written in the envelope on #12.
+4. **The test author's eight readings for #12 are accepted** as written in the comment on #12.
+5. **`publicHoistPattern` is `'@types/*'` only** (review of #12, finding 1). `*types*` also hoisted `typescript-eslint` and other packages, which is wider than ADR 0004 decision 3 intends. #15 must re-verify Forge packaging with this pattern; if Forge needs more, #15 returns `needs-decision`. A gate test limits public hoists to an allowlist.
+6. **Isolation reading** (review of #12, finding 2): a workspace package cannot import a package that neither it nor the root declares. Packages the root declares, which are repository tooling, stay reachable through Node's parent-folder lookup. A lint rule against undeclared imports is a phase 2 follow-up.
+7. **`allowBuilds`** stays empty until a package needs a build script; `electron` is added in #15 (review of #12, finding 5).
 
 ## Follow-up
 
 - [ ] Revisit item 1 when typescript-eslint supports TypeScript 7
+- [ ] Phase 2: lint rule against imports a workspace package does not declare (item 6)
+- [ ] #15: verify Forge packaging with `'@types/*'`, and add `electron` to `allowBuilds`
