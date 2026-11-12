@@ -21,10 +21,12 @@
 //   fail with `startup-timeout` and the app is killed; on Linux the harness
 //   reads Electron's error line instead of waiting for the timeout.
 // - Any failure after the app started stops it before the error is thrown.
-// - Teardown signals the process group (POSIX) or the tree (Windows), and
-//   also every process found by ancestry or by `--user-data-dir` in a snapshot
-//   taken before the first signal. It waits until none of them is left and is
-//   safe to call twice.
+// - Teardown first signals the process group (POSIX) or kills the tree of the
+//   started process (Windows). Then it kills every process it finds by
+//   `--user-data-dir` (quoted or not) or by ancestry; on Windows a child counts
+//   only when it was created after its parent, because Windows reuses pids.
+//   It waits until none is left, fails with their pids otherwise, and is safe
+//   to call twice.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { connect, createServer } from 'node:net';
@@ -525,27 +527,30 @@ function startProcessTree(options: SmokeAppLaunchOptions, port: number, userData
   let stopPromise: Promise<void> | undefined;
   const stop = async (): Promise<void> => {
     const rootPid = exit === undefined ? child.pid : undefined;
-    // Snapshot before any signal: once a parent dies, its children are re-parented and
-    // can no longer be found by ancestry.
-    const known = collectAppProcesses(rootPid, userDataDir, new Map());
+    // 1. The tree or group kill comes first, so a process list that cannot be read never stops it.
     if (process.platform === 'win32') {
       if (rootPid !== undefined) {
         spawnSync('taskkill', ['/pid', String(rootPid), '/T', '/F'], { windowsHide: true, timeout: 30_000 });
       }
+    } else if (rootPid !== undefined) {
+      signalProcessGroup(rootPid, 'SIGTERM');
+    }
+    // 2. A best-effort snapshot finds processes the first kill did not reach (an empty map when
+    //    the list cannot be read; the wait below then reports the listing error).
+    const known = collectAppProcessesBestEffort(rootPid, userDataDir);
+    if (process.platform === 'win32') {
       for (const pid of known.keys()) killProcess(pid);
       await Promise.race([exited, delay(gracefulStopMs)]);
     } else {
-      if (rootPid !== undefined) {
-        signalProcessGroup(rootPid, 'SIGTERM');
-        for (const pid of known.keys()) signalProcess(pid, 'SIGTERM');
-        await Promise.race([exited, delay(gracefulStopMs)]);
-      }
+      for (const pid of known.keys()) signalProcess(pid, 'SIGTERM');
+      if (rootPid !== undefined) await Promise.race([exited, delay(gracefulStopMs)]);
       // The group signal reaches every process that stayed in the group; the snapshot
       // reaches any process that left it.
       if (child.pid !== undefined) signalProcessGroup(child.pid, 'SIGKILL');
-      for (const pid of collectAppProcesses(undefined, userDataDir, known).keys()) signalProcess(pid, 'SIGKILL');
+      for (const pid of known.keys()) signalProcess(pid, 'SIGKILL');
       await Promise.race([exited, delay(gracefulStopMs)]);
     }
+    // 3. Bounded wait; a process list that cannot be read fails the teardown here, after the kill.
     await waitUntilAppProcessesExit(userDataDir, known);
     await Promise.race([closed, delay(2_000)]);
     rmSync(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
@@ -578,17 +583,31 @@ function signalProcess(pid: number, signal: NodeJS.Signals): void {
   }
 }
 
+/**
+ * Kills one process. On Windows never with `/T`: Windows keeps a parent pid after
+ * the parent exits and reuses pids, so a tree kill of a found pid could reach
+ * processes outside the app. The process walk already finds the descendants.
+ */
 function killProcess(pid: number): void {
   if (process.platform === 'win32') {
-    spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true, timeout: 30_000 });
+    spawnSync('taskkill', ['/pid', String(pid), '/F'], { windowsHide: true, timeout: 30_000 });
     return;
   }
   signalProcess(pid, 'SIGKILL');
 }
 
+/** collectAppProcesses that never throws: an unreadable process list gives an empty map. */
+function collectAppProcessesBestEffort(rootPid: number | undefined, userDataDir: string): Map<number, string> {
+  try {
+    return collectAppProcesses(rootPid, userDataDir, new Map());
+  } catch {
+    return new Map();
+  }
+}
+
 /**
  * Waits until no process of the app is left: none runs with
- * `--user-data-dir=<dir>`, none from the snapshot taken before the kill, and
+ * `--user-data-dir=<dir>`, none from the snapshot taken after the first kill, and
  * no descendant of either. Processes still there after half the wait are killed
  * one by one; any that survive fail the teardown with their pids and command lines.
  */
@@ -618,6 +637,36 @@ interface ListedProcess {
   readonly pid: number;
   readonly parentPid: number;
   readonly command: string;
+  /** Windows only: creation time in ms since 1970, or undefined when the OS does not report it. */
+  readonly createdMs?: number;
+}
+
+/** True when `command` holds `--user-data-dir=<dir>`, with or without quotes around the path (Chromium helpers on Windows quote it). */
+function usesUserDataDir(command: string, userDataDir: string, windows: boolean): boolean {
+  const fold = (text: string): string => (windows ? text.toLowerCase() : text);
+  const text = fold(command);
+  const dir = fold(userDataDir);
+  for (const form of [`--user-data-dir=${dir}`, `--user-data-dir="${dir}"`]) {
+    let index = text.indexOf(form);
+    while (index >= 0) {
+      const next = text.charAt(index + form.length);
+      // The path must end here, so /tmp/a never matches /tmp/ab.
+      if (next === '' || next === ' ' || next === '"' || next === '\t') return true;
+      index = text.indexOf(form, index + 1);
+    }
+  }
+  return false;
+}
+
+/**
+ * True when `child` is a real child of `parent`. POSIX re-parents orphans, so the
+ * parent pid is current. Windows keeps a stale parent pid and reuses pids, so the
+ * child must also be created at or after the parent.
+ */
+function isChildOf(child: ListedProcess, parent: ListedProcess | undefined, windows: boolean): boolean {
+  if (!parent || child.parentPid !== parent.pid) return false;
+  if (!windows) return true;
+  return child.createdMs !== undefined && parent.createdMs !== undefined && child.createdMs >= parent.createdMs;
 }
 
 /**
@@ -633,14 +682,13 @@ function collectAppProcesses(
   known: ReadonlyMap<number, string>,
 ): Map<number, string> {
   const windows = process.platform === 'win32';
-  const fold = (text: string): string => (windows ? text.toLowerCase() : text);
-  const userDataSwitch = fold(`--user-data-dir=${userDataDir}`);
   const listed = listProcesses().filter((entry) => entry.pid !== process.pid);
+  const byPid = new Map(listed.map((entry) => [entry.pid, entry]));
   const found = new Map<number, string>();
   for (const entry of listed) {
     if (
       entry.pid === rootPid ||
-      fold(entry.command).includes(userDataSwitch) ||
+      usesUserDataDir(entry.command, userDataDir, windows) ||
       known.get(entry.pid) === entry.command
     ) {
       found.set(entry.pid, entry.command);
@@ -650,7 +698,11 @@ function collectAppProcesses(
   while (added) {
     added = false;
     for (const entry of listed) {
-      if (!found.has(entry.pid) && found.has(entry.parentPid)) {
+      if (
+        !found.has(entry.pid) &&
+        found.has(entry.parentPid) &&
+        isChildOf(entry, byPid.get(entry.parentPid), windows)
+      ) {
         found.set(entry.pid, entry.command);
         added = true;
       }
@@ -659,13 +711,17 @@ function collectAppProcesses(
   return found;
 }
 
+// CreatedMs: creation time in ms since 1970 (a JSON-safe number), or null when not reported.
 const windowsProcessQuery =
-  'Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Json -Compress';
+  'Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine,' +
+  "@{Name='CreatedMs';Expression={if ($_.CreationDate) { [DateTimeOffset]::new($_.CreationDate).ToUnixTimeMilliseconds() } else { $null }}}" +
+  ' | ConvertTo-Json -Compress';
 
 interface WindowsProcessEntry {
   readonly ProcessId: number;
   readonly ParentProcessId: number;
   readonly CommandLine: string | null;
+  readonly CreatedMs: number | null;
 }
 
 /** Every running process, from PowerShell on Windows and `ps` elsewhere. */
@@ -683,6 +739,7 @@ function listProcesses(): ListedProcess[] {
       pid: entry.ProcessId,
       parentPid: entry.ParentProcessId,
       command: entry.CommandLine ?? '',
+      createdMs: typeof entry.CreatedMs === 'number' ? entry.CreatedMs : undefined,
     }));
   }
   // -ww: never cut long command lines.
