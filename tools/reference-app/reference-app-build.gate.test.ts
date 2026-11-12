@@ -17,7 +17,11 @@
 //   answer on the port at any moment, no DevToolsActivePort, a non-zero exit
 //   and a refusal on stderr that names the switch and the variable. With it:
 //   the endpoint answers. `--inspect` and `--inspect-brk` start no debugger,
-//   with or without the variable. The dev build answers on loopback only.
+//   with or without the variable. `--inspect-port` and `--inspect-publish-uid`
+//   (which the fuse ignores without an exit) are refused with the variable set:
+//   non-zero exit and the switch named on stderr. A non-loopback
+//   `--remote-debugging-address` is refused with the variable set; a loopback
+//   one is accepted. The dev build answers on loopback only.
 // - #18, PLT-012: the smoke suite (e2e/smoke/, which holds the security
 //   baseline smoke tests) passes through the harness against the packaged
 //   copy. ADR 0011: that one test skips on Windows; the guard tests run there.
@@ -530,6 +534,97 @@ describe.skipIf(isInsideCleanClone(root))('reference app: dev, package, launch a
               `no debugger may answer on 127.0.0.1:${port} (${watch.probes} probes):\n${app.describe()}`,
             ).toEqual([]);
             expect(app.output(), app.describe()).not.toMatch(nodeInspectorListening);
+          } finally {
+            await app.stop();
+          }
+        },
+      );
+
+      // TST-009, PLT-008; issue #18 reading 13 (reviewer finding 2): the port listens on localhost only,
+      // so a non-loopback address is refused even when the variable enables the port.
+      it(
+        `TST-009: with ${packagedCdpVariableName}=${packagedCdpEnabledValue}, a packaged app started with --remote-debugging-address=0.0.0.0 --remote-debugging-port=<free port> never answers on that port, writes no DevToolsActivePort, names the refused address switch on stderr and exits non-zero`,
+        slow,
+        async () => {
+          const port = await findFreeLoopbackPort();
+          const app = startPackagedCopy(
+            ['--remote-debugging-address=0.0.0.0', `--remote-debugging-port=${port}`],
+            packagedCdpEnabledValue,
+          );
+          try {
+            const watch = await watchDebugEndpoint(app, port, { windowMs: refusalExitMs });
+            expect(
+              watch.answers,
+              `no DevTools endpoint may answer on 127.0.0.1:${port} (${watch.probes} probes in ${watch.elapsedMs} ms):\n${app.describe()}`,
+            ).toEqual([]);
+            const reachable: string[] = [];
+            for (const address of listNonLoopbackIpv4Addresses()) {
+              const answer = await probeDebugEndpoint(address, port, 1_000);
+              if (answer.answered) reachable.push(`${address}:${port} ${answer.detail}`);
+            }
+            expect(reachable, `no DevTools endpoint may answer on another address:\n${app.describe()}`).toEqual([]);
+            expect(
+              existsSync(join(app.userDataDir, 'DevToolsActivePort')),
+              `the refused app must not write DevToolsActivePort:\n${app.describe()}`,
+            ).toBe(false);
+            expect(app.output(), 'Chromium must not report an open DevTools endpoint').not.toMatch(devToolsListening);
+            const exitCode = await waitForAppExit(app, 5_000);
+            expect(exitCode, `the refused app must exit within ${refusalExitMs} ms:\n${app.describe()}`).not.toBeNull();
+            expect(exitCode, `the refused app must exit with a non-zero code:\n${app.describe()}`).not.toBe(0);
+            expect(app.errorOutput(), `stderr must name the refused switch:\n${app.describe()}`).toContain(
+              '--remote-debugging-address',
+            );
+          } finally {
+            await app.stop();
+          }
+        },
+      );
+
+      // TST-009; issue #18 reading 13 (control for the refusal above): a loopback address is allowed
+      it(
+        `TST-009: with ${packagedCdpVariableName}=${packagedCdpEnabledValue}, a packaged app started with --remote-debugging-address=127.0.0.1 answers on 127.0.0.1 at the requested port`,
+        slow,
+        async () => {
+          const port = await findFreeLoopbackPort();
+          const app = startPackagedCopy(
+            ['--remote-debugging-address=127.0.0.1', `--remote-debugging-port=${port}`],
+            packagedCdpEnabledValue,
+          );
+          try {
+            const reported = await app.waitForDevToolsPort(launchTimeoutMs);
+            expect(reported, 'the app must open the requested port').toBe(port);
+            const answer = await probeDebugEndpoint('127.0.0.1', port);
+            expect(answer.answered, `the DevTools endpoint must answer: ${answer.detail}`).toBe(true);
+          } finally {
+            await app.stop();
+          }
+        },
+      );
+
+      // TST-009, PLT-008; issue #18 reading 12 (reviewer finding 2): the guard refuses the inspector switches the
+      // EnableNodeCliInspectArguments fuse already ignores. The fuse stops the debugger but never exits the app,
+      // so the non-zero exit and the refusal on stderr come from the guard alone. The variable is set to 1,
+      // so only the inspector rule can refuse the launch.
+      it.each([['--inspect-port'], ['--inspect-publish-uid']])(
+        `PLT-008: a packaged app started with %s and ${packagedCdpVariableName}=${packagedCdpEnabledValue} starts no debugger, names the refused switch on stderr and exits non-zero`,
+        slow,
+        async (inspectSwitch) => {
+          const port = await findFreeLoopbackPort();
+          const value = inspectSwitch === '--inspect-port' ? String(port) : 'stderr,http';
+          const app = startPackagedCopy([`${inspectSwitch}=${value}`], packagedCdpEnabledValue);
+          try {
+            const watch = await watchDebugEndpoint(app, port, { windowMs: refusalExitMs });
+            expect(
+              watch.answers,
+              `no debugger may answer on 127.0.0.1:${port} (${watch.probes} probes):\n${app.describe()}`,
+            ).toEqual([]);
+            expect(app.output(), app.describe()).not.toMatch(nodeInspectorListening);
+            const exitCode = await waitForAppExit(app, 5_000);
+            expect(exitCode, `the refused app must exit within ${refusalExitMs} ms:\n${app.describe()}`).not.toBeNull();
+            expect(exitCode, `the refused app must exit with a non-zero code:\n${app.describe()}`).not.toBe(0);
+            expect(app.errorOutput(), `stderr must name the refused switch:\n${app.describe()}`).toContain(
+              inspectSwitch,
+            );
           } finally {
             await app.stop();
           }

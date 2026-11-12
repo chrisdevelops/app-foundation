@@ -18,6 +18,8 @@
 //   the same baseline, also when the request asks for Node, no isolation and
 //   no sandbox in its features string.
 // - Any other URL is denied: `window.open` returns null and no window opens.
+// - The same rule holds for `window.open` in an about:blank child: other URLs
+//   are denied there too, and a grandchild gets the same baseline.
 // Content-Security-Policy (packaged build only: the policy is set on app://
 // responses, ADR 0004 decisions 1 A and 9 B; the dev build loads the Vite dev
 // server):
@@ -381,29 +383,83 @@ describe('security baseline: window.open', () => {
     'PLT-008: window.open to %s is denied: it returns null and no window opens',
     slow,
     async (_label, url) => {
-      const started = requireApp();
-      const page = await mainWindow();
-      const beforeWindows = started.windows();
-      const before = beforeWindows.length;
       const urlExpression = url === '{location.href}' ? 'location.href' : JSON.stringify(url);
-      const opened = await evaluateInPage<boolean>(page, `window.open(${urlExpression}, '_blank') !== null`);
-      await new Promise((resolve) => setTimeout(resolve, deniedWindowWatchMs));
-      const after = started.windows();
+      await expectWindowOpenDenied(await mainWindow(), urlExpression);
+    },
+  );
+
+  // PLT-008; issue #18 acceptance criterion 2, reading 2 (failure mode): the rule holds in a child window too,
+  // so a child cannot open what its opener may not (reviewer finding 1 on #18).
+  const deniedFromChildUrls: ReadonlyArray<[string, (mainUrl: string) => string]> = [
+    ['an external https URL', () => JSON.stringify('https://example.invalid/')],
+    ['the main window page', (mainUrl) => JSON.stringify(mainUrl)],
+  ];
+
+  it.each(deniedFromChildUrls)(
+    `PLT-008: from an ${allowedChildUrl} child window, window.open to %s is denied: it returns null and no window opens`,
+    slow,
+    async (_label, urlExpression) => {
+      const main = await mainWindow();
+      const mainUrl = main.url();
+      expect(mainUrl, 'control: the main window URL must be a page URL, not about:blank').not.toBe(allowedChildUrl);
+      const child = await openChildWindow(main, allowedChildUrl);
       try {
-        expect(opened, 'window.open must return null for a denied URL').toBe(false);
-        expect(
-          after.map((window) => window.url()),
-          'no window may open',
-        ).toHaveLength(before);
+        expect(child.url(), 'control: the child window must be the allowed about:blank child').toBe(allowedChildUrl);
+        await expectWindowOpenDenied(child, urlExpression(mainUrl));
       } finally {
-        // Close only windows this test opened, never the main window.
-        for (const window of after) {
-          if (!beforeWindows.includes(window)) await window.close().catch(() => undefined);
-        }
+        await child.close().catch(() => undefined);
+      }
+    },
+  );
+
+  // PLT-008; issue #18 acceptance criterion 2, reading 2: a grandchild gets the baseline whatever the child asks for
+  it(
+    `PLT-008: from an ${allowedChildUrl} child window, a window.open request for nodeIntegration, no contextIsolation and no sandbox still gets a grandchild with no Node and the sandbox`,
+    slow,
+    async () => {
+      const child = await openChildWindow(await mainWindow(), allowedChildUrl);
+      let grandchild: Page | undefined;
+      try {
+        grandchild = await openChildWindow(
+          child,
+          allowedChildUrl,
+          'nodeIntegration=yes,contextIsolation=no,sandbox=no',
+        );
+        expect(grandchild.url()).toBe(allowedChildUrl);
+        expect(await readNodeGlobals(grandchild)).toEqual(noNodeGlobals);
+        expect(unsandboxedRendererProcesses(), 'the grandchild window must run sandboxed').toEqual([]);
+      } finally {
+        await grandchild?.close().catch(() => undefined);
+        await child.close().catch(() => undefined);
       }
     },
   );
 });
+
+/**
+ * Calls `window.open(<urlExpression>, '_blank')` in `opener` and expects it to
+ * return null with no new window during `deniedWindowWatchMs`. Closes any
+ * window it opened, never the windows that were open before.
+ */
+async function expectWindowOpenDenied(opener: Page, urlExpression: string): Promise<void> {
+  const started = requireApp();
+  const beforeWindows = started.windows();
+  const before = beforeWindows.length;
+  const opened = await evaluateInPage<boolean>(opener, `window.open(${urlExpression}, '_blank') !== null`);
+  await new Promise((resolve) => setTimeout(resolve, deniedWindowWatchMs));
+  const after = started.windows();
+  try {
+    expect(opened, `window.open(${urlExpression}) must return null for a denied URL`).toBe(false);
+    expect(
+      after.map((window) => window.url()),
+      'no window may open',
+    ).toHaveLength(before);
+  } finally {
+    for (const window of after) {
+      if (!beforeWindows.includes(window)) await window.close().catch(() => undefined);
+    }
+  }
+}
 
 describe('security baseline: Content-Security-Policy (packaged build)', () => {
   // PLT-008, PLT-012; issue #18 acceptance criterion 3; ADR 0004 decision 9 B
