@@ -1,0 +1,6 @@
+<!doctype html><body style="background:#39c"><h1>spike 43</h1><input id="i" autofocus>
+<script>
+window.ticks = { raf: 0, timer: 0 };
+(function f() { window.ticks.raf++; requestAnimationFrame(f); })();
+setInterval(() => window.ticks.timer++, 10);
+</script></body>
