@@ -3,7 +3,8 @@
 // - The fuses lock the packaged binary; GrantFileProtocolExtraPrivileges is off
 //   because the renderer loads through app:// (ADR 0004 decision 1 A).
 // - MakerZIP makes a zip on every platform.
-// DEFERRED: PLT-011 (App Store builds), signing, dmg and pkg makers (later phases)
+// DEFERRED: PLT-011 (App Store builds; later phases)
+// DEFERRED: PLT-007 (code signing and the dmg and pkg makers; later phases)
 // DEFERRED: PLT-013 (native add-on copy hook; #29)
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';

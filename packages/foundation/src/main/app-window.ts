@@ -1,7 +1,7 @@
 // The foundation's window factory (#15; PLT-008). Every app window is created
 // here, so each one gets the same locked web preferences: context isolation,
 // the Chromium sandbox and no Node integration in the renderer.
-// DEFERRED: PLT-012 (gate tests for contextIsolation and sandbox, CSP and the packaged CDP guard; #18)
+// DEFERRED: PLT-012, TST-009 (gate tests for contextIsolation and sandbox, CSP and the packaged CDP guard; #18)
 import { BrowserWindow } from 'electron';
 
 export interface CreateAppWindowOptions {

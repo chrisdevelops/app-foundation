@@ -10,3 +10,4 @@ test.todo('the preload exposes a typed IPC API through contextBridge, validated 
 test.todo('the reference app renders with tokens.css and foundation styling (TOK-112, CMP-003; #19, #21)');
 test.todo('the reference app packages a native add-on and runs it from outside the repository (PLT-013; #29)');
 test.todo('App Store builds run sandboxed (PLT-011)');
+test.todo('packaged builds are code-signed and made as dmg and pkg as well as zip (PLT-007)');

@@ -12,12 +12,15 @@
 //   percent-encoded), or that holds `/`, `\`, `:`, `%` or a control character
 //   after decoding. So no traversal, absolute path, drive letter, double
 //   encoding or NUL byte reaches the file system.
+// - A file whose real path (links and junctions resolved) is outside the real
+//   path of `rendererDir` answers 404; links that stay inside are served.
+//   `fs.promises.realpath` works inside app.asar (Electron's asar fs support).
 //
 // This module has no runtime import of `electron`, so it runs in plain Node
 // (the gate test runs it on every OS). The Electron side is in
 // `app-protocol-registration.ts`.
 // DEFERRED: PLT-012 (the Content-Security-Policy header on served pages; #18)
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, realpath, stat } from 'node:fs/promises';
 import { extname, isAbsolute, join, relative, resolve } from 'node:path';
 
 /** The URL scheme the foundation registers for packaged renderers. */
@@ -121,8 +124,13 @@ export function createAppProtocolHandler(options: AppProtocolHandlerOptions): Ap
     const filePath = join(rendererDir, ...segments);
     if (!isInsideDir(rendererDir, filePath)) return refuse(400);
     try {
-      if (!(await stat(filePath)).isFile()) return refuse(404);
-      const body = await readFile(filePath);
+      // Links (symbolic links, junctions) may point anywhere: compare real
+      // paths, and read the real path so a link cannot change in between.
+      const realRendererDir = await realpath(rendererDir);
+      const realFilePath = await realpath(filePath);
+      if (!isInsideDir(realRendererDir, realFilePath)) return refuse(404);
+      if (!(await stat(realFilePath)).isFile()) return refuse(404);
+      const body = await readFile(realFilePath);
       const contentType = appProtocolContentTypes[extname(filePath).toLowerCase()] ?? appProtocolFallbackContentType;
       return new Response(new Uint8Array(body), { status: 200, headers: { 'content-type': contentType } });
     } catch {
