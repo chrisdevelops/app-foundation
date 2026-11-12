@@ -16,6 +16,9 @@ export interface RepoCommandResult {
 /** Absolute path of the repository root (this file is `tools/repo/support/run-repo-command.ts`). */
 export const repoGateRootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
+// ANSI colour codes start with the ESC control character (#14: the
+// eslint.config.ts override still names the old tools/repo/support path).
+// eslint-disable-next-line no-control-regex
 const ansiPattern = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
 
 export function stripAnsiCodes(text: string): string {

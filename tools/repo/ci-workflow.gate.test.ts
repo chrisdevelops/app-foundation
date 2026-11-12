@@ -23,9 +23,9 @@ import {
   workflowValueText,
   type WorkflowJob,
   type WorkflowMapping,
-} from './support/github-workflow';
-import { describeRepoCommand, repoGateRootDir, runRepoCommand } from './support/run-repo-command';
-import type { WorkflowYamlValue } from './support/workflow-yaml-reader';
+} from './test-support/github-workflow';
+import { describeRepoCommand, repoGateRootDir, runRepoCommand } from './test-support/run-repo-command';
+import type { WorkflowYamlValue } from './test-support/workflow-yaml-reader';
 
 const root = repoGateRootDir;
 
