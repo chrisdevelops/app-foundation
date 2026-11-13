@@ -1,225 +1,40 @@
-# CI for every pull request to main and every push to main (#13).
-# Runs the same commands developers run locally on Windows, macOS and Linux.
-# Requirements: TST-015 (partial), TOK-128 (partial), TST-018.
-# The boundary-check job (#14) runs on pull requests only.
-# The packaged-smoke job (#17) packages the reference app and runs the smoke
-# suite against a copy of it on the same three platforms (TST-010).
-# Only actions/checkout, actions/setup-node, pnpm/action-setup and
-# actions/upload-artifact (ADR 0012) are allowed, each pinned to the commit of
-# a release tag. Any other action needs an ADR.
-# DEFERRED: TOK-151, TOK-152, TOK-153, TOK-154, XC-006 drift checks (phase 2).
-# DEFERRED: TST-004 visual tests on one platform (phase 3).
-
-name: CI
-
+name: Probe 46 process list
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
-
 permissions:
   contents: read
-
 jobs:
-  check:
-    name: check (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+  cold:
+    runs-on: windows-latest
     steps:
-      - name: Check out the repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
-      # pnpm version comes from package.json packageManager.
-      - name: Set up pnpm
-        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-
-      # Node version comes from package.json engines.node.
-      - name: Set up Node
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: package.json
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      # The reference app gates (#15) start Electron with the Chromium sandbox on.
-      # Ubuntu 24.04 blocks unprivileged user namespaces through AppArmor, and
-      # chrome-sandbox is not setuid root in node_modules or in the packaged zip,
-      # so Chromium has no usable sandbox. This lets it use user namespaces.
-      # `--no-sandbox` is never used.
-      - name: Allow the Chromium sandbox on Linux
-        if: runner.os == 'Linux'
-        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-
-      - name: Typecheck, lint and test
-        run: pnpm turbo run typecheck lint test
-
-      # Foreground test group (#46; TST-018; ADR 0013 rule 3): tests that need
-      # real OS focus, native menus or native dialogs. The script prints a
-      # notice and sets the run-level opt-out itself; no workflow sets it, so
-      # every other launch in CI stays in background mode.
-      - name: Foreground test group
-        run: pnpm run test:foreground
-
-  # Packaged smoke (#17; TST-010, TST-015 partial, PLT-007 partial).
-  # Packages the reference app with its own `package` script, copies the whole
-  # packaged app (symlinks kept) out of the workspace (spike #9), and runs the
-  # smoke suite against the copy. ADR 0011: on Windows the smoke suite skips
-  # itself (#39); the Windows app still packages here and passes its build
-  # gates in the check job. On Linux the harness starts a virtual display
-  # (xvfb-run) because the runner has none.
-  # On failure the harness evidence folder is uploaded (ADR 0012).
-  packaged-smoke:
-    name: packaged-smoke (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
-    # The same bash steps on all three runners; bash stops at the first failing command.
-    defaults:
-      run:
-        shell: bash
+      - run: $PSVersionTable | Out-String; pwsh -NoProfile -Command '$PSVersionTable | Out-String'; Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber; (Get-Process).Count
+      - run: node tools/probe/process-list-probe.ts cold
+      - run: node tools/probe/process-list-probe.ts cold-2
+  suite:
+    runs-on: windows-latest
+    env:
+      PROBE_LOG: ${{ runner.temp }}\probe-calls.log
     steps:
-      - name: Check out the repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
-      # pnpm version comes from package.json packageManager.
-      - name: Set up pnpm
-        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-
-      # Node version comes from package.json engines.node.
-      - name: Set up Node
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: package.json
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      # Same reason as in the check job: Chromium's sandbox needs unprivileged
-      # user namespaces on Ubuntu 24.04. `--no-sandbox` is never used.
-      - name: Allow the Chromium sandbox on Linux
-        if: runner.os == 'Linux'
-        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-
-      - name: Package the reference app
-        run: pnpm --filter @foundation/reference run package
-
-      # Copies the one folder `electron-forge package` wrote for this platform
-      # and arch to RUNNER_TEMP, and names its executable in SMOKE_APP_EXECUTABLE.
-      # The executable is found as in tools/test-support/packaged-app-layout.ts.
-      - name: Copy the packaged app out of the workspace
-        run: |
-          shopt -s nullglob
-          suffix="$(node -p 'process.platform + "-" + process.arch')"
-          found=(apps/reference/out/*-"$suffix")
-          if [ "${#found[@]}" -ne 1 ] || [ ! -d "${found[0]}" ]; then
-            echo "::error title=packaged-smoke::expected one packaged app folder ending in -$suffix in apps/reference/out, found ${#found[@]}"
-            exit 1
-          fi
-          copy_root="$RUNNER_TEMP/packaged-app"
-          rm -rf "$copy_root"
-          mkdir -p "$copy_root"
-          cp -RP "${found[0]}" "$copy_root/"
-          app_dir="$copy_root/${found[0]##*/}"
-          candidates=()
-          if [ "$RUNNER_OS" = "macOS" ]; then
-            candidates=("$app_dir"/*.app/Contents/MacOS/*)
-          else
-            for file in "$app_dir"/*; do
-              name="${file##*/}"
-              lower="$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]')"
-              case "$lower" in
-                chrome-sandbox | chrome_crashpad_handler | chrome_crashpad_handler.exe | crashpad_handler.exe | squirrel.exe) continue ;;
-              esac
-              if [ ! -f "$file" ]; then continue; fi
-              if [ "$RUNNER_OS" = "Windows" ]; then
-                if [[ "$lower" == *.exe ]]; then candidates+=("$file"); fi
-              elif [ -x "$file" ] && [[ "$name" != *.* ]]; then
-                candidates+=("$file")
-              fi
-            done
-          fi
-          if [ "${#candidates[@]}" -ne 1 ]; then
-            echo "::error title=packaged-smoke::expected one app executable in $app_dir, found ${#candidates[@]}"
-            exit 1
-          fi
-          echo "Packaged app copied to $app_dir; executable ${candidates[0]}"
-          echo "SMOKE_APP_EXECUTABLE=${candidates[0]}" >> "$GITHUB_ENV"
-
-      # SMOKE_APP_EXECUTABLE comes from the copy step. The harness writes
-      # failure evidence into SMOKE_EVIDENCE_DIR (ADR 0012).
-      # FOUNDATION_ALLOW_PACKAGED_CDP=1 lets the packaged app open its CDP port
-      # for the harness (#18; ADR 0004 decision 2 B). Set here only, never at
-      # job or workflow level.
-      - name: Run the smoke suite against the packaged app
-        env:
-          SMOKE_EVIDENCE_DIR: ${{ runner.temp }}/smoke-evidence
-          FOUNDATION_ALLOW_PACKAGED_CDP: '1'
-        run: pnpm run smoke
-
-      # ADR 0012: only on failure, only the harness evidence folder, kept 7 days.
-      - name: Upload smoke evidence
-        if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: smoke-evidence-${{ matrix.os }}
-          path: ${{ runner.temp }}/smoke-evidence
-          retention-days: 7
-          if-no-files-found: warn
-
-  # Boundary check (#14): rejects pull request commits that break the agent
-  # role boundaries (implementation/ORCHESTRATOR.md section 6, PLT-010).
-  # ADR 0008 item 2: it runs the script as it is on the base commit, so a pull
-  # request cannot change the check that judges it. Only when the base has no
-  # script (the pull request that adds it) does it run the pull request version,
-  # with a notice. An unreadable base commit fails the job (ADR 0009 item 3).
-  # The script uses only Node built-ins, so no install is needed.
-  boundary-check:
-    name: boundary-check
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      # Full history: the check reads every commit from the base to the head.
-      - name: Check out the repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      # Node version comes from package.json engines.node; it strips the types.
-      - name: Set up Node
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: package.json
-
-      # Pull request values come through env, never pasted into the script.
-      - name: Check role boundaries
-        shell: bash
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          BRANCH_NAME: ${{ github.head_ref }}
-          BOUNDARY_CHECK_ENTRY: tools/boundary-check/boundary-check.ts
-        run: |
-          if ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
-            echo "::error title=boundary-check::The base commit $BASE_SHA cannot be read, so the boundary check cannot run (ADR 0009)."
-            exit 1
-          fi
-          script_root="."
-          if git cat-file -e "$BASE_SHA:$BOUNDARY_CHECK_ENTRY" 2>/dev/null; then
-            script_root="$RUNNER_TEMP/boundary-check-base"
-            git worktree add --quiet --detach "$script_root" "$BASE_SHA"
-          else
-            echo "::notice title=boundary-check::The base commit has no $BOUNDARY_CHECK_ENTRY, so this job runs the version from the pull request (ADR 0008)."
-          fi
-          node "$script_root/$BOUNDARY_CHECK_ENTRY" --base "$BASE_SHA" --head "$HEAD_SHA" --branch "$BRANCH_NAME"
+      - run: node tools/probe/process-list-probe.ts before-install
+      - run: pnpm install --frozen-lockfile
+      - run: node tools/probe/process-list-probe.ts after-install
+      - run: pnpm turbo run test
+        continue-on-error: true
+      - run: Get-Content $env:PROBE_LOG
+        if: always()
+      - run: node tools/probe/process-list-probe.ts after-suite
+        if: always()

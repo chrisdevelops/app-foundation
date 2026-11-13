@@ -7,7 +7,7 @@
 // process that is still running fails the gate with its name and command
 // line, and is never killed silently.
 import { spawnSync } from 'node:child_process';
-import { existsSync, rmSync } from 'node:fs';
+import { appendFileSync, existsSync, rmSync } from 'node:fs';
 import { sep } from 'node:path';
 
 export interface RunningProcess {
@@ -30,12 +30,14 @@ interface WindowsProcessEntry {
 /** Every running process, from PowerShell on Windows and `ps` elsewhere. Throws when the list cannot be read. */
 export function listRunningProcesses(): RunningProcess[] {
   if (process.platform === 'win32') {
+    const probeStart = Date.now();
     const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', windowsProcessQuery], {
       encoding: 'utf8',
       windowsHide: true,
       maxBuffer: 64 * 1024 * 1024,
       timeout: 60_000,
     });
+    if (process.env.PROBE_LOG) appendFileSync(process.env.PROBE_LOG, `${new Date().toISOString()} ${Date.now() - probeStart} ms status=${String(result.status)} signal=${String(result.signal)} error=${String((result.error as NodeJS.ErrnoException | undefined)?.code)} out=${result.stdout?.length ?? 0} ${new Error().stack?.split('\n').slice(2, 6).join(' <- ')}\n`);
     if (result.status !== 0) {
       throw new Error(`could not list processes with PowerShell (exit ${String(result.status)}): ${result.stderr}`);
     }
