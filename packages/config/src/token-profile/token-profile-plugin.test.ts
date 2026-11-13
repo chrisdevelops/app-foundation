@@ -205,10 +205,13 @@ describe('token profile plugin: $ref guard (TOK-176, TOK-177)', () => {
     return { repoDir, packageDir };
   }
 
-  function runConfigHook(packageDir: string): { readonly thrown: unknown; readonly lines: string[] } {
+  function runConfigHook(
+    packageDir: string,
+    tokens: readonly URL[] = [pathToFileURL(join(packageDir, 'tokens', 'ui.resolver.json'))],
+  ): { readonly thrown: unknown; readonly lines: string[] } {
     const plugin = tokenProfilePlugin({ packageRoot: pathToFileURL(`${packageDir}/`) });
     const config = {
-      tokens: [pathToFileURL(join(packageDir, 'tokens', 'ui.resolver.json'))],
+      tokens,
       lint: { rules: {} },
       plugins: [],
     };
@@ -270,6 +273,96 @@ describe('token profile plugin: $ref guard (TOK-176, TOK-177)', () => {
     expect(run.lines[0]).toContain('leaves the repo root');
   });
 
+  // Positive control for the fail-closed cases below (#20 review 1): plain JSON still builds.
+  it('allows a strict JSON token file that holds an in-repo $ref to another *.json file', () => {
+    const { packageDir } = packageWithRef('ref/nested.tokens.json');
+    writeFileSync(
+      join(packageDir, 'tokens', 'ref', 'nested.tokens.json'),
+      JSON.stringify({ ref: { extra: { $ref: '../../../shared/extra.tokens.json#/ref' } } }, null, 2),
+    );
+    const run = runConfigHook(packageDir);
+    expect(run.thrown).toBeUndefined();
+    expect(run.lines).toEqual([]);
+  });
+
+  it('does not report a missing $ref target: Terrazzo reports it', () => {
+    const { packageDir } = packageWithRef('ref/missing.tokens.json');
+    const run = runConfigHook(packageDir);
+    expect(run.thrown).toBeUndefined();
+    expect(run.lines).toEqual([]);
+  });
+
+  /** Replaces the resolver of `packageWithRef` with raw text. */
+  const writeResolverText = (packageDir: string, text: string): void =>
+    writeFileSync(join(packageDir, 'tokens', 'ui.resolver.json'), text);
+
+  it.each([
+    {
+      label: 'a $ref key written with an escape next to an in-repo $ref',
+      text: '{ "version": "2025.10", "sets": { "ref": { "sources": [{ "\\u0024ref": "https://example.com/a.json", "$ref": "ref/color.tokens.json" }] } } }',
+      expected: [
+        'tokens/ui.resolver.json#sets.ref.sources.0.$ref: ui/ref-guard: an object holds more than one "$ref" member',
+        'tokens/ui.resolver.json#sets.ref.sources.0.$ref: ui/ref-guard: $ref "https://example.com/a.json" is a remote URL',
+      ],
+    },
+    {
+      label: 'a duplicate "sets" key whose first value (dropped by JSON.parse) holds a remote $ref',
+      text: '{ "version": "2025.10", "sets": { "ref": { "sources": [{ "$ref": "https://example.com/a.json" }] } }, "sets": { "ref": { "sources": [{ "$ref": "ref/color.tokens.json" }] } } }',
+      expected: [
+        'tokens/ui.resolver.json#sets.ref.sources.0.$ref: ui/ref-guard: $ref "https://example.com/a.json" is a remote URL',
+      ],
+    },
+    {
+      label: 'a top level that is not an object (Terrazzo reads a bare value as YAML)',
+      text: '"ref/color.tokens.json"',
+      expected: ['tokens/ui.resolver.json#$: ui/ref-guard: tokens/ui.resolver.json is not strict JSON'],
+    },
+    {
+      label: 'a trailing comma (JSONC, not JSON)',
+      text: '{ "version": "2025.10", }',
+      expected: ['tokens/ui.resolver.json#$: ui/ref-guard: tokens/ui.resolver.json is not strict JSON'],
+    },
+  ])('refuses a resolver with $label', ({ text, expected }) => {
+    const { packageDir } = packageWithRef('ref/color.tokens.json');
+    writeResolverText(packageDir, text);
+    const run = runConfigHook(packageDir);
+    expect(run.thrown).toBeInstanceOf(Error);
+    expect(run.lines).toHaveLength(expected.length);
+    for (const [index, start] of expected.entries()) expect(run.lines[index]).toContain(start);
+  });
+
+  it('refuses a $ref to an in-repo file that is not *.json, without reading it', () => {
+    const { packageDir } = packageWithRef('ref/extra.tokens.yaml');
+    const run = runConfigHook(packageDir);
+    expect(run.thrown).toBeInstanceOf(Error);
+    expect(run.lines).toEqual([
+      expect.stringMatching(
+        /^tokens\/ui\.resolver\.json#sets\.ref\.sources\.1\.\$ref: ui\/ref-guard: \$ref "ref\/extra\.tokens\.yaml" names a file that is not \*\.json/,
+      ),
+    ]);
+  });
+
+  it.each([
+    { label: 'a remote URL', entry: () => new URL('https://example.com/ui.resolver.json'), reason: 'not a local file' },
+    {
+      label: 'a file outside the repo root',
+      entry: () => pathToFileURL(join(writePackage({ 'ui.resolver.json': {} }), 'ui.resolver.json')),
+      reason: 'outside the repo root',
+    },
+    {
+      label: 'an in-repo file that is not *.json',
+      entry: (packageDir: string) => pathToFileURL(join(packageDir, 'tokens', 'ui.resolver.yaml')),
+      reason: 'is not \\*\\.json',
+    },
+  ])('refuses a config.tokens entry that is $label', ({ entry, reason }) => {
+    const { packageDir } = packageWithRef('ref/color.tokens.json');
+    const run = runConfigHook(packageDir, [entry(packageDir)]);
+    expect(run.thrown).toBeInstanceOf(Error);
+    expect(run.lines).toEqual([
+      expect.stringMatching(new RegExp(`^terrazzo\\.config\\.ts#tokens\\.0: ui/ref-guard: .*${reason}`)),
+    ]);
+  });
+
   it('refuses a remote $ref inside a token file that the resolver names', () => {
     const { packageDir } = packageWithRef('ref/nested.tokens.json');
     writeFileSync(
@@ -281,5 +374,72 @@ describe('token profile plugin: $ref guard (TOK-176, TOK-177)', () => {
     expect(run.lines).toEqual([
       'tokens/ref/nested.tokens.json#ref.extra.$ref: ui/ref-guard: $ref "https://example.com/extra.json" is a remote URL; only relative paths inside the repo are allowed (TOK-176)',
     ]);
+  });
+});
+
+// #20 review 1, finding 3: a lint error that the profile prints in the strict
+// shape must fail the build, also when Terrazzo asks to go on (`continueOnError`).
+describe('token profile plugin: a printed lint error fails the build (TOK-155)', () => {
+  let stderr: MockInstance<typeof process.stderr.write>;
+
+  beforeEach(() => {
+    stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    stderr.mockRestore();
+  });
+
+  /** Runs the config hook with a lint plugin, lints one token of `validPackage` and logs one rule error at it. */
+  function logLintError(logger: { errorCount?: number; error: (...entries: unknown[]) => void }): unknown {
+    const packageDir = validPackage();
+    const plugin = tokenProfilePlugin({ packageRoot: pathToFileURL(`${packageDir}/`) });
+    const tokenNode = { type: 'Object' };
+    const lintPlugin = {
+      name: 'fake-lint',
+      lint: () => ({ 'core/max-gamut': { meta: {}, create: () => ({}) } }),
+    } as unknown as Plugin;
+    (plugin.config as ConfigHook)(
+      {
+        tokens: [pathToFileURL(join(packageDir, 'tokens', 'ui.resolver.json'))],
+        lint: { rules: {} },
+        plugins: [lintPlugin],
+      } as unknown as Parameters<ConfigHook>[0],
+      { logger } as never,
+    );
+    const rules = (lintPlugin.lint as () => Record<string, { create: (context: unknown) => unknown }>)();
+    rules['core/max-gamut']?.create({
+      tokens: { 'color.ui-color-bg-default': { id: 'color.ui-color-bg-default', source: { node: tokenNode } } },
+    });
+    try {
+      logger.error({
+        group: 'lint',
+        label: 'core/max-gamut',
+        node: tokenNode,
+        message: 'out of sRGB',
+        continueOnError: true,
+      });
+    } catch (error) {
+      return error;
+    }
+    return undefined;
+  }
+
+  const printedLines = (): string[] =>
+    stderr.mock.calls.flatMap(([chunk]) => String(chunk).split('\n')).filter((line) => line !== '');
+
+  it('counts the error in the logger when Terrazzo asks to go on', () => {
+    const logger = { errorCount: 0, error: () => undefined };
+    expect(logLintError(logger)).toBeUndefined();
+    expect(logger.errorCount).toBe(1);
+    expect(printedLines()).toEqual([
+      'tokens/theme/light.tokens.json#color.ui-color-bg-default: core/max-gamut: out of sRGB',
+    ]);
+  });
+
+  it('throws when the logger has no error count', () => {
+    const logger = { error: () => undefined };
+    expect(logLintError(logger)).toBeInstanceOf(Error);
+    expect(printedLines()).toHaveLength(1);
   });
 });

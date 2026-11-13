@@ -143,12 +143,18 @@ export function createStrictTokenErrorOutput(options: StrictTokenErrorOutputOpti
         return;
       }
       writeTokenBuildErrors(located, options.written);
+      // Each printed error fails the build (#20 review 1, finding 3): Terrazzo
+      // counts it, as its own `error` does, and fails the build when the count
+      // is not zero.
+      logger.errorCount += located.length;
       // Errors with no token location (A5: parser errors, for example) keep Terrazzo's format.
       if (others.length > 0) {
         terrazzoError(...others);
         return;
       }
-      if (entries.every((entry) => entry.continueOnError)) return;
+      // Terrazzo asked to go on and collect more errors: the count above fails
+      // the build later. A logger with no numeric count (NaN) throws instead.
+      if (entries.every((entry) => entry.continueOnError) && logger.errorCount > 0) return;
       throw tokenBuildFailure(options.written);
     };
   };
