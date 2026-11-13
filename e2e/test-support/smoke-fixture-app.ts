@@ -16,8 +16,8 @@
 // It writes what it did to `window-state.json`
 // (`SmokeFixtureWindowState`) every 200 ms, so a gate can read, on every
 // platform, which value the launch got and whether a window was ever shown
-// or focused. Each process writes through its own temporary file and ignores a
-// failed write, so concurrent launches of one build never collide; the file
+// or focused, and which command-line arguments it got (ADR 0016). Each
+// process writes through its own temporary file and ignores a failed write, so concurrent launches of one build never collide; the file
 // holds the state of the instance that wrote last (gates that read it run one
 // instance at a time).
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync, cpSync, rmSync, existsSync } from 'node:fs';
@@ -85,6 +85,11 @@ export interface SmokeFixtureWindowState {
   readonly backgroundVariable: string | null;
   /** True when the fixture switched to background mode. */
   readonly backgroundMode: boolean;
+  /**
+   * The command-line arguments the fixture's main process got, after the executable (`process.argv.slice(1)`):
+   * what the launcher passed, so a gate can read the switches (ADR 0016: `--disable-gpu`).
+   */
+  readonly launchArguments: readonly string[];
   readonly windows: ReadonlyArray<{
     readonly title: string;
     /** BrowserWindow.isVisible() now. */
@@ -177,6 +182,7 @@ function writeWindowState() {
   const state = {
     backgroundVariable: backgroundVariable === undefined ? null : backgroundVariable,
     backgroundMode,
+    launchArguments: process.argv.slice(1),
     windows: windowStates
       .filter((entry) => !entry.window.isDestroyed())
       .map((entry) => ({

@@ -21,6 +21,13 @@
 // - macOS: the launch leaves the frontmost app unchanged (the front app is
 //   never one of the fixture's processes), shows no window on screen and no
 //   Dock icon (spike #43 method, tools/test-support/macos-window-probe.ts).
+// - ADR 0016: on Linux every harness launch in background mode passes
+//   `--disable-gpu` to Electron on its command line (the GPU-less Ubuntu
+//   runners can draw no frame for up to 13 s while the GPU process fails); a
+//   launch in a run with FOUNDATION_TEST_FOREGROUND=1 does not get it, and on
+//   macOS and Windows no launch gets it. Read from the arguments the fixture's
+//   main process got (packaged target) and from the command line of the running
+//   Electron main process (dev target).
 // The fixture app follows the same switch as the foundation and reports what
 // it did (e2e/test-support/smoke-fixture-app.ts, window-state.json), so the
 // launch mode is visible on every platform.
@@ -30,7 +37,11 @@
 import { rmSync } from 'node:fs';
 import type { Page } from 'playwright-core';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { listProcessesUsing, removeAppFolderAfterExit } from '../../tools/test-support/app-process-cleanup';
+import {
+  listProcessesUsing,
+  removeAppFolderAfterExit,
+  type RunningProcess,
+} from '../../tools/test-support/app-process-cleanup';
 import {
   focusProbeWatchMs,
   listPaintProbeProblems,
@@ -46,6 +57,7 @@ import {
   foregroundRunSkipReason,
   isForegroundTestRun,
   testBackgroundEnabledValue,
+  testBackgroundGpuSwitch,
   testBackgroundVariableName,
   testForegroundEnabledValue,
   testForegroundVariableName,
@@ -84,6 +96,10 @@ const fixtureStartupTimeoutMs = 60_000;
 const frontmostSettleMs = 1_500;
 /** ADR 0013 amendment 1: Linux and Windows show background windows without focus; macOS never shows them. */
 const backgroundWindowsAreShown = process.platform !== 'darwin';
+/** ADR 0016: only Linux background launches run without the GPU process. */
+const backgroundLaunchesDisableGpu = process.platform === 'linux';
+/** Time the dev command gets to build main and preload and open the endpoint. */
+const devStartupTimeoutMs = 180_000;
 
 // DEFERRED: TST-010 (Windows smoke harness; ADR 0011, #39): every test in this file skips on Windows.
 beforeEach((context) => {
@@ -161,6 +177,21 @@ async function withRunForegroundValue<T>(value: string | undefined, action: () =
     if (saved === undefined) delete process.env[testForegroundVariableName];
     else process.env[testForegroundVariableName] = saved;
   }
+}
+
+/** True when `args` holds the ADR 0016 switch as one whole argument. */
+function hasGpuSwitch(args: readonly string[]): boolean {
+  return args.includes(testBackgroundGpuSwitch);
+}
+
+/**
+ * The Electron main (browser) processes among `processes`: the executable is Electron itself (not pnpm,
+ * node, a shell or xvfb-run, which may carry the same arguments) and it is not a Chromium helper (`--type=`).
+ */
+function electronMainProcesses(processes: readonly RunningProcess[]): RunningProcess[] {
+  return processes.filter(
+    (entry) => !/(^|\s)--type=/.test(entry.command) && /[\\/]electron(\.exe)?(\s|$)/i.test(entry.command),
+  );
 }
 
 afterAll(async () => {
@@ -246,6 +277,73 @@ describe('smoke harness: background mode by default', () => {
         } finally {
           await app.teardown();
         }
+      }
+    },
+  );
+
+  // TST-018; ADR 0016 rules 1 to 3 (packaged target: the fixture reports the arguments its main process got)
+  it(
+    backgroundLaunchesDisableGpu
+      ? `TST-018: on Linux a background harness launch passes ${testBackgroundGpuSwitch} to Electron, and a launch with ${testForegroundVariableName}=${testForegroundEnabledValue} does not`
+      : `TST-018: on ${process.platform} no harness launch passes ${testBackgroundGpuSwitch} to Electron, in background mode or with ${testForegroundVariableName}=${testForegroundEnabledValue}`,
+    slow,
+    async () => {
+      const cases: ReadonlyArray<[string | undefined, boolean]> = [
+        [undefined, backgroundLaunchesDisableGpu],
+        [testForegroundEnabledValue, false],
+        ['0', backgroundLaunchesDisableGpu],
+      ];
+      const seen: string[] = [];
+      for (const [runValue, expected] of cases) {
+        // env-only: records its environment and arguments and opens no window, so no launch here takes focus.
+        const build = requireFixture({ mode: 'env-only' });
+        const app = await withRunForegroundValue(runValue, () => launchFixture(build));
+        try {
+          const state = await waitForFixtureState(build, () => true);
+          const args = state.launchArguments;
+          expect(
+            Array.isArray(args),
+            `control: the fixture must report its arguments (fixture state ${JSON.stringify(state)})`,
+          ).toBe(true);
+          seen.push(
+            `${testForegroundVariableName}=${JSON.stringify(runValue ?? null)} -> ${testBackgroundVariableName}=${JSON.stringify(state.backgroundVariable)}, arguments ${JSON.stringify(args)}`,
+          );
+          expect(
+            hasGpuSwitch(args),
+            `on ${process.platform}, with ${testForegroundVariableName}=${JSON.stringify(runValue ?? null)} in the run's environment, the harness must ${expected ? '' : 'not '}pass ${testBackgroundGpuSwitch} to Electron (ADR 0016); launches so far:\n${seen.join('\n')}`,
+          ).toBe(expected);
+        } finally {
+          await app.teardown();
+        }
+      }
+    },
+  );
+
+  // TST-018; ADR 0016 rules 1 and 3 (dev target: the command line of the running Electron main process)
+  it(
+    backgroundLaunchesDisableGpu
+      ? `TST-018: on Linux a background harness launch of the dev build runs the Electron main process with ${testBackgroundGpuSwitch}`
+      : `TST-018: on ${process.platform} a background harness launch of the dev build runs the Electron main process without ${testBackgroundGpuSwitch}`,
+    { timeout: 600_000 },
+    async () => {
+      const harness = await loadSmokeHarness();
+      const app = await harness.launchSmokeApp({ target: { kind: 'dev' }, startupTimeoutMs: devStartupTimeoutMs });
+      startedApps.push(app);
+      userDataDirs.add(app.userDataDir);
+      try {
+        const processes = listProcessesUsing(app.userDataDir);
+        const mains = electronMainProcesses(processes);
+        const listing = processes.map((entry) => `  ${entry.pid} ${entry.command}`).join('\n');
+        expect(
+          mains,
+          `control: the Electron main process of the dev launch must run with the harness user data folder; processes:\n${listing}`,
+        ).not.toEqual([]);
+        expect(
+          mains.filter((entry) => hasGpuSwitch(entry.command.split(/\s+/)) !== backgroundLaunchesDisableGpu),
+          `on ${process.platform} the dev build's Electron main process must run ${backgroundLaunchesDisableGpu ? 'with' : 'without'} ${testBackgroundGpuSwitch} in background mode (ADR 0016); processes:\n${listing}`,
+        ).toEqual([]);
+      } finally {
+        await app.teardown();
       }
     },
   );
