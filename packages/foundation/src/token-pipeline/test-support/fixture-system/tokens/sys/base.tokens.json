@@ -1,0 +1,14 @@
+{
+  "radius": {
+    "ui-radius-control-default": {
+      "$type": "dimension",
+      "$value": "{ref.space.ui-ref-space-4}",
+      "$description": "Corner radius for controls.",
+      "$extensions": {
+        "io.github.chrisdevelops.ui": {
+          "usage": "Buttons, inputs and other controls."
+        }
+      }
+    }
+  }
+}

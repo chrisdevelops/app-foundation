@@ -1,0 +1,11 @@
+{
+  "ref": {
+    "font-family": {
+      "ui-ref-font-family-ui": {
+        "$type": "fontFamily",
+        "$value": ["system-ui", "sans-serif"],
+        "$description": "UI font stack."
+      }
+    }
+  }
+}

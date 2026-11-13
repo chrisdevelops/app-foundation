@@ -1,0 +1,16 @@
+{
+  "dialog": {
+    "trigger": {
+      "ui-dialog__trigger__color-fg-default": {
+        "$type": "color",
+        "$value": "{color.ui-color-fg-default}",
+        "$description": "Text of the dialog trigger.",
+        "$extensions": {
+          "io.github.chrisdevelops.ui": {
+            "usage": "The dialog trigger part only."
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "ref": {
+    "color": {
+      "ui-ref-color-gray-50": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [0.98, 0.003, 250]
+        },
+        "$description": "Lightest gray step for surfaces."
+      },
+      "ui-ref-color-gray-900": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [0.22, 0.01, 250]
+        },
+        "$description": "Dark gray step for body text."
+      },
+      "ui-ref-color-gray-950": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [0.14, 0.01, 250]
+        },
+        "$description": "Darkest gray step for surfaces and text."
+      },
+      "ui-ref-color-brand-100": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [0.92, 0.03, 260]
+        },
+        "$description": "Light brand step."
+      },
+      "ui-ref-color-brand-600": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [0.52, 0.19, 260]
+        },
+        "$description": "Mid brand step."
+      },
+      "ui-ref-color-brand-900": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [0.3, 0.1, 260]
+        },
+        "$description": "Dark brand step."
+      }
+    }
+  }
+}
