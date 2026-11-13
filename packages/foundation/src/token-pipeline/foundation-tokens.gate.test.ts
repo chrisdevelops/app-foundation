@@ -12,8 +12,10 @@
 //   `usage` in the profile extension. (Token lint enforces these in phase 2;
 //   this gate checks the files as they are.)
 // - Output: `tz build` on a copy of these files writes generated/tokens.css;
-//   the package script `tokens:build` (`tz build`) in packages/foundation
-//   itself writes it too; and generated/tokens.css is committed with the header.
+//   the package script `tokens:build` (`tz build`), run on a scratch copy of
+//   the package, writes the same bytes as the committed generated/tokens.css
+//   (line endings normalized); and generated/tokens.css is committed with the
+//   header. No gate removes, moves or writes a tracked file (#19 review F1).
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -24,7 +26,7 @@ import {
   foundationDir,
   listFilesRelative,
   removeTokenBuildDirs,
-  runFoundationTokensBuildInPlace,
+  runFoundationTokensBuildInScratchCopy,
   type TokenBuildResult,
 } from './test-support/token-build';
 import { parseTokenCss } from './test-support/token-css';
@@ -287,13 +289,17 @@ describe('foundation tokens: tz build', { timeout: 240_000 }, () => {
   });
 
   // TOK-111, TOK-112: the package's own token build script (`tokens:build`,
-  // which is `tz build`) runs in packages/foundation itself, not only in a
-  // copy, on every CI platform (#19 attempt 2: Windows). The helper moves the
-  // committed generated/ aside for the build and moves it back afterwards.
-  it('TOK-111: pnpm run tokens:build in packages/foundation itself writes generated/tokens.css with the header and a variable per token', () => {
+  // which is `tz build`) runs as a developer runs it in packages/foundation, on
+  // every CI platform (#19 attempt 2: Windows). It runs on a scratch copy of
+  // the package (package.json, terrazzo.config.ts, tokens/, component token
+  // files), so the committed generated/ is never touched (#19 review F1).
+  it('TOK-111: pnpm run tokens:build writes generated/tokens.css with the header and a variable per token, equal to the committed file', () => {
     const tokens = allFoundationTokens();
-    const build = runFoundationTokensBuildInPlace();
-    const described = `\`${build.run.command}\` in packages/foundation exited ${build.run.exitCode}:\n${build.run.output.slice(-4000)}`;
+    const build = runFoundationTokensBuildInScratchCopy();
+    const described = `\`${build.run.command}\` in ${build.packageCopyDir} exited ${build.run.exitCode}:\n${build.run.output.slice(-4000)}`;
+    expect(build.copiedFiles, 'the scratch copy must hold the package.json with the tokens:build script').toContain(
+      'package.json',
+    );
     expect(build.run.exitCode, described).toBe(0);
     expect(build.tokensCss, `generated/tokens.css was not written. ${described}`).toBeDefined();
     const css = (build.tokensCss ?? Buffer.alloc(0)).toString('utf8');
@@ -303,6 +309,14 @@ describe('foundation tokens: tz build', { timeout: 240_000 }, () => {
     const names = new Set(parsed.blocks.flatMap((block) => block.declarations.map((declaration) => declaration.name)));
     for (const token of tokens)
       expect(names.has(`--${token.leaf}`), `tokens.css must declare --${token.leaf}`).toBe(true);
+    // The committed file is the output of this build (line endings normalized:
+    // a Windows checkout may have CRLF). The full drift check is TOK-151.
+    const committed = join(foundationDir, 'generated', 'tokens.css');
+    expect(existsSync(committed), 'packages/foundation/generated/tokens.css must be committed').toBe(true);
+    expect(
+      css.replace(/\r\n/g, '\n'),
+      'packages/foundation/generated/tokens.css must equal the output of `pnpm run tokens:build`',
+    ).toBe(readFileSync(committed, 'utf8').replace(/\r\n/g, '\n'));
   });
 
   // TOK-111: committed, with the header (the drift check against a fresh build is TOK-151, phase 2)

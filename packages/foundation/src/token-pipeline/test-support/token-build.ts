@@ -18,16 +18,7 @@
 // showed this for a junction on C: and on D:, with short (8.3) and long
 // paths; a folder below a real node_modules resolved (#19, attempt 2).
 import { createHash } from 'node:crypto';
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-} from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -116,38 +107,60 @@ export function removeTokenBuildDirs(): void {
   for (const dir of createdBuildDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 }
 
-const foundationGeneratedDir = join(foundationDir, 'generated');
+/** Is `file` (relative to packages/foundation, with `/`) needed by the package's token build script? */
+function isFoundationTokenBuildInput(file: string): boolean {
+  return (
+    file === 'package.json' ||
+    file === 'terrazzo.config.ts' ||
+    (file.startsWith('tokens/') && file.endsWith('.json')) ||
+    (file.startsWith('src/components/') && file.endsWith('.tokens.json'))
+  );
+}
 
 /**
  * Runs the package's own token build script (`pnpm run tokens:build`, which is
- * `tz build`) in packages/foundation itself, as a developer does, and returns
+ * `tz build`) the way a developer runs it in packages/foundation, and returns
  * what it wrote to generated/tokens.css.
  *
- * The committed generated/ folder is moved aside (into `tokenBuildScratchDir`)
- * for the build, so the result shows whether this run wrote tokens.css, and is
- * moved back afterwards. It is moved, never rewritten: on Windows checkouts
- * with core.autocrlf the committed files have CRLF line endings, and
- * rewriting them, even with the same bytes, changed the Turborepo hashes of
- * seven tasks (probe on windows-latest, #19 attempt 2), which broke the PLT-004
- * cache-hit gate. Moving the folder back keeps the files as they were.
+ * It runs in a scratch copy of the package, never in packages/foundation
+ * itself: the copy holds package.json (so the script is the package's own),
+ * terrazzo.config.ts, tokens/ and every src/components/ token file, with the
+ * folder layout kept, and no generated/ folder (so a tokens.css in the copy
+ * was written by this run). The copy is below packages/foundation/node_modules,
+ * so pnpm finds the `tz` bin and the config finds its packages by the normal
+ * parent-folder lookup, with no `node_modules` link (Windows, #19 attempt 2).
+ *
+ * Why not in place (#19 attempt 2): the committed generated/ had to be moved
+ * aside for the build. The root `//#test` task runs at the same time, and a
+ * clean clone made in that window had no generated/tokens.css, so the
+ * PLT-003/PLT-004 gates failed at random; a killed run also left the checkout
+ * dirty (#19 review F1). Rewriting the committed file instead changed the
+ * Turborepo hashes on Windows CRLF checkouts. This helper reads tracked files
+ * only, and never removes, moves or writes one.
  */
-export function runFoundationTokensBuildInPlace(): {
+export function runFoundationTokensBuildInScratchCopy(): {
   readonly run: RepoCommandResult;
+  readonly packageCopyDir: string;
+  readonly copiedFiles: readonly string[];
   readonly tokensCss: Buffer | undefined;
 } {
   mkdirSync(tokenBuildScratchDir, { recursive: true });
-  const parkedDir = join(mkdtempSync(join(tokenBuildScratchDir, 'committed-generated-')), 'generated');
-  const hadGenerated = existsSync(foundationGeneratedDir);
-  if (hadGenerated) renameSync(foundationGeneratedDir, parkedDir);
-  try {
-    const run = runRepoCommand('pnpm', ['run', 'tokens:build'], { cwd: foundationDir, timeoutMs: 180_000 });
-    const tokensCssPath = join(foundationGeneratedDir, 'tokens.css');
-    return { run, tokensCss: existsSync(tokensCssPath) ? readFileSync(tokensCssPath) : undefined };
-  } finally {
-    rmSync(foundationGeneratedDir, { recursive: true, force: true });
-    if (hadGenerated) renameSync(parkedDir, foundationGeneratedDir);
-    rmSync(dirname(parkedDir), { recursive: true, force: true });
+  const packageCopyDir = mkdtempSync(join(tokenBuildScratchDir, 'package-'));
+  createdBuildDirs.push(packageCopyDir);
+  const copiedFiles = listFilesRelative(foundationDir).filter(isFoundationTokenBuildInput);
+  for (const file of copiedFiles) {
+    const target = join(packageCopyDir, ...file.split('/'));
+    mkdirSync(dirname(target), { recursive: true });
+    copyFileSync(join(foundationDir, ...file.split('/')), target);
   }
+  const run = runRepoCommand('pnpm', ['run', 'tokens:build'], { cwd: packageCopyDir, timeoutMs: 180_000 });
+  const tokensCssPath = join(packageCopyDir, 'generated', 'tokens.css');
+  return {
+    run,
+    packageCopyDir,
+    copiedFiles,
+    tokensCss: existsSync(tokensCssPath) ? readFileSync(tokensCssPath) : undefined,
+  };
 }
 
 interface PackageManifestWithBin {
