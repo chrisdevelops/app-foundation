@@ -1,0 +1,14 @@
+{
+  "font-family": {
+    "ui-font-family-body-default": {
+      "$type": "fontFamily",
+      "$value": "{ref.font-family.ui-ref-font-family-ui}",
+      "$description": "Font for body text and controls.",
+      "$extensions": {
+        "io.github.chrisdevelops.ui": {
+          "usage": "Text in windows, panels and controls."
+        }
+      }
+    }
+  }
+}

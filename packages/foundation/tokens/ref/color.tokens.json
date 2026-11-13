@@ -1,0 +1,38 @@
+{
+  "ref": {
+    "color": {
+      "ui-ref-color-gray-50": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [0.985, 0.002, 247.8]
+        },
+        "$description": "Lightest neutral step, for surfaces in light themes."
+      },
+      "ui-ref-color-gray-100": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [0.967, 0.003, 264.5]
+        },
+        "$description": "Very light neutral step, for text in dark themes."
+      },
+      "ui-ref-color-gray-900": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [0.21, 0.006, 285.9]
+        },
+        "$description": "Very dark neutral step, for text in light themes."
+      },
+      "ui-ref-color-gray-950": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [0.141, 0.005, 285.8]
+        },
+        "$description": "Darkest neutral step, for surfaces in dark themes and text in high contrast."
+      }
+    }
+  }
+}

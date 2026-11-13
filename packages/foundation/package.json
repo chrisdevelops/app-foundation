@@ -13,11 +13,15 @@
     "./main/test-background-variable": "./src/main/test-background-variable.ts"
   },
   "scripts": {
+    "tokens:build": "tz build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run"
   },
   "devDependencies": {
+    "@foundation/config": "workspace:*",
+    "@terrazzo/cli": "2.10.0",
+    "@terrazzo/plugin-css": "2.10.0",
     "@types/node": "24.19.2",
     "electron": "45.3.0",
     "eslint": "10.14.0",

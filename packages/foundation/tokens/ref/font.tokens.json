@@ -1,0 +1,11 @@
+{
+  "ref": {
+    "font-family": {
+      "ui-ref-font-family-ui": {
+        "$type": "fontFamily",
+        "$value": ["system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
+        "$description": "UI font stack: the system font with platform fallbacks."
+      }
+    }
+  }
+}

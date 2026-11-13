@@ -1,0 +1,14 @@
+{
+  "button": {
+    "ui-button__color-fg-default": {
+      "$type": "color",
+      "$value": "{color.ui-color-fg-default}",
+      "$description": "Text of a button.",
+      "$extensions": {
+        "io.github.chrisdevelops.ui": {
+          "usage": "The label of ui-button only."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "@foundation/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./token-profile-plugin": "./src/token-profile/token-profile-plugin.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@terrazzo/cli": "2.10.0",
+    "@terrazzo/plugin-css": "2.10.0",
+    "@types/node": "24.19.2",
+    "eslint": "10.14.0",
+    "typescript": "6.0.3",
+    "vite": "8.3.8",
+    "vitest": "5.1.0"
+  }
+}

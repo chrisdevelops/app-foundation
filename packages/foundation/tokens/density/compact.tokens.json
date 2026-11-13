@@ -1,0 +1,14 @@
+{
+  "space": {
+    "ui-space-inset-control-default": {
+      "$type": "dimension",
+      "$value": "{ref.space.ui-ref-space-6}",
+      "$description": "Padding inside controls.",
+      "$extensions": {
+        "io.github.chrisdevelops.ui": {
+          "usage": "Buttons, inputs and other controls."
+        }
+      }
+    }
+  }
+}
