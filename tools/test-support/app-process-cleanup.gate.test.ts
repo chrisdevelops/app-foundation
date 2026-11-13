@@ -16,17 +16,25 @@
 //   message starts with `could not list processes`, names the number of
 //   attempts and says why each one failed (here: timed out); it never returns
 //   an empty or partial list instead.
+// - removeAppFolderAfterExit(dir) removes a folder right after the program
+//   that ran from it is stopped, although Windows still locks the program's
+//   files for a moment (probe PR #51).
 // - listProcessesUsing(dir) finds a process started with `--user-data-dir=<dir>`,
 //   also when the value is quoted (`--user-data-dir="<dir>"`, as Chromium starts
 //   its renderer and GPU helpers on Windows; probe PR #50 saw cleanup remove a
 //   folder while such helpers still ran), and stops finding it once the
 //   process has exited.
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { listProcessesUsing, listRunningProcesses, waitForProcessesToExit } from './app-process-cleanup';
+import {
+  listProcessesUsing,
+  listRunningProcesses,
+  removeAppFolderAfterExit,
+  waitForProcessesToExit,
+} from './app-process-cleanup';
 
 const windows = process.platform === 'win32';
 /** Upper bound for one listing (#46: 21-60 s on Windows runners before the fix; under 1 s after). */
@@ -151,6 +159,29 @@ describe('process listing for gate-test cleanup (TST-011, #46)', () => {
       child.kill();
       await waitForProcessesToExit(dir, 'process list gate quoted sleeper', 30_000);
       expect(listProcessesUsing(dir)).toEqual([]);
+    },
+  );
+
+  // TST-011 (#46, probe PR #51: Windows locks an exited program's files for a moment)
+  it(
+    'TST-011: removeAppFolderAfterExit removes a folder right after the program that ran from it is stopped, three times in a row',
+    { timeout: 300_000 },
+    async () => {
+      for (let round = 1; round <= 3; round += 1) {
+        const dir = makeUserDataDir();
+        const program = join(dir, windows ? 'gate-program.exe' : 'gate-program');
+        copyFileSync(process.execPath, program);
+        const child = spawn(program, ['-e', 'setTimeout(() => {}, 120000)'], { stdio: 'ignore', windowsHide: true });
+        started.push(child);
+        await waitForListed(child.pid as number, 30_000);
+        expect(
+          listProcessesUsing(dir).map((entry) => entry.pid),
+          'control: the program runs from the folder',
+        ).toEqual([child.pid]);
+        child.kill();
+        await removeAppFolderAfterExit(dir, `process list gate program folder (round ${round})`);
+        expect(existsSync(dir), `round ${round}: the folder is gone`).toBe(false);
+      }
     },
   );
 

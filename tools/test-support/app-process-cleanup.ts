@@ -199,20 +199,40 @@ export async function waitForProcessesToExit(path: string, label: string, timeou
   }
 }
 
+/** How long removal retries a folder that Windows still locks after its processes exited. */
+const removalRetryLimitMs = 30_000;
+const removalRetryDelayMs = 500;
+/** Codes Windows gives while it still releases an exited program's files. */
+const retryableRemovalCodes = new Set(['EPERM', 'EACCES', 'EBUSY', 'ENOTEMPTY']);
+
 /**
- * Removes `path` once no process uses it. `fs.rm` retries EPERM, EBUSY
- * and ENOTEMPTY (Windows releases file handles a moment after a process
- * exits); a folder that still cannot be removed fails with a clear message.
+ * Removes `path` once no process uses it. Windows releases an exited
+ * program's image and file handles a moment after the process ends, so
+ * removal retries EPERM, EACCES, EBUSY and ENOTEMPTY for up to 30 s. It retries
+ * itself: Node 24's `rmSync` does not retry Windows "access denied"
+ * (reported as `EPERM, Permission denied`), whatever `maxRetries` says (#46,
+ * probe PR #51: the folder held no handle and every file deleted a few seconds
+ * after rmSync failed). A folder that still cannot be removed fails with a
+ * clear message.
  */
 export async function removeAppFolderAfterExit(path: string, label: string): Promise<void> {
   if (!existsSync(path)) return;
   await waitForProcessesToExit(path, label);
-  try {
-    rmSync(path, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
-  } catch (error) {
-    throw new Error(
-      `${label}: could not remove ${path} after every process using it exited (${(error as NodeJS.ErrnoException).code ?? String(error)})`,
-      { cause: error },
-    );
+  const startedAt = Date.now();
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      rmSync(path, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      const elapsedMs = Date.now() - startedAt;
+      if (code === undefined || !retryableRemovalCodes.has(code) || elapsedMs >= removalRetryLimitMs) {
+        throw new Error(
+          `${label}: could not remove ${path} after every process using it exited (${code ?? String(error)}; ${attempt} ${attempt === 1 ? 'attempt' : 'attempts'} in ${elapsedMs} ms)`,
+          { cause: error },
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, removalRetryDelayMs));
+    }
   }
 }
