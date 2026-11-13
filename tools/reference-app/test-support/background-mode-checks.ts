@@ -14,20 +14,24 @@
 // remaining steps do not run (the page no longer answers), so a hang fails in
 // seconds with the step that hung.
 import {
-  animationFramesPerSecondExpression,
   backgroundProbeStepTimeoutMs,
   focusKeyProbeInputExpression,
   focusProbeWatchMs,
   keyProbeText,
   listDocumentFocusProblems,
+  listPaintProbeProblems,
   listScreenshotProbeProblems,
-  minimumAnimationFramesPerSecond,
+  paintProbeExpression,
   paintScreenshotOverlayExpression,
   readKeyProbeValueExpression,
   removeScreenshotOverlayExpression,
   watchDocumentFocusExpression,
+  watchPaintAfterStallExpression,
   withBackgroundProbeTimeout,
   type DocumentFocusWatch,
+  type PaintProbeResult,
+  type PaintStallWatch,
+  type ScreenshotOverlayResult,
 } from '../../test-support/background-page-probes';
 import { dockApplicationType, readMacosAppPresence } from '../../test-support/macos-window-probe';
 import type { DevToolsSession } from './devtools-protocol-client';
@@ -52,23 +56,68 @@ function describeError(error: unknown): string {
 /** Problems with painting, screenshots and key input in the page of `session`; empty when all work. */
 export async function listBackgroundPageProblems(session: DevToolsSession): Promise<string[]> {
   const problems: string[] = [];
+  // Diagnostics (#46 reviewer attempt 2, finding 1): each step and how long it took, so a failure
+  // tells a page Chromium treats as hidden from a stalled renderer. They never change the verdict.
+  const probeStart = Date.now();
+  const steps: string[] = [];
+  let lastStepAt = probeStart;
+  const noteStep = (name: string, detail = '') => {
+    const now = Date.now();
+    steps.push(`${name} ${now - lastStepAt} ms (at ${now - probeStart} ms)${detail === '' ? '' : `: ${detail}`}`);
+    lastStepAt = now;
+  };
+  // Page loads during the probe (a dev page that Vite or Forge reloads, for example), with their time.
+  const pageEvents: string[] = [];
+  const offPageEvents = ['Page.frameStartedLoading', 'Page.frameNavigated', 'Page.loadEventFired'].map((method) =>
+    session.on(method, (params) => {
+      const frame = (params.frame ?? {}) as { parentId?: string; url?: string };
+      if (frame.parentId) return;
+      pageEvents.push(`${method} at ${Date.now() - probeStart} ms${frame.url ? ` (${frame.url})` : ''}`);
+    }),
+  );
+  const addDiagnostics = () => {
+    // Electron answers no Browser.getWindowForTarget ("wasn't found"), and the main process (BrowserWindow
+    // isVisible) is not reachable over this port, so the page's own view is all the probe can report.
+    problems.push(
+      `diagnostics: steps [${steps.join('; ')}]; page events during the probe ${JSON.stringify(pageEvents)}`,
+    );
+  };
   try {
+    await probeSend(session, 'Page.enable').catch((error: unknown) => {
+      pageEvents.push(`Page.enable failed: ${describeError(error)}`);
+    });
     await session.waitForValue('document.readyState === "complete"', 30_000);
+    noteStep('readyState complete');
 
-    const frames = await probeEvaluate<number>(session, 'paint probe', animationFramesPerSecondExpression);
-    if (!(frames >= minimumAnimationFramesPerSecond)) {
-      problems.push(
-        `the page painted ${frames} animation frames in one second (at least ${minimumAnimationFramesPerSecond} expected)`,
-      );
+    const paint = await probeEvaluate<PaintProbeResult>(session, 'paint probe', paintProbeExpression);
+    noteStep('paint probe', `${paint?.frames} frames`);
+    const paintProblems = listPaintProbeProblems(paint);
+    problems.push(...paintProblems);
+    if (paintProblems.length > 0) {
+      const watch = await probeEvaluate<PaintStallWatch>(
+        session,
+        'paint stall watch (diagnostics only)',
+        watchPaintAfterStallExpression,
+      ).catch((error: unknown) => describeError(error));
+      noteStep('paint stall watch (diagnostics only)', JSON.stringify(watch));
     }
 
-    await probeEvaluate(session, 'screenshot overlay', paintScreenshotOverlayExpression);
+    const overlay = await probeEvaluate<ScreenshotOverlayResult>(
+      session,
+      'screenshot overlay',
+      paintScreenshotOverlayExpression,
+    );
+    noteStep('screenshot overlay', JSON.stringify(overlay));
     try {
       const shot = await probeSend(session, 'Page.captureScreenshot', { format: 'png' });
       const data = typeof shot.data === 'string' ? Buffer.from(shot.data, 'base64') : Buffer.alloc(0);
+      noteStep('Page.captureScreenshot', `${data.length} bytes`);
       problems.push(...listScreenshotProbeProblems(data));
     } catch (error) {
+      noteStep('Page.captureScreenshot', 'failed');
       problems.push(`Page.captureScreenshot failed: ${describeError(error)}`);
+      for (const off of offPageEvents) off();
+      addDiagnostics();
       return problems;
     }
     await probeEvaluate(session, 'remove screenshot overlay', removeScreenshotOverlayExpression);
@@ -80,14 +129,18 @@ export async function listBackgroundPageProblems(session: DevToolsSession): Prom
       await probeSend(session, 'Input.dispatchKeyEvent', { type: 'keyUp', key: character });
     }
     const typed = await probeEvaluate<string | null>(session, 'read key probe value', readKeyProbeValueExpression);
+    noteStep('key input');
     if (typed !== keyProbeText) {
       problems.push(
         `CDP key input typed ${JSON.stringify(keyProbeText)}, the focused input holds ${JSON.stringify(typed)}`,
       );
     }
   } catch (error) {
+    noteStep('failed step');
     problems.push(`a background probe step failed: ${describeError(error)}`);
   }
+  for (const off of offPageEvents) off();
+  if (problems.length > 0) addDiagnostics();
   return problems;
 }
 

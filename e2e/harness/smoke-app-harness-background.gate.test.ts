@@ -32,13 +32,15 @@ import type { Page } from 'playwright-core';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { listProcessesUsing, removeAppFolderAfterExit } from '../../tools/test-support/app-process-cleanup';
 import {
-  animationFramesPerSecondExpression,
   focusProbeWatchMs,
+  listPaintProbeProblems,
   listScreenshotProbeProblems,
-  minimumAnimationFramesPerSecond,
+  paintProbeExpression,
   paintScreenshotOverlayExpression,
   removeScreenshotOverlayExpression,
   withBackgroundProbeTimeout,
+  type PaintProbeResult,
+  type ScreenshotOverlayResult,
 } from '../../tools/test-support/background-page-probes';
 import {
   foregroundRunSkipReason,
@@ -292,17 +294,15 @@ describe('smoke harness: background mode by default', () => {
         await page.waitForLoadState('load');
         expectBackgroundLaunch(await waitForFixtureState(build, (state) => state.windows.length >= 1));
 
-        const frames = await withBackgroundProbeTimeout(
+        const paint = await withBackgroundProbeTimeout(
           'paint probe (page.evaluate)',
-          page.evaluate<number>(animationFramesPerSecondExpression),
+          page.evaluate<PaintProbeResult>(paintProbeExpression),
         );
-        expect(frames, 'animation frames in one second: a background window must keep painting').toBeGreaterThanOrEqual(
-          minimumAnimationFramesPerSecond,
-        );
+        expect(listPaintProbeProblems(paint), 'a background window must keep painting').toEqual([]);
 
-        await withBackgroundProbeTimeout(
+        const overlay = await withBackgroundProbeTimeout(
           'screenshot overlay (page.evaluate)',
-          page.evaluate(paintScreenshotOverlayExpression),
+          page.evaluate<ScreenshotOverlayResult>(paintScreenshotOverlayExpression),
         );
         const session = await withBackgroundProbeTimeout('CDP session', page.context().newCDPSession(page));
         try {
@@ -310,7 +310,10 @@ describe('smoke harness: background mode by default', () => {
             'Page.captureScreenshot',
             session.send('Page.captureScreenshot', { format: 'png' }),
           );
-          expect(listScreenshotProbeProblems(Buffer.from(shot.data, 'base64'))).toEqual([]);
+          expect(
+            listScreenshotProbeProblems(Buffer.from(shot.data, 'base64')),
+            `screenshot overlay: ${JSON.stringify(overlay)}`,
+          ).toEqual([]);
         } finally {
           await session.detach().catch(() => undefined);
         }

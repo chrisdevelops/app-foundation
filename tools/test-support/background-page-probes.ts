@@ -5,7 +5,9 @@
 // CDP `Runtime.evaluate` and Playwright `page.evaluate` alike, and needs no
 // DOM types):
 // - paint: requestAnimationFrame callbacks per second (a hidden window that
-//   stopped painting gives 0);
+//   stopped painting gives 0), with diagnostics in the result (visibility
+//   state, timer lateness, page age) and a diagnostics-only follow-up watch
+//   for a failed count; the threshold and the verdict do not depend on them;
 // - screenshot: a full-window overlay of a known colour, then the centre pixel
 //   of `Page.captureScreenshot` must be that colour (a blank or stale image fails);
 // - key input: an input the probe creates and focuses; the caller sends keys
@@ -102,16 +104,157 @@ export const keyProbeText = 'tst018';
 /** Accessible name of the input the key-input probe creates. */
 export const keyProbeInputName = 'Background mode key probe';
 
-/** Resolves with the number of animation frames in one second (a timer ends the count, so a page that never paints gives 0). */
-export const animationFramesPerSecondExpression = `new Promise((resolve) => {
+// Page state the paint probes read with every result, so a failure tells a page
+// that Chromium treats as hidden or occluded (`visibilityState` "hidden",
+// `visibilitychange` events) apart from a renderer that stalled (the 1 s timer
+// itself fired late) and from a page that was just (re)loaded (`pageAgeMs`,
+// `navigationType`). PR #47 CI: the dev window on Ubuntu painted 0 frames in 2 of 5 runs.
+const pageStateFields = `
+    visibilityState: document.visibilityState,
+    hidden: document.hidden,
+    hasFocus: document.hasFocus(),
+    pageAgeMs: Math.round(performance.now()),
+    navigationType: (performance.getEntriesByType('navigation')[0] || {}).type || null,
+    href: location.href,
+    innerSize: innerWidth + ' x ' + innerHeight,
+    outerSize: outerWidth + ' x ' + outerHeight,
+    screenPosition: screenX + ', ' + screenY,`;
+
+/** Page state read at one moment of a paint probe (see `pageStateFields`). */
+export interface PaintProbePageState {
+  readonly visibilityState: string;
+  readonly hidden: boolean;
+  readonly hasFocus: boolean;
+  /** `performance.now()`: time since the page's navigation started. */
+  readonly pageAgeMs: number;
+  /** "navigate", "reload", "back_forward" or null. */
+  readonly navigationType: string | null;
+  readonly href: string;
+  readonly innerSize: string;
+  readonly outerSize: string;
+  readonly screenPosition: string;
+}
+
+/**
+ * Counts animation frames for one second (a timer ends the count, so a page that never paints gives 0)
+ * and resolves with a `PaintProbeResult`: the count, how late the 1 s timer fired, when the first frame
+ * came, every `visibilitychange` during the count, and the page state at the start and at the end.
+ */
+export const paintProbeExpression = `new Promise((resolve) => {
+  const readState = () => ({${pageStateFields}
+  });
+  const start = performance.now();
+  const atStart = readState();
+  const visibilityChanges = [];
+  const onVisibility = () => { visibilityChanges.push(Math.round(performance.now() - start) + ' ms: ' + document.visibilityState); };
+  document.addEventListener('visibilitychange', onVisibility);
   let frames = 0;
-  const tick = () => { frames += 1; requestAnimationFrame(tick); };
+  let firstFrameAfterMs = null;
+  const tick = () => {
+    if (frames === 0) firstFrameAfterMs = Math.round(performance.now() - start);
+    frames += 1;
+    requestAnimationFrame(tick);
+  };
   requestAnimationFrame(tick);
-  setTimeout(() => resolve(frames), 1000);
+  setTimeout(() => {
+    document.removeEventListener('visibilitychange', onVisibility);
+    resolve({
+      frames,
+      timerElapsedMs: Math.round(performance.now() - start),
+      firstFrameAfterMs,
+      visibilityChanges,
+      atStart,
+      atEnd: readState(),
+    });
+  }, 1000);
 })`;
 
-/** Adds a fixed full-window overlay in the probe colour and resolves after two animation frames (or 2 s). */
+/** What `paintProbeExpression` resolves with. */
+export interface PaintProbeResult {
+  /** Animation frames in the one-second count. */
+  readonly frames: number;
+  /** When the 1 s timer that ends the count fired; far above 1000 means the renderer main thread stalled. */
+  readonly timerElapsedMs: number;
+  /** When the first animation frame came after the count started; null when none came. */
+  readonly firstFrameAfterMs: number | null;
+  /** Each `visibilitychange` during the count: "<ms after start> ms: <visibilityState>". */
+  readonly visibilityChanges: readonly string[];
+  readonly atStart: PaintProbePageState;
+  readonly atEnd: PaintProbePageState;
+}
+
+/** One line with every diagnostic field of a paint probe result. */
+export function describePaintProbeResult(result: PaintProbeResult | null | undefined): string {
+  if (!result || typeof result !== 'object') return `paint probe returned ${JSON.stringify(result)}`;
+  return `paint probe: frames ${result.frames}, 1 s timer fired after ${result.timerElapsedMs} ms, first frame after ${
+    result.firstFrameAfterMs === null ? 'none' : `${result.firstFrameAfterMs} ms`
+  }, visibilitychange events ${JSON.stringify(result.visibilityChanges)}; at start ${JSON.stringify(
+    result.atStart,
+  )}; at end ${JSON.stringify(result.atEnd)}`;
+}
+
+/**
+ * Problems with a paint probe result; empty when the page painted at least `minimumAnimationFramesPerSecond`
+ * frames in the second. The problem names every diagnostic field (`describePaintProbeResult`).
+ */
+export function listPaintProbeProblems(result: PaintProbeResult | null | undefined): string[] {
+  const frames = result && typeof result === 'object' ? result.frames : undefined;
+  if (typeof frames === 'number' && frames >= minimumAnimationFramesPerSecond) return [];
+  return [
+    `the page painted ${String(frames)} animation frames in one second (at least ${minimumAnimationFramesPerSecond} expected); ${describePaintProbeResult(result)}`,
+  ];
+}
+
+/** How long `watchPaintAfterStallExpression` waits for animation frames after a failed paint probe. */
+export const paintStallWatchMs = 5_000;
+
+/**
+ * Diagnostics only, after a paint probe failed (it never changes the verdict): watches the page for
+ * `paintStallWatchMs` and resolves with `PaintStallWatch`, so the failure tells a short stall (frames
+ * come back) from a page that stopped painting (no frame in the whole watch).
+ */
+export const watchPaintAfterStallExpression = `new Promise((resolve) => {
+  const start = performance.now();
+  const visibilityChanges = [];
+  const onVisibility = () => { visibilityChanges.push(Math.round(performance.now() - start) + ' ms: ' + document.visibilityState); };
+  document.addEventListener('visibilitychange', onVisibility);
+  let frames = 0;
+  let firstFrameAfterMs = null;
+  const tick = () => {
+    if (frames === 0) firstFrameAfterMs = Math.round(performance.now() - start);
+    frames += 1;
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  setTimeout(() => {
+    document.removeEventListener('visibilitychange', onVisibility);
+    resolve({
+      watchMs: Math.round(performance.now() - start),
+      frames,
+      firstFrameAfterMs,
+      visibilityChanges,
+      visibilityState: document.visibilityState,
+      hidden: document.hidden,
+    });
+  }, ${paintStallWatchMs});
+})`;
+
+/** What `watchPaintAfterStallExpression` resolves with. */
+export interface PaintStallWatch {
+  readonly watchMs: number;
+  readonly frames: number;
+  readonly firstFrameAfterMs: number | null;
+  readonly visibilityChanges: readonly string[];
+  readonly visibilityState: string;
+  readonly hidden: boolean;
+}
+
+/**
+ * Adds a fixed full-window overlay in the probe colour and resolves after two animation frames, or after
+ * 2 s when no frames come, with a `ScreenshotOverlayResult` that says which of the two ended the wait.
+ */
 export const paintScreenshotOverlayExpression = `new Promise((resolve) => {
+  const start = performance.now();
   const overlay = document.createElement('div');
   overlay.id = 'tst018-screenshot-probe';
   overlay.style.position = 'fixed';
@@ -119,10 +262,29 @@ export const paintScreenshotOverlayExpression = `new Promise((resolve) => {
   overlay.style.zIndex = '2147483647';
   overlay.style.background = 'rgb(${screenshotProbeColour.red}, ${screenshotProbeColour.green}, ${screenshotProbeColour.blue})';
   document.documentElement.appendChild(overlay);
-  const done = () => resolve(true);
-  requestAnimationFrame(() => requestAnimationFrame(done));
-  setTimeout(done, 2000);
+  let settled = false;
+  const done = (settledBy) => {
+    if (settled) return;
+    settled = true;
+    resolve({
+      settledBy,
+      elapsedMs: Math.round(performance.now() - start),
+      visibilityState: document.visibilityState,
+      hidden: document.hidden,
+    });
+  };
+  requestAnimationFrame(() => requestAnimationFrame(() => done('animation-frame')));
+  setTimeout(() => done('timer'), 2000);
 })`;
+
+/** What `paintScreenshotOverlayExpression` resolves with. */
+export interface ScreenshotOverlayResult {
+  /** "animation-frame": two frames came; "timer": no two frames in 2 s, the fallback timer ended the wait. */
+  readonly settledBy: 'animation-frame' | 'timer';
+  readonly elapsedMs: number;
+  readonly visibilityState: string;
+  readonly hidden: boolean;
+}
 
 /** Removes the screenshot overlay. */
 export const removeScreenshotOverlayExpression = `(() => { document.getElementById('tst018-screenshot-probe')?.remove(); return true; })()`;
