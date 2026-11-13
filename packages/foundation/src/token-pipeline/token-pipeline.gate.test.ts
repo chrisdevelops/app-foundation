@@ -9,8 +9,9 @@
 //   tokens in `src/components/<block>/`.
 // - The system: `tz build` with packages/foundation/terrazzo.config.ts. The
 //   gates copy that config unchanged next to a fixture token system in a
-//   temporary folder and run the `tz` bin of the @terrazzo/cli that
-//   packages/foundation declares there (see test-support/token-build.ts).
+//   build folder below packages/foundation/node_modules/.cache/ and run the
+//   `tz` bin of the @terrazzo/cli that packages/foundation declares there
+//   (see test-support/token-build.ts).
 //   So the config must use paths relative to the package root and import its
 //   plugins by package name.
 // - Output: `generated/tokens.css`, or a non-zero exit (the error format is

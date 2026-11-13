@@ -11,8 +11,9 @@
 //   `$type` and `$description`; semantic and component tokens also have
 //   `usage` in the profile extension. (Token lint enforces these in phase 2;
 //   this gate checks the files as they are.)
-// - Output: `tz build` on a copy of these files writes generated/tokens.css,
-//   and generated/tokens.css is committed with the header.
+// - Output: `tz build` on a copy of these files writes generated/tokens.css;
+//   the package script `tokens:build` (`tz build`) in packages/foundation
+//   itself writes it too; and generated/tokens.css is committed with the header.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -23,6 +24,7 @@ import {
   foundationDir,
   listFilesRelative,
   removeTokenBuildDirs,
+  runFoundationTokensBuildInPlace,
   type TokenBuildResult,
 } from './test-support/token-build';
 import { parseTokenCss } from './test-support/token-css';
@@ -282,6 +284,25 @@ describe('foundation tokens: tz build', { timeout: 240_000 }, () => {
         `line ${declaration.line}: ${match?.[1]}#${match?.[2]} must resolve to a token`,
       ).toBe(true);
     }
+  });
+
+  // TOK-111, TOK-112: the package's own token build script (`tokens:build`,
+  // which is `tz build`) runs in packages/foundation itself, not only in a
+  // copy, on every CI platform (#19 attempt 2: Windows). The helper removes
+  // generated/tokens.css first and puts generated/ back afterwards.
+  it('TOK-111: pnpm run tokens:build in packages/foundation itself writes generated/tokens.css with the header and a variable per token', () => {
+    const tokens = allFoundationTokens();
+    const build = runFoundationTokensBuildInPlace();
+    const described = `\`${build.run.command}\` in packages/foundation exited ${build.run.exitCode}:\n${build.run.output.slice(-4000)}`;
+    expect(build.run.exitCode, described).toBe(0);
+    expect(build.tokensCss, `generated/tokens.css was not written. ${described}`).toBeDefined();
+    const css = (build.tokensCss ?? Buffer.alloc(0)).toString('utf8');
+    expect(css.split('\n')[0]).toBe(generatedHeader);
+    const parsed = parseTokenCss(css);
+    expect(parsed.problems).toEqual([]);
+    const names = new Set(parsed.blocks.flatMap((block) => block.declarations.map((declaration) => declaration.name)));
+    for (const token of tokens)
+      expect(names.has(`--${token.leaf}`), `tokens.css must declare --${token.leaf}`).toBe(true);
   });
 
   // TOK-111: committed, with the header (the drift check against a fresh build is TOK-151, phase 2)

@@ -1,12 +1,22 @@
 // Test-only helper for the token pipeline gates (#19). It runs `tz build` the
 // way a developer runs it in packages/foundation, but on a copy of a token
-// system in a fresh temporary folder:
+// system in a fresh build folder:
 // - the token files are copied with their folder layout kept,
 // - packages/foundation/terrazzo.config.ts is copied unchanged beside them,
-// - `node_modules` links to packages/foundation/node_modules, so the config
-//   resolves its packages (Terrazzo, the profile plugin) as it does in place.
+// - the build folder is inside packages/foundation/node_modules/.cache/, so
+//   the config resolves its packages (Terrazzo, the profile plugin) through
+//   packages/foundation/node_modules by the normal parent-folder lookup, as
+//   it does in place. Git, ESLint, Prettier, tsc and Vitest all skip
+//   node_modules, so a build folder never shows up in the other checks.
 // Terrazzo resolves `tokens` and `outDir` against the working folder, so the
 // build reads the copied tokens and writes `generated/` inside the copy.
+//
+// Why not a temporary folder with a `node_modules` link (attempt 1): on
+// Windows, Vite 8 (which Terrazzo uses to load terrazzo.config.ts) resolves
+// no bare import through a `node_modules` junction, so every build failed
+// with "Cannot find package '@terrazzo/cli'". Probe runs on windows-latest
+// showed this for a junction on C: and on D:, with short (8.3) and long
+// paths; a folder below a real node_modules resolved (#19, attempt 2).
 import { createHash } from 'node:crypto';
 import {
   copyFileSync,
@@ -15,18 +25,19 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
-  realpathSync,
   rmSync,
-  symlinkSync,
+  writeFileSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
-import { tmpdir } from 'node:os';
 import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runRepoCommand, type RepoCommandResult } from '../../../../../tools/test-support/run-repo-command';
 
 /** Absolute path of packages/foundation. */
 export const foundationDir = fileURLToPath(new URL('../../../', import.meta.url));
+
+/** Parent of every build folder: below packages/foundation/node_modules, so package lookup finds the foundation's dependencies. */
+export const tokenBuildScratchDir = join(foundationDir, 'node_modules', '.cache', 'token-pipeline-gate');
 
 /** The fixture token system, laid out like packages/foundation (tokens/ and src/components/). */
 export const fixtureSystemDir = fileURLToPath(new URL('./fixture-system/', import.meta.url));
@@ -75,8 +86,8 @@ export interface TokenBuildDirOptions {
 }
 
 /**
- * Makes a fresh build folder: the chosen token files, a copy of
- * packages/foundation/terrazzo.config.ts and a `node_modules` link.
+ * Makes a fresh build folder below `tokenBuildScratchDir`: the chosen token
+ * files and a copy of packages/foundation/terrazzo.config.ts.
  * Throws with the contract text when the foundation has no config yet.
  */
 export function createTokenBuildDir(options: TokenBuildDirOptions): string {
@@ -85,7 +96,11 @@ export function createTokenBuildDir(options: TokenBuildDirOptions): string {
       'packages/foundation/terrazzo.config.ts must exist: `tz build` in packages/foundation runs the profile plugin (TOK-111, TOK-112)',
     );
   }
-  const buildDir = realpathSync(mkdtempSync(join(tmpdir(), 'token-pipeline-gate-')));
+  if (!existsSync(join(foundationDir, 'node_modules'))) {
+    throw new Error('packages/foundation/node_modules does not exist: run `pnpm install` before the token gates');
+  }
+  mkdirSync(tokenBuildScratchDir, { recursive: true });
+  const buildDir = mkdtempSync(join(tokenBuildScratchDir, 'build-'));
   createdBuildDirs.push(buildDir);
   for (const file of options.files ?? listFilesRelative(options.sourceDir)) {
     const target = join(buildDir, ...file.split('/'));
@@ -93,17 +108,65 @@ export function createTokenBuildDir(options: TokenBuildDirOptions): string {
     copyFileSync(join(options.sourceDir, ...file.split('/')), target);
   }
   copyFileSync(foundationTerrazzoConfigPath, join(buildDir, 'terrazzo.config.ts'));
-  symlinkSync(
-    join(foundationDir, 'node_modules'),
-    join(buildDir, 'node_modules'),
-    process.platform === 'win32' ? 'junction' : 'dir',
-  );
   return buildDir;
 }
 
 /** Removes every build folder this module made. Call from `afterAll`. */
 export function removeTokenBuildDirs(): void {
   for (const dir of createdBuildDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+}
+
+/** Files below packages/foundation/generated/ with their contents, to put back after an in-place build. */
+export interface GeneratedFilesSnapshot {
+  readonly files: ReadonlyMap<string, Buffer>;
+}
+
+const foundationGeneratedDir = join(foundationDir, 'generated');
+
+/** Reads every file below packages/foundation/generated/. */
+export function snapshotFoundationGenerated(): GeneratedFilesSnapshot {
+  const files = new Map<string, Buffer>();
+  if (existsSync(foundationGeneratedDir)) {
+    for (const file of listFilesRelative(foundationGeneratedDir)) {
+      files.set(file, readFileSync(join(foundationGeneratedDir, ...file.split('/'))));
+    }
+  }
+  return { files };
+}
+
+/** Puts packages/foundation/generated/ back to the snapshot: same files, same bytes. */
+export function restoreFoundationGenerated(snapshot: GeneratedFilesSnapshot): void {
+  if (existsSync(foundationGeneratedDir)) {
+    for (const file of listFilesRelative(foundationGeneratedDir)) {
+      if (!snapshot.files.has(file)) rmSync(join(foundationGeneratedDir, ...file.split('/')), { force: true });
+    }
+  }
+  for (const [file, contents] of snapshot.files) {
+    const target = join(foundationGeneratedDir, ...file.split('/'));
+    mkdirSync(dirname(target), { recursive: true });
+    if (!existsSync(target) || !readFileSync(target).equals(contents)) writeFileSync(target, contents);
+  }
+}
+
+/**
+ * Runs the package's own token build script (`pnpm run tokens:build`, which is
+ * `tz build`) in packages/foundation itself, as a developer does. It removes
+ * generated/tokens.css first, so the result shows whether this run wrote it,
+ * and always puts packages/foundation/generated/ back as it was.
+ */
+export function runFoundationTokensBuildInPlace(): {
+  readonly run: RepoCommandResult;
+  readonly tokensCss: Buffer | undefined;
+} {
+  const snapshot = snapshotFoundationGenerated();
+  const tokensCssPath = join(foundationGeneratedDir, 'tokens.css');
+  try {
+    rmSync(tokensCssPath, { force: true });
+    const run = runRepoCommand('pnpm', ['run', 'tokens:build'], { cwd: foundationDir, timeoutMs: 180_000 });
+    return { run, tokensCss: existsSync(tokensCssPath) ? readFileSync(tokensCssPath) : undefined };
+  } finally {
+    restoreFoundationGenerated(snapshot);
+  }
 }
 
 interface PackageManifestWithBin {
