@@ -15,6 +15,9 @@
 //   launch normally (no FOUNDATION_TEST_BACKGROUND); any other value keeps the
 //   default (background). It also requests the foreground test group
 //   (tools/test-support/foreground-test-group.ts).
+// - `--disable-gpu` (ADR 0016): on Linux, every launch in background mode by
+//   the smoke harness and by the gate-test launch helpers passes it to
+//   Electron; foreground launches, macOS and Windows do not.
 
 /** Environment variable the foundation main process reads to start in background mode (ADR 0013 rule 1). */
 export const testBackgroundVariableName = 'FOUNDATION_TEST_BACKGROUND';
@@ -31,6 +34,26 @@ export const testForegroundEnabledValue = '1';
 /** True when this run asked for normal (foreground) launches. */
 export function isForegroundTestRun(env: Readonly<Record<string, string | undefined>> = process.env): boolean {
   return env[testForegroundVariableName] === testForegroundEnabledValue;
+}
+
+/**
+ * Chromium switch every Linux launch in background mode gets (ADR 0016): on the GPU-less Ubuntu runners the
+ * GPU process can fail again and again at startup, and no frame is drawn until Chromium falls back to software
+ * compositing (4.5 to 13.4 s). Foreground launches, macOS and Windows do not get it.
+ */
+export const testBackgroundGpuSwitch = '--disable-gpu';
+
+/**
+ * Switches a gate-test launch adds for its launch mode (ADR 0016): `testBackgroundGpuSwitch` on Linux when the
+ * app's environment `appEnv` puts it in background mode (`testBackgroundVariableName` set to
+ * `testBackgroundEnabledValue`); none otherwise.
+ */
+export function testBackgroundLaunchSwitches(
+  appEnv: Readonly<Record<string, string | undefined>>,
+  platform: NodeJS.Platform = process.platform,
+): string[] {
+  const background = appEnv[testBackgroundVariableName] === testBackgroundEnabledValue;
+  return platform === 'linux' && background ? [testBackgroundGpuSwitch] : [];
 }
 
 /** Skip note for background-mode checks in a run that asked for normal launches. */

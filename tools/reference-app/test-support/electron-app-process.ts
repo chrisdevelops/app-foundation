@@ -12,6 +12,8 @@
 // no focus. A run with FOUNDATION_TEST_FOREGROUND=1 in its environment launches
 // normally. A caller that tests the switch itself sets the variable in `env`
 // (its value wins) or names it in `withoutEnv` (the app gets no such variable).
+// On Linux a launch in background mode also gets `--disable-gpu` as its last
+// argument (ADR 0016; `testBackgroundLaunchSwitches`).
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -21,6 +23,7 @@ import { removeAppFolderAfterExit } from '../../test-support/app-process-cleanup
 import {
   isForegroundTestRun,
   testBackgroundEnabledValue,
+  testBackgroundLaunchSwitches,
   testBackgroundVariableName,
 } from '../../test-support/background-test-variables';
 
@@ -91,7 +94,10 @@ function delay(ms: number): Promise<void> {
  * Starts `command` with `args`. Gate launches pass `devToolsLaunchSwitches`
  * themselves (in the right place for the command). `pnpm` runs through
  * cmd.exe on Windows, where it is a `.cmd` shim. On Linux without a display
- * the command runs under `xvfb-run`.
+ * the command runs under `xvfb-run`. On Linux in background mode (the app's
+ * environment holds FOUNDATION_TEST_BACKGROUND=1) `--disable-gpu` is added after
+ * `args` (ADR 0016), so a `pnpm run <script>` command must end its `args` with
+ * `--` and the switches for Electron.
  */
 export function startElectronAppProcess(options: {
   command: string;
@@ -105,8 +111,10 @@ export function startElectronAppProcess(options: {
   withoutEnv?: readonly string[];
 }): ElectronAppProcess {
   const userDataDir = realpathSync.native(mkdtempSync(join(tmpdir(), 'rf-gate-user-data-')));
+  const env = buildAppEnv(options.env ?? {}, options.withoutEnv ?? []);
   let command = options.command;
-  let args = [...options.args(userDataDir)];
+  // ADR 0016: on Linux, background launches run without the GPU process.
+  let args = [...options.args(userDataDir), ...testBackgroundLaunchSwitches(env)];
   if (process.platform === 'linux' && !hasDisplay()) {
     args = ['--auto-servernum', '--server-args=-screen 0 1280x1024x24', command, ...args];
     command = 'xvfb-run';
@@ -114,7 +122,7 @@ export function startElectronAppProcess(options: {
   const throughShell = process.platform === 'win32' && command === 'pnpm';
   const spawnOptions = {
     cwd: options.cwd,
-    env: buildAppEnv(options.env ?? {}, options.withoutEnv ?? []),
+    env,
     stdio: ['ignore', 'pipe', 'pipe'] as ['ignore', 'pipe', 'pipe'],
     detached: process.platform !== 'win32',
     windowsHide: true,
