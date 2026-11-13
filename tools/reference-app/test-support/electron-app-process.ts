@@ -159,7 +159,16 @@ export function startElectronAppProcess(options: {
       while (Date.now() < deadline) {
         if (spawnError) throw new Error(`the app could not start:\n${describe()}`);
         if (existsSync(portFile)) {
-          const port = Number(readFileSync(portFile, 'utf8').split(/\r?\n/)[0]);
+          // Windows: Chromium may still hold the file open while it writes it (EBUSY,
+          // PR #47 run 43355618046); a locked or vanished file counts as "not written yet".
+          let text = '';
+          try {
+            text = readFileSync(portFile, 'utf8');
+          } catch (error) {
+            const code = (error as NodeJS.ErrnoException).code;
+            if (code !== 'EBUSY' && code !== 'EPERM' && code !== 'EACCES' && code !== 'ENOENT') throw error;
+          }
+          const port = Number(text.split(/\r?\n/)[0]);
           if (Number.isInteger(port) && port > 0) return port;
         }
         if (exitCode !== null) throw new Error(`the app exited before it opened its DevTools port:\n${describe()}`);
