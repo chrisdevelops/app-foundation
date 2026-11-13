@@ -160,7 +160,8 @@ export function listRunningProcesses(options: ListRunningProcessesOptions = {}):
 
 /**
  * Processes that use folder `dir`: their executable is inside it, or they
- * run with `--user-data-dir=<dir>`. Other processes whose command text only
+ * run with `--user-data-dir=<dir>` (also quoted as a whole, or with the value
+ * quoted as Chromium helpers have it). Other processes whose command text only
  * mentions the path (a shell, an editor) do not count. Case-insensitive on Windows.
  */
 export function listProcessesUsing(dir: string): RunningProcess[] {
@@ -168,10 +169,16 @@ export function listProcessesUsing(dir: string): RunningProcess[] {
   const fold = (text: string): string => (windows ? text.toLowerCase() : text);
   const inside = fold(dir.endsWith(sep) ? dir : `${dir}${sep}`);
   const userDataSwitch = fold(`--user-data-dir=${dir}`);
+  // Chromium starts its helper processes with the value quoted:
+  // --user-data-dir="C:\...\dir" (#46, probe PR #50).
+  const quotedValueSwitch = fold(`--user-data-dir="${dir}"`);
   return listRunningProcesses().filter((entry) => {
     const executable = fold(windows ? entry.executable : entry.command);
     const command = fold(entry.command);
-    const usesSwitch = command.includes(userDataSwitch) || command.includes(`"${userDataSwitch}"`);
+    const usesSwitch =
+      command.includes(userDataSwitch) ||
+      command.includes(`"${userDataSwitch}"`) ||
+      command.includes(quotedValueSwitch);
     return executable.startsWith(inside) || executable.startsWith(`"${inside}`) || usesSwitch;
   });
 }

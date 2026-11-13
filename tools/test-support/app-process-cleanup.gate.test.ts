@@ -16,8 +16,11 @@
 //   message starts with `could not list processes`, names the number of
 //   attempts and says why each one failed (here: timed out); it never returns
 //   an empty or partial list instead.
-// - listProcessesUsing(dir) finds a process started with `--user-data-dir=<dir>`
-//   and stops finding it once the process has exited.
+// - listProcessesUsing(dir) finds a process started with `--user-data-dir=<dir>`,
+//   also when the value is quoted (`--user-data-dir="<dir>"`, as Chromium starts
+//   its renderer and GPU helpers on Windows; probe PR #50 saw cleanup remove a
+//   folder while such helpers still ran), and stops finding it once the
+//   process has exited.
 import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -123,6 +126,31 @@ describe('process listing for gate-test cleanup (TST-011, #46)', () => {
       await waitForProcessesToExit(dir, 'process list gate sleeper', 30_000);
       expect(listProcessesUsing(dir)).toEqual([]);
       expect(listProcessesUsing(other).map((entry) => entry.pid)).toEqual([otherChild.pid]);
+    },
+  );
+
+  // TST-011 (#46, probe PR #50: Chromium helpers on Windows)
+  it(
+    'TST-011: listProcessesUsing finds a process whose command line quotes the value, --user-data-dir="<dir>", as Chromium starts its helper processes',
+    slow,
+    async () => {
+      const dir = makeUserDataDir();
+      const quotedSwitch = `--user-data-dir="${dir}"`;
+      // Windows: pass the command line as written, so it holds the quotes after `=`.
+      // POSIX: the argument itself holds the quotes; `ps` shows it unchanged.
+      const child = spawn(process.execPath, ['-e', 'setTimeout(()=>{},120000)', '--', quotedSwitch], {
+        stdio: 'ignore',
+        windowsHide: true,
+        windowsVerbatimArguments: true,
+        argv0: windows ? `"${process.execPath}"` : process.execPath,
+      });
+      started.push(child);
+      const entry = await waitForListed(child.pid as number, 30_000);
+      expect(entry.command, 'control: the command line holds the quoted value').toContain(quotedSwitch);
+      expect(listProcessesUsing(dir).map((found) => found.pid)).toEqual([child.pid]);
+      child.kill();
+      await waitForProcessesToExit(dir, 'process list gate quoted sleeper', 30_000);
+      expect(listProcessesUsing(dir)).toEqual([]);
     },
   );
 
