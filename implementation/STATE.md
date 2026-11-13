@@ -10,15 +10,15 @@
 
 | Issue | Title | Stage | Attempt | Next action |
 | --- | --- | --- | --- | --- |
-| #19 | Token pipeline: profile plugin writes tokens.css with source comments | planned | — | Pick #19; test author first. |
+| #19 | Token pipeline: profile plugin writes tokens.css with source comments | review | test author 2, developer 1 | Reviewer on PR #56 (7 checks pass, run 43387126722); then merge. |
 
 ## Last action
 
-#46 merged (fb7071e, PR #47): TST-018 done. Background mode on three platforms; Linux and Windows `showInactive()` (ADR 0013 amendment 1); Linux background launches pass `--disable-gpu` (ADR 0016, minor); Windows process lister and cleanup fixed; dev double load removed. Follow-ups #53, #54, #55 opened.
+#19: gates (37 + 1), developer attempt 1 (profile plugin in `@foundation/config`, Terrazzo 2.10.0, minimal tokens). Windows build gates fixed by test author attempt 2 (Vite 8 native resolver does not follow a `node_modules` junction; build in `packages/foundation/node_modules/.cache`).
 
 ## Next action
 
-Start #19 (test author).
+Act on the #19 reviewer envelope; merge PR #56. Then #20.
 
 ## Open escalations
 
@@ -45,6 +45,7 @@ None.
 - After each agent's red or green runs, `pgrep` for `smoke gate fixture`, `smoke-user-data`, `rf-gate-user-data` and `repo-gate-clone`; stop leftovers from this project only (another project, flowspec, runs Electron on this machine).
 - The pinned-SHA gate needs network access; one local run failed on a connection reset (#36 adds a retry).
 - Follow-ups: #36 (minor gate gaps), #39 (Windows harness, phase 3), #42 (evidence gaps, phase 2), #45 (`--remote-debugging-pipe`, phase 2), #53 (Electron binary downloaded during CI tests), #54 (#46 minor findings: switch name, final-env gate case, dev single-load gate), #55 (Windows TST-009 `probeDebugEndpoint` flake; rerun it as a known flake meanwhile).
+- Phase 2 planner: TOK-151 (drift check) needs `packages/foundation/generated/** text eol=lf` in `.gitattributes`: a Windows CRLF checkout differs from `tz build` output (LF), and a rewrite changes turbo hashes (#19 test author attempt 2).
 - Spike branches `spike/5` to `spike/9` and `spike/43` are never merged; their findings are the reference for phase 1 tasks.
 - `docs/upstream/react-aria-second-window-overlays.md` is a draft the human posts; do not post it.
 - Open human decision in the specs: re-validation after a failed submit.
