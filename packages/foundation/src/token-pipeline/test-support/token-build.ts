@@ -25,8 +25,8 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
-  writeFileSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, relative, sep } from 'node:path';
@@ -116,56 +116,37 @@ export function removeTokenBuildDirs(): void {
   for (const dir of createdBuildDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 }
 
-/** Files below packages/foundation/generated/ with their contents, to put back after an in-place build. */
-export interface GeneratedFilesSnapshot {
-  readonly files: ReadonlyMap<string, Buffer>;
-}
-
 const foundationGeneratedDir = join(foundationDir, 'generated');
-
-/** Reads every file below packages/foundation/generated/. */
-export function snapshotFoundationGenerated(): GeneratedFilesSnapshot {
-  const files = new Map<string, Buffer>();
-  if (existsSync(foundationGeneratedDir)) {
-    for (const file of listFilesRelative(foundationGeneratedDir)) {
-      files.set(file, readFileSync(join(foundationGeneratedDir, ...file.split('/'))));
-    }
-  }
-  return { files };
-}
-
-/** Puts packages/foundation/generated/ back to the snapshot: same files, same bytes. */
-export function restoreFoundationGenerated(snapshot: GeneratedFilesSnapshot): void {
-  if (existsSync(foundationGeneratedDir)) {
-    for (const file of listFilesRelative(foundationGeneratedDir)) {
-      if (!snapshot.files.has(file)) rmSync(join(foundationGeneratedDir, ...file.split('/')), { force: true });
-    }
-  }
-  for (const [file, contents] of snapshot.files) {
-    const target = join(foundationGeneratedDir, ...file.split('/'));
-    mkdirSync(dirname(target), { recursive: true });
-    if (!existsSync(target) || !readFileSync(target).equals(contents)) writeFileSync(target, contents);
-  }
-}
 
 /**
  * Runs the package's own token build script (`pnpm run tokens:build`, which is
- * `tz build`) in packages/foundation itself, as a developer does. It removes
- * generated/tokens.css first, so the result shows whether this run wrote it,
- * and always puts packages/foundation/generated/ back as it was.
+ * `tz build`) in packages/foundation itself, as a developer does, and returns
+ * what it wrote to generated/tokens.css.
+ *
+ * The committed generated/ folder is moved aside (into `tokenBuildScratchDir`)
+ * for the build, so the result shows whether this run wrote tokens.css, and is
+ * moved back afterwards. It is moved, never rewritten: on Windows checkouts
+ * with core.autocrlf the committed files have CRLF line endings, and
+ * rewriting them, even with the same bytes, changed the Turborepo hashes of
+ * seven tasks (probe on windows-latest, #19 attempt 2), which broke the PLT-004
+ * cache-hit gate. Moving the folder back keeps the files as they were.
  */
 export function runFoundationTokensBuildInPlace(): {
   readonly run: RepoCommandResult;
   readonly tokensCss: Buffer | undefined;
 } {
-  const snapshot = snapshotFoundationGenerated();
-  const tokensCssPath = join(foundationGeneratedDir, 'tokens.css');
+  mkdirSync(tokenBuildScratchDir, { recursive: true });
+  const parkedDir = join(mkdtempSync(join(tokenBuildScratchDir, 'committed-generated-')), 'generated');
+  const hadGenerated = existsSync(foundationGeneratedDir);
+  if (hadGenerated) renameSync(foundationGeneratedDir, parkedDir);
   try {
-    rmSync(tokensCssPath, { force: true });
     const run = runRepoCommand('pnpm', ['run', 'tokens:build'], { cwd: foundationDir, timeoutMs: 180_000 });
+    const tokensCssPath = join(foundationGeneratedDir, 'tokens.css');
     return { run, tokensCss: existsSync(tokensCssPath) ? readFileSync(tokensCssPath) : undefined };
   } finally {
-    restoreFoundationGenerated(snapshot);
+    rmSync(foundationGeneratedDir, { recursive: true, force: true });
+    if (hadGenerated) renameSync(parkedDir, foundationGeneratedDir);
+    rmSync(dirname(parkedDir), { recursive: true, force: true });
   }
 }
 

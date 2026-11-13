@@ -288,8 +288,8 @@ describe('foundation tokens: tz build', { timeout: 240_000 }, () => {
 
   // TOK-111, TOK-112: the package's own token build script (`tokens:build`,
   // which is `tz build`) runs in packages/foundation itself, not only in a
-  // copy, on every CI platform (#19 attempt 2: Windows). The helper removes
-  // generated/tokens.css first and puts generated/ back afterwards.
+  // copy, on every CI platform (#19 attempt 2: Windows). The helper moves the
+  // committed generated/ aside for the build and moves it back afterwards.
   it('TOK-111: pnpm run tokens:build in packages/foundation itself writes generated/tokens.css with the header and a variable per token', () => {
     const tokens = allFoundationTokens();
     const build = runFoundationTokensBuildInPlace();
