@@ -17,15 +17,17 @@
 //   attempts and says why each one failed (here: timed out); it never returns
 //   an empty or partial list instead.
 // - removeAppFolderAfterExit(dir) removes a folder right after the program
-//   that ran from it is stopped, although Windows still locks the program's
-//   files for a moment (probe PR #51).
+//   that ran from it is stopped. Windows can still lock files in it for a
+//   moment (probe PR #51), so removal retries for about 30 s; a file that stays
+//   locked fails it with `<label>: could not remove <dir> ... (<code>; <n>
+//   attempts in <ms> ms)`.
 // - listProcessesUsing(dir) finds a process started with `--user-data-dir=<dir>`,
 //   also when the value is quoted (`--user-data-dir="<dir>"`, as Chromium starts
 //   its renderer and GPU helpers on Windows; probe PR #50 saw cleanup remove a
 //   folder while such helpers still ran), and stops finding it once the
 //   process has exited.
 import { spawn, type ChildProcess } from 'node:child_process';
-import { copyFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -91,6 +93,44 @@ async function waitForListed(pid: number, timeoutMs: number): Promise<ReturnType
     if (Date.now() > deadline) throw new Error(`pid ${pid} was not listed within ${timeoutMs} ms`);
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
+}
+
+/**
+ * Windows only: a PowerShell process (outside `dir`, so cleanup does not count it as a user)
+ * opens `file` with no sharing for `holdMs`, as Windows keeps an exited program's files for a
+ * moment. .NET calls only: a cmdlet would load PowerShell modules, which is slow in turbo workers.
+ * Resolves once the lock is held.
+ */
+async function lockFileFor(file: string, holdMs: number): Promise<ChildProcess> {
+  const script =
+    `$f = [System.IO.File]::Open('${file}', 'Open', 'Read', 'None'); [Console]::Out.WriteLine('LOCK' + '-HELD'); ` +
+    `[Console]::Out.Flush(); [System.Threading.Thread]::Sleep(${holdMs}); $f.Close()`;
+  const locker = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true,
+  });
+  started.push(locker);
+  let output = '';
+  let errors = '';
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`the lock helper did not lock ${file} in 60 s: ${output}${errors}`)),
+      60_000,
+    );
+    locker.stdout?.on('data', (data: Buffer) => {
+      output += String(data);
+      if (output.includes('LOCK-HELD')) {
+        clearTimeout(timer);
+        resolve();
+      }
+    });
+    locker.stderr?.on('data', (data: Buffer) => (errors += String(data)));
+    locker.on('exit', (code) => {
+      clearTimeout(timer);
+      reject(new Error(`the lock helper exited (${String(code)}) before it locked ${file}: ${output}${errors}`));
+    });
+  });
+  return locker;
 }
 
 describe('process listing for gate-test cleanup (TST-011, #46)', () => {
@@ -159,6 +199,47 @@ describe('process listing for gate-test cleanup (TST-011, #46)', () => {
       child.kill();
       await waitForProcessesToExit(dir, 'process list gate quoted sleeper', 30_000);
       expect(listProcessesUsing(dir)).toEqual([]);
+    },
+  );
+
+  // TST-011 (#46, probe PR #51; Windows only: POSIX removes files that are open)
+  it.skipIf(!windows)(
+    'TST-011: removeAppFolderAfterExit waits while a file in the folder is still locked, and removes the folder once the lock is gone (Windows)',
+    { timeout: 120_000 },
+    async () => {
+      const dir = makeUserDataDir();
+      const file = join(dir, 'locked.bin');
+      writeFileSync(file, 'locked');
+      await lockFileFor(file, 4000);
+      await removeAppFolderAfterExit(dir, 'process list gate locked folder');
+      expect(existsSync(dir)).toBe(false);
+    },
+  );
+
+  // TST-011: failure mode (Windows only)
+  it.skipIf(!windows)(
+    'TST-011: when a file in the folder stays locked, removeAppFolderAfterExit fails within about 30 s with the error code, the attempts and the time spent (Windows)',
+    { timeout: 180_000 },
+    async () => {
+      const dir = makeUserDataDir();
+      const file = join(dir, 'locked.bin');
+      writeFileSync(file, 'locked');
+      const locker = await lockFileFor(file, 90_000);
+      const startedAt = Date.now();
+      let outcome: unknown;
+      try {
+        await removeAppFolderAfterExit(dir, 'process list gate stuck folder');
+      } catch (error) {
+        outcome = error;
+      }
+      const elapsedMs = Date.now() - startedAt;
+      locker.kill();
+      expect(outcome, 'a folder that stays locked must fail the removal').toBeInstanceOf(Error);
+      expect((outcome as Error).message).toMatch(
+        /^process list gate stuck folder: could not remove .+ \((EPERM|EACCES|EBUSY|ENOTEMPTY); \d+ attempts in \d+ ms\)$/,
+      );
+      expect(elapsedMs, 'removal retries for about 30 s').toBeGreaterThanOrEqual(25_000);
+      expect(elapsedMs, 'removal gives up after about 30 s').toBeLessThan(60_000);
     },
   );
 
