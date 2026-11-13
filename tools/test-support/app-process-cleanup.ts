@@ -18,6 +18,12 @@
 // (the runner's prebuilt PowerShell module cache), so PowerShell analyses every
 // installed module before it runs a cmdlet. The C# program needs no PowerShell
 // and no WMI: about 60 ms per listing.
+//
+// The compiled lister stays in the temp folder by design:
+// `%TEMP%\foundation-process-list-<hash>.exe`, where <hash> is the hash of
+// windows-process-list.cs. Later runs on the same machine reuse it; a changed
+// source gets a new hash and so a new file. Nothing removes old files: they
+// are small, and a removal could race with a parallel gate worker that runs them.
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
@@ -165,7 +171,7 @@ export function listRunningProcesses(options: ListRunningProcessesOptions = {}):
  * quoted as Chromium helpers have it). Other processes whose command text only
  * mentions the path (a shell, an editor) do not count. Case-insensitive on Windows.
  */
-export function listProcessesUsing(dir: string): RunningProcess[] {
+export function listProcessesUsing(dir: string, listOptions: ListRunningProcessesOptions = {}): RunningProcess[] {
   const windows = process.platform === 'win32';
   const fold = (text: string): string => (windows ? text.toLowerCase() : text);
   const inside = fold(dir.endsWith(sep) ? dir : `${dir}${sep}`);
@@ -173,7 +179,7 @@ export function listProcessesUsing(dir: string): RunningProcess[] {
   // Chromium starts its helper processes with the value quoted:
   // --user-data-dir="C:\...\dir" (#46, probe PR #50).
   const quotedValueSwitch = fold(`--user-data-dir="${dir}"`);
-  return listRunningProcesses().filter((entry) => {
+  return listRunningProcesses(listOptions).filter((entry) => {
     const executable = fold(windows ? entry.executable : entry.command);
     const command = fold(entry.command);
     const usesSwitch =
@@ -184,13 +190,19 @@ export function listProcessesUsing(dir: string): RunningProcess[] {
   });
 }
 
+/**
+ * Limits of each process listing inside `waitForProcessesToExit` (a listing normally takes about
+ * 60 ms): a slow listing extends the wait by at most 2 x 10 s, not by the 2 x 30 s default.
+ */
+const waitListOptions: ListRunningProcessesOptions = { timeoutMs: 10_000, attempts: 2 };
+
 /** Waits until no process uses `path` (see listProcessesUsing); throws with the processes still running after `timeoutMs`. */
 export async function waitForProcessesToExit(path: string, label: string, timeoutMs = 30_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
-  let running = listProcessesUsing(path);
+  let running = listProcessesUsing(path, waitListOptions);
   while (running.length > 0 && Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 500));
-    running = listProcessesUsing(path);
+    running = listProcessesUsing(path, waitListOptions);
   }
   if (running.length > 0) {
     throw new Error(
