@@ -20,7 +20,7 @@
 // and no WMI: about 60 ms per listing.
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 
@@ -105,7 +105,7 @@ function windowsListerExecutable(): string {
 /** One listing attempt: the processes, or why the attempt failed. */
 function listOnce(timeoutMs: number): RunningProcess[] | string {
   if (process.platform === 'win32') {
-    const result = spawnSync(windowsListerExecutable(), [], {
+    const result = spawnSync(windowsListerExecutable(), process.env.CI_PROBE_DEBUG === '1' || existsSync('D:\\a\\_temp\\debug-privilege') ? ['--debug-privilege'] : [], {
       encoding: 'utf8',
       windowsHide: true,
       maxBuffer: 64 * 1024 * 1024,
@@ -200,12 +200,36 @@ export async function waitForProcessesToExit(path: string, label: string, timeou
 export async function removeAppFolderAfterExit(path: string, label: string): Promise<void> {
   if (!existsSync(path)) return;
   await waitForProcessesToExit(path, label);
+  probeDiag(path, label, 'before rm');
   try {
     rmSync(path, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
   } catch (error) {
+    probeDiag(path, label, 'after EPERM');
     throw new Error(
       `${label}: could not remove ${path} after every process using it exited (${(error as NodeJS.ErrnoException).code ?? String(error)})`,
       { cause: error },
     );
   }
+}
+
+function probeDiag(path: string, label: string, when: string): void {
+  if (process.platform !== 'win32') return;
+  const fold = path.toLowerCase();
+  const mine = listRunningProcesses();
+  const mineUsing = listProcessesUsing(path).map((e) => e.pid);
+  const unreadable = new Set(mine.filter((e) => !e.command).map((e) => e.pid));
+  const wmi = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', 'Get-CimInstance Win32_Process | Select-Object ProcessId,Name,ExecutablePath,CommandLine | ConvertTo-Json -Compress'], {
+    env: { ...process.env, PSModuleAnalysisCachePath: 'C:\\PSModuleAnalysisCachePath\\ModuleAnalysisCache' },
+    encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024, timeout: 120_000,
+  });
+  let wmiUsing: string[] = [];
+  try {
+    const list = [JSON.parse(wmi.stdout)].flat() as { ProcessId: number; Name: string; ExecutablePath: string | null; CommandLine: string | null }[];
+    wmiUsing = list
+      .filter((e) => (e.ExecutablePath ?? '').toLowerCase().startsWith(fold) || (e.CommandLine ?? '').toLowerCase().includes(fold))
+      .map((e) => `pid ${e.ProcessId} ${e.Name} unreadableByLister=${unreadable.has(e.ProcessId)} listedByLister=${mine.some((m) => m.pid === e.ProcessId)} exe=${e.ExecutablePath ?? 'null'} cmd=${(e.CommandLine ?? 'null').slice(0, 160)}`);
+  } catch (error) {
+    wmiUsing = [`wmi failed: ${String(error)} status=${String(wmi.status)}`];
+  }
+  appendFileSync('D:\\a\\_temp\\eperm-diag.log', `${new Date().toISOString()} ${when} | ${label} | ${path}\n  lister using: [${mineUsing.join(', ')}] unreadable count: ${unreadable.size} of ${mine.length}\n  wmi using:\n    ${wmiUsing.join('\n    ')}\n`);
 }

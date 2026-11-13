@@ -23,6 +23,24 @@ public static class ProcessList {
   [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
   static extern bool QueryFullProcessImageNameW(IntPtr handle, int flags, StringBuilder name, ref int size);
 
+  [DllImport("advapi32.dll", SetLastError = true)]
+  static extern bool OpenProcessToken(IntPtr process, int access, out IntPtr token);
+  [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+  static extern bool LookupPrivilegeValueW(string system, string name, out long luid);
+  [StructLayout(LayoutKind.Sequential, Pack = 4)]
+  struct TokenPrivileges { public int Count; public long Luid; public int Attributes; }
+  [DllImport("advapi32.dll", SetLastError = true)]
+  static extern bool AdjustTokenPrivileges(IntPtr token, bool disableAll, ref TokenPrivileges state, int length, IntPtr previous, IntPtr returned);
+  [DllImport("kernel32.dll")]
+  static extern IntPtr GetCurrentProcess();
+  static void EnableDebug() {
+    IntPtr token; long luid;
+    if (!OpenProcessToken(GetCurrentProcess(), 0x28, out token)) return;
+    if (!LookupPrivilegeValueW(null, "SeDebugPrivilege", out luid)) return;
+    var state = new TokenPrivileges { Count = 1, Luid = luid, Attributes = 2 };
+    AdjustTokenPrivileges(token, false, ref state, 0, IntPtr.Zero, IntPtr.Zero);
+  }
+
   const int ProcessQueryLimitedInformation = 0x1000;
   const int ProcessCommandLineInformation = 60;
 
@@ -66,7 +84,8 @@ public static class ProcessList {
     output.Append('"');
   }
 
-  public static int Main() {
+  public static int Main(string[] args) {
+    if (args.Length > 0 && args[0] == "--debug-privilege") EnableDebug();
     var output = new StringBuilder("[");
     bool first = true;
     foreach (Process process in Process.GetProcesses()) {
