@@ -93,6 +93,9 @@ importers:
 
   e2e:
     devDependencies:
+      '@foundation/foundation':
+        specifier: workspace:*
+        version: link:../packages/foundation
       '@types/node':
         specifier: 24.19.2
         version: 24.19.2

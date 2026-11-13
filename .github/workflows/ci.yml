@@ -1,6 +1,6 @@
 # CI for every pull request to main and every push to main (#13).
 # Runs the same commands developers run locally on Windows, macOS and Linux.
-# Requirements: TST-015 (partial), TOK-128 (partial).
+# Requirements: TST-015 (partial), TOK-128 (partial), TST-018.
 # The boundary-check job (#14) runs on pull requests only.
 # The packaged-smoke job (#17) packages the reference app and runs the smoke
 # suite against a copy of it on the same three platforms (TST-010).
@@ -59,6 +59,13 @@ jobs:
 
       - name: Typecheck, lint and test
         run: pnpm turbo run typecheck lint test
+
+      # Foreground test group (#46; TST-018; ADR 0013 rule 3): tests that need
+      # real OS focus, native menus or native dialogs. The script prints a
+      # notice and sets the run-level opt-out itself; no workflow sets it, so
+      # every other launch in CI stays in background mode.
+      - name: Foreground test group
+        run: pnpm run test:foreground
 
   # Packaged smoke (#17; TST-010, TST-015 partial, PLT-007 partial).
   # Packages the reference app with its own `package` script, copies the whole

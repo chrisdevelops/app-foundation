@@ -11,6 +11,7 @@
     "smoke": "vitest run --project smoke"
   },
   "devDependencies": {
+    "@foundation/foundation": "workspace:*",
     "@types/node": "24.19.2",
     "eslint": "10.14.0",
     "playwright-core": "1.65.0",

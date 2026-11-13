@@ -17,6 +17,9 @@
 //   `smoke` script) records SMOKE_APP_EXECUTABLE and what that file holds at
 //   the moment of the call, and the variables named in FAKE_CI_RECORD_ENV,
 //   then exits with `FAKE_CI_SMOKE_EXIT_CODE`.
+// - The foreground test group (`pnpm run test:foreground` at the root; #46,
+//   ADR 0013 rule 3) records the variables named in FAKE_CI_RECORD_ENV, then
+//   exits with `FAKE_CI_FOREGROUND_EXIT_CODE`. `pnpm turbo` records them too.
 // - `xvfb-run [options] <command>` runs the command with DISPLAY set and
 //   records that a virtual display wrapped it. `sudo` records and passes.
 // - Any other pnpm call fails with exit code 97 and says so, so a gate never
@@ -46,6 +49,7 @@ export const fakeCiEnvNames = {
   realRepoRoot: 'FAKE_CI_REAL_REPO_ROOT',
   marker: 'FAKE_CI_MARKER',
   smokeExitCode: 'FAKE_CI_SMOKE_EXIT_CODE',
+  foregroundExitCode: 'FAKE_CI_FOREGROUND_EXIT_CODE',
   packageExitCode: 'FAKE_CI_PACKAGE_EXIT_CODE',
   virtualDisplay: 'FAKE_CI_VIRTUAL_DISPLAY',
   /** Comma-separated names of variables whose values the smoke call records. */
@@ -54,7 +58,8 @@ export const fakeCiEnvNames = {
 
 const unsupportedExitCode = 97;
 
-export type PnpmInvocationKind = 'install' | 'turbo' | 'package-reference' | 'smoke' | 'unsupported';
+export type PnpmInvocationKind =
+  'install' | 'turbo' | 'package-reference' | 'smoke' | 'foreground-tests' | 'unsupported';
 
 export interface PnpmInvocation {
   readonly kind: PnpmInvocationKind;
@@ -77,7 +82,7 @@ export interface FakeCiRecord {
   readonly waylandDisplay?: string;
   /** True when `xvfb-run` started this call. */
   readonly underVirtualDisplay?: boolean;
-  /** Values of the variables named in FAKE_CI_RECORD_ENV, as the smoke call saw them (null when unset). */
+  /** Values of the variables named in FAKE_CI_RECORD_ENV, as the smoke, turbo or foreground call saw them (null when unset). */
   readonly recordedEnv?: Readonly<Record<string, string | null>>;
 }
 
@@ -159,6 +164,7 @@ export function parsePnpmInvocation(args: readonly string[], cwd: string, worksp
   if (script === 'smoke' && (samePath(targetDir, workspaceDir) || samePath(targetDir, join(workspaceDir, 'e2e')))) {
     return result('smoke');
   }
+  if (script === 'test:foreground' && samePath(targetDir, workspaceDir)) return result('foreground-tests');
   return result('unsupported');
 }
 
@@ -357,6 +363,15 @@ function describeFile(path: string | undefined): { exists: boolean; isFile: bool
   return { exists: true, isFile, content: isFile ? readFileSync(path, 'utf8').slice(0, 500) : '' };
 }
 
+function readRecordedEnv(): Record<string, string | null> {
+  return Object.fromEntries(
+    (process.env[fakeCiEnvNames.recordEnv] ?? '')
+      .split(',')
+      .filter((name) => name !== '')
+      .map((name) => [name, process.env[name] ?? null]),
+  );
+}
+
 function runFakePnpm(args: readonly string[]): number {
   const workspaceDir = process.env[fakeCiEnvNames.workspace] ?? '';
   const invocation = parsePnpmInvocation(args, process.cwd(), workspaceDir);
@@ -371,23 +386,29 @@ function runFakePnpm(args: readonly string[]): number {
   };
   if (invocation.kind === 'smoke') {
     const executable = process.env.SMOKE_APP_EXECUTABLE;
-    const recordedEnv = Object.fromEntries(
-      (process.env[fakeCiEnvNames.recordEnv] ?? '')
-        .split(',')
-        .filter((name) => name !== '')
-        .map((name) => [name, process.env[name] ?? null]),
-    );
+    const recordedEnv = readRecordedEnv();
     record({ ...base, smokeAppExecutable: executable, executableAtCall: describeFile(executable), recordedEnv });
     const code = exitCodeFromEnv(fakeCiEnvNames.smokeExitCode);
     console.log(code === 0 ? 'fake smoke suite: passed' : `fake smoke suite: failed (exit ${code})`);
     return code;
+  }
+  if (invocation.kind === 'foreground-tests') {
+    record({ ...base, recordedEnv: readRecordedEnv() });
+    const code = exitCodeFromEnv(fakeCiEnvNames.foregroundExitCode);
+    console.log(
+      code === 0 ? 'fake foreground test group: passed' : `fake foreground test group: failed (exit ${code})`,
+    );
+    return code;
+  }
+  if (invocation.kind === 'turbo') {
+    record({ ...base, recordedEnv: readRecordedEnv() });
+    return 0;
   }
   record(base);
   if (invocation.kind === 'install') {
     linkNodeModules(process.env[fakeCiEnvNames.realRepoRoot] ?? '', workspaceDir);
     return 0;
   }
-  if (invocation.kind === 'turbo') return 0;
   if (invocation.kind === 'package-reference') {
     const code = exitCodeFromEnv(fakeCiEnvNames.packageExitCode);
     if (code !== 0) {

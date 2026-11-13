@@ -6,12 +6,26 @@
 //
 // Every wait is bounded: a modal error dialog in the main process makes the
 // wait fail with the app's output instead of hanging (ADR 0005).
+//
+// Background mode (#46; TST-018; ADR 0013 rule 2): every launch gets
+// FOUNDATION_TEST_BACKGROUND=1 by default, so the app shows no window and takes
+// no focus. A run with FOUNDATION_TEST_FOREGROUND=1 in its environment launches
+// normally. A caller that tests the switch itself sets the variable in `env`
+// (its value wins) or names it in `withoutEnv` (the app gets no such variable).
+// On Linux a launch in background mode also gets `--disable-gpu` as its last
+// argument (ADR 0016; `testBackgroundLaunchSwitches`).
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { stripAnsiCodes } from '../../test-support/run-repo-command';
 import { removeAppFolderAfterExit } from '../../test-support/app-process-cleanup';
+import {
+  isForegroundTestRun,
+  testBackgroundEnabledValue,
+  testBackgroundLaunchSwitches,
+  testBackgroundVariableName,
+} from '../../test-support/background-test-variables';
 
 export interface ElectronAppProcess {
   readonly userDataDir: string;
@@ -42,9 +56,16 @@ function buildAppEnv(extra: Record<string, string>, without: readonly string[]):
     if (inheritedVariableNames.includes(key)) continue;
     if (inheritedVariablePrefixes.some((prefix) => key.startsWith(prefix))) continue;
     if (without.includes(key)) continue;
+    // The run-level choice below decides the launch mode, not a value left in this process's environment.
+    if (key === testBackgroundVariableName) continue;
     env[key] = value;
   }
-  return { ...env, FORCE_COLOR: '0', NO_COLOR: '1', ...extra };
+  // #46 (ADR 0013 rule 2): background mode by default; FOUNDATION_TEST_FOREGROUND=1 launches normally.
+  const background =
+    isForegroundTestRun() || without.includes(testBackgroundVariableName)
+      ? {}
+      : { [testBackgroundVariableName]: testBackgroundEnabledValue };
+  return { ...env, FORCE_COLOR: '0', NO_COLOR: '1', ...background, ...extra };
 }
 
 /** Chromium switches every gate launch adds: a free DevTools port and a fresh user data folder. */
@@ -73,19 +94,27 @@ function delay(ms: number): Promise<void> {
  * Starts `command` with `args`. Gate launches pass `devToolsLaunchSwitches`
  * themselves (in the right place for the command). `pnpm` runs through
  * cmd.exe on Windows, where it is a `.cmd` shim. On Linux without a display
- * the command runs under `xvfb-run`.
+ * the command runs under `xvfb-run`. On Linux in background mode (the app's
+ * environment holds FOUNDATION_TEST_BACKGROUND=1) `--disable-gpu` is added after
+ * `args` (ADR 0016), so a `pnpm run <script>` command must end its `args` with
+ * `--` and the switches for Electron.
  */
 export function startElectronAppProcess(options: {
   command: string;
   args: (userDataDir: string) => readonly string[];
   cwd: string;
   env?: Record<string, string>;
-  /** Variables the app must not inherit from this process (#18: a launch that must run without the CDP variable). */
+  /**
+   * Variables the app must not get (#18: a launch that must run without the CDP variable). Naming
+   * FOUNDATION_TEST_BACKGROUND here also drops the background default (#46).
+   */
   withoutEnv?: readonly string[];
 }): ElectronAppProcess {
   const userDataDir = realpathSync.native(mkdtempSync(join(tmpdir(), 'rf-gate-user-data-')));
+  const env = buildAppEnv(options.env ?? {}, options.withoutEnv ?? []);
   let command = options.command;
-  let args = [...options.args(userDataDir)];
+  // ADR 0016: on Linux, background launches run without the GPU process.
+  let args = [...options.args(userDataDir), ...testBackgroundLaunchSwitches(env)];
   if (process.platform === 'linux' && !hasDisplay()) {
     args = ['--auto-servernum', '--server-args=-screen 0 1280x1024x24', command, ...args];
     command = 'xvfb-run';
@@ -93,7 +122,7 @@ export function startElectronAppProcess(options: {
   const throughShell = process.platform === 'win32' && command === 'pnpm';
   const spawnOptions = {
     cwd: options.cwd,
-    env: buildAppEnv(options.env ?? {}, options.withoutEnv ?? []),
+    env,
     stdio: ['ignore', 'pipe', 'pipe'] as ['ignore', 'pipe', 'pipe'],
     detached: process.platform !== 'win32',
     windowsHide: true,
@@ -138,7 +167,16 @@ export function startElectronAppProcess(options: {
       while (Date.now() < deadline) {
         if (spawnError) throw new Error(`the app could not start:\n${describe()}`);
         if (existsSync(portFile)) {
-          const port = Number(readFileSync(portFile, 'utf8').split(/\r?\n/)[0]);
+          // Windows: Chromium may still hold the file open while it writes it (EBUSY,
+          // PR #47 run 43355618046); a locked or vanished file counts as "not written yet".
+          let text = '';
+          try {
+            text = readFileSync(portFile, 'utf8');
+          } catch (error) {
+            const code = (error as NodeJS.ErrnoException).code;
+            if (code !== 'EBUSY' && code !== 'EPERM' && code !== 'EACCES' && code !== 'ENOENT') throw error;
+          }
+          const port = Number(text.split(/\r?\n/)[0]);
           if (Number.isInteger(port) && port > 0) return port;
         }
         if (exitCode !== null) throw new Error(`the app exited before it opened its DevTools port:\n${describe()}`);

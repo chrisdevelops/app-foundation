@@ -33,6 +33,20 @@
 //   writes the same plus a PNG screenshot of each window. The variable is read
 //   when writing; evidence never holds environment variable values
 //   (smoke-evidence-folder.ts).
+// - Background mode (#46; TST-018; ADR 0013 rule 2): every launch gets
+//   FOUNDATION_TEST_BACKGROUND=1, so the app shows no window and takes no
+//   focus. When the harness's own environment holds FOUNDATION_TEST_FOREGROUND=1
+//   (read at each launch; foreground-test-run.ts) the app gets no
+//   FOUNDATION_TEST_BACKGROUND and launches normally. A value the caller sets in
+//   `env` wins. Playwright's `connectOverCDP` turns on CDP focus emulation for
+//   every page, so `document.hasFocus()` is true in hidden windows too.
+// - Linux background launches without the GPU process (ADR 0016): when the
+//   final app environment holds FOUNDATION_TEST_BACKGROUND=1 on Linux, the
+//   Electron argv also gets `--disable-gpu` (dev and packaged targets). On
+//   the GPU-less Ubuntu runners the GPU process can fail again and again at
+//   startup, and no frame is drawn until Chromium falls back to software
+//   compositing. A run with FOUNDATION_TEST_FOREGROUND=1, macOS and Windows
+//   launch without it.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { connect, createServer } from 'node:net';
@@ -40,6 +54,11 @@ import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Page } from 'playwright-core';
+import {
+  testBackgroundEnabledValue,
+  testBackgroundVariableName,
+} from '@foundation/foundation/main/test-background-variable';
+import { isForegroundTestRun } from './foreground-test-run';
 import { readSmokeEvidenceDir, writeSmokeEvidence, type SmokeEvidenceScreenshot } from './smoke-evidence-folder';
 
 /** What the harness starts: the reference app's dev command, or a packaged executable by path. */
@@ -556,9 +575,15 @@ function buildAppEnv(extra: Readonly<Record<string, string>>): NodeJS.ProcessEnv
   for (const [key, value] of Object.entries(process.env)) {
     if (inheritedVariableNames.has(key)) continue;
     if (inheritedVariablePrefixes.some((prefix) => key.startsWith(prefix))) continue;
+    // The launch mode comes from the run-level choice below, not from a value left in this process's environment.
+    if (key === testBackgroundVariableName) continue;
     env[key] = value;
   }
-  return { ...env, FORCE_COLOR: '0', NO_COLOR: '1', ...extra };
+  // #46 (ADR 0013 rule 2): background mode unless this run asked for normal launches.
+  const background: Record<string, string> = isForegroundTestRun(process.env)
+    ? {}
+    : { [testBackgroundVariableName]: testBackgroundEnabledValue };
+  return { ...env, FORCE_COLOR: '0', NO_COLOR: '1', ...background, ...extra };
 }
 
 /** Chromium switches of every launch: the DevTools port and the fresh user data folder. */
@@ -569,6 +594,18 @@ function devToolsSwitches(port: number, userDataDir: string): string[] {
   return switches;
 }
 
+/** Chromium switch that turns off the GPU process; Linux background launches get it (ADR 0016). */
+const linuxBackgroundGpuSwitch = '--disable-gpu';
+
+/**
+ * Switches for the launch mode (ADR 0016): `linuxBackgroundGpuSwitch` on Linux when the final app environment
+ * `appEnv` puts the app in background mode; none otherwise (foreground runs, macOS, Windows).
+ */
+function launchModeSwitches(appEnv: Readonly<NodeJS.ProcessEnv>): string[] {
+  const background = appEnv[testBackgroundVariableName] === testBackgroundEnabledValue;
+  return process.platform === 'linux' && background ? [linuxBackgroundGpuSwitch] : [];
+}
+
 /** Quotes one argument for cmd.exe; throws on characters cmd.exe expands even inside quotes. */
 function quoteForWindowsShell(arg: string): string {
   if (/[%!"\r\n]/.test(arg)) throw new Error(`argument cannot be passed through cmd.exe: ${JSON.stringify(arg)}`);
@@ -576,7 +613,8 @@ function quoteForWindowsShell(arg: string): string {
 }
 
 function startProcessTree(options: SmokeAppLaunchOptions, port: number, userDataDir: string): ProcessTree {
-  const switches = devToolsSwitches(port, userDataDir);
+  const appEnv = buildAppEnv(options.env ?? {});
+  const switches = [...devToolsSwitches(port, userDataDir), ...launchModeSwitches(appEnv)];
   // Dev build: `pnpm run dev -- <switches>` in the reference app; Forge passes the switches after `--` to Electron.
   let command = options.target.kind === 'dev' ? 'pnpm' : options.target.executablePath;
   let args = options.target.kind === 'dev' ? ['run', 'dev', '--', ...switches] : switches;
@@ -590,7 +628,7 @@ function startProcessTree(options: SmokeAppLaunchOptions, port: number, userData
   const throughShell = process.platform === 'win32' && command === 'pnpm';
   const spawnOptions = {
     cwd,
-    env: buildAppEnv(options.env ?? {}),
+    env: appEnv,
     stdio: ['ignore', 'pipe', 'pipe'] as ['ignore', 'pipe', 'pipe'],
     // POSIX: its own process group, so one signal reaches every process of the tree.
     detached: process.platform !== 'win32',
