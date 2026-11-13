@@ -20,7 +20,7 @@
 // and no WMI: about 60 ms per listing.
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, unlinkSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 
@@ -211,8 +211,50 @@ export async function removeAppFolderAfterExit(path: string, label: string): Pro
     rmSync(path, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
   } catch (error) {
     throw new Error(
-      `${label}: could not remove ${path} after every process using it exited (${(error as NodeJS.ErrnoException).code ?? String(error)})`,
+      `${label}: could not remove ${path} after every process using it exited [DIAG ${probeDiag(path)}] (${(error as NodeJS.ErrnoException).code ?? String(error)})`,
       { cause: error },
     );
   }
+}
+
+function probeDiag(path: string): string {
+  if (process.platform !== 'win32') return 'not windows';
+  const out: string[] = [];
+  const fold = path.toLowerCase();
+  const mine = listRunningProcesses();
+  const tasklist = spawnSync('tasklist', ['/fo', 'csv', '/nh'], { encoding: 'utf8', windowsHide: true }).stdout ?? '';
+  const names = new Map<number, string>();
+  for (const line of tasklist.split(/\r?\n/)) {
+    const m = /^"([^"]*)","(\d+)"/.exec(line);
+    if (m) names.set(Number(m[2]), m[1] as string);
+  }
+  out.push('lister unreadable: ' + mine.filter((e) => !e.command || !e.executable).map((e) => `${e.pid}:${names.get(e.pid) ?? '?'}:exe=${e.executable ? 'y' : 'n'}:cmd=${e.command ? 'y' : 'n'}`).join(' '));
+  out.push('lister mentions folder: ' + mine.filter((e) => e.command.toLowerCase().includes(fold) || e.executable.toLowerCase().includes(fold)).map((e) => `${e.pid}:${names.get(e.pid) ?? '?'}:${e.command.slice(0, 200)}`).join(' || '));
+  const wmi = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', 'Get-CimInstance Win32_Process | Select-Object ProcessId,Name,ExecutablePath,CommandLine | ConvertTo-Json -Compress'], {
+    env: { ...process.env, PSModuleAnalysisCachePath: 'C:\\PSModuleAnalysisCachePath\\ModuleAnalysisCache' },
+    encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024, timeout: 120_000,
+  });
+  try {
+    const list = [JSON.parse(wmi.stdout)].flat() as { ProcessId: number; Name: string; ExecutablePath: string | null; CommandLine: string | null }[];
+    out.push('wmi mentions folder: ' + list.filter((e) => (e.ExecutablePath ?? '').toLowerCase().includes(fold) || (e.CommandLine ?? '').toLowerCase().includes(fold)).map((e) => `${e.ProcessId}:${e.Name}:${(e.CommandLine ?? 'null').slice(0, 200)}`).join(' || '));
+  } catch (error) {
+    out.push('wmi failed ' + String(error));
+  }
+  const tools = 'D:\\a\\_temp\\handle';
+  if (!existsSync(tools + '\\handle64.exe')) {
+    spawnSync('cmd.exe', ['/c', `mkdir ${tools} & curl.exe -sSL -o ${tools}\\h.zip https://download.sysinternals.com/files/Handle.zip & tar -xf ${tools}\\h.zip -C ${tools}`], { encoding: 'utf8', timeout: 120_000 });
+  }
+  const handle = spawnSync(tools + '\\handle64.exe', ['-accepteula', '-nobanner', path], { encoding: 'utf8', timeout: 120_000 });
+  out.push('handle64: status=' + String(handle.status) + ' ' + (handle.stdout ?? '').slice(0, 3000) + (handle.stderr ?? '').slice(0, 500));
+  const stuck: string[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = dir + '\\' + entry.name;
+      if (entry.isDirectory()) walk(full);
+      else { try { unlinkSync(full); } catch (error) { stuck.push(full.slice(path.length) + ':' + String((error as NodeJS.ErrnoException).code)); } }
+    }
+  };
+  try { walk(path); } catch (error) { stuck.push('walk failed ' + String(error)); }
+  out.push('undeletable files: ' + stuck.slice(0, 15).join(' ') + (stuck.length > 15 ? ' ... ' + String(stuck.length) : ''));
+  return out.join('\n');
 }
