@@ -7,7 +7,7 @@
 // process that is still running fails the gate with its name and command
 // line, and is never killed silently.
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, rmSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
 import { sep } from 'node:path';
 
 export interface RunningProcess {
@@ -37,7 +37,9 @@ export function listRunningProcesses(): RunningProcess[] {
       maxBuffer: 64 * 1024 * 1024,
       timeout: 60_000,
     });
-    if (process.env.PROBE_LOG) appendFileSync(process.env.PROBE_LOG, `${new Date().toISOString()} ${Date.now() - probeStart} ms status=${String(result.status)} signal=${String(result.signal)} error=${String((result.error as NodeJS.ErrnoException | undefined)?.code)} out=${result.stdout?.length ?? 0} ${new Error().stack?.split('\n').slice(2, 6).join(' <- ')}\n`);
+    probeCall('current', Date.now() - probeStart, result);
+    if (result.status !== 0) probeDiagnose();
+    else probeTime('ntquery', 'powershell.exe', readFileSync(new URL('../probe/ntquery.ps1', import.meta.url), 'utf8'));
     if (result.status !== 0) {
       throw new Error(`could not list processes with PowerShell (exit ${String(result.status)}): ${result.stderr}`);
     }
@@ -110,4 +112,24 @@ export async function removeAppFolderAfterExit(path: string, label: string): Pro
       { cause: error },
     );
   }
+}
+
+const probeLog = 'D:\\a\\_temp\\probe-calls.log';
+function probeCall(name: string, ms: number, result: ReturnType<typeof spawnSync>): void {
+  const where = (new Error().stack ?? '').split('\n').slice(3, 7).map((l) => l.trim()).join(' < ');
+  appendFileSync(probeLog, `${new Date().toISOString()} CALL ${name} ${ms} ms status=${String(result.status)} signal=${String(result.signal)} error=${String((result.error as NodeJS.ErrnoException | undefined)?.code)} out=${String(result.stdout?.length ?? 0)} err=${String(result.stderr ?? '').slice(0, 200).replace(/\s+/g, ' ')} | ${where}\n`);
+}
+function probeTime(name: string, command: string, script: string, timeout = 90_000): void {
+  const started = Date.now();
+  const result = spawnSync(command, ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024, timeout });
+  probeCall(name, Date.now() - started, result);
+}
+function probeDiagnose(): void {
+  probeTime('diag powershell exit 0', 'powershell.exe', 'exit 0');
+  probeTime('diag pwsh exit 0', 'pwsh', 'exit 0');
+  probeTime('diag ntquery', 'powershell.exe', readFileSync(new URL('../probe/ntquery.ps1', import.meta.url), 'utf8'));
+  probeTime('diag Win32_OperatingSystem', 'powershell.exe', 'Get-CimInstance Win32_OperatingSystem | Out-Null');
+  probeTime('diag Get-Process only', 'powershell.exe', 'Get-Process | Measure-Object | Out-Null');
+  probeTime('diag Win32_Process ProcessId only', 'powershell.exe', 'Get-CimInstance -Query "SELECT ProcessId FROM Win32_Process" | Out-Null');
+  probeTime('diag current again', 'powershell.exe', windowsProcessQuery);
 }
