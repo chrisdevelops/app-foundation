@@ -49,4 +49,4 @@ PR #47 CI (run 43324750319): on Linux (`xvfb-run`) and Windows, a never-shown wi
 - [x] Spec updated (`docs/foundation/decision-summary.md`, section "Testing and quality": TST-018)
 - [x] Ledger updated (TST-018)
 - [x] Issues created or changed: #46 (task for TST-018); #43 closed
-- [ ] `.claude/agents/verifier.md` and `test-author.md`: launch in background mode unless a scenario needs the foreground group (orchestrator, after the task merges)
+- [x] `.claude/agents/verifier.md` and `test-author.md`: launch in background mode unless a scenario needs the foreground group (orchestrator, after the task merges)

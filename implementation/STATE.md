@@ -10,7 +10,7 @@
 
 | Issue | Title | Stage | Attempt | Next action |
 | --- | --- | --- | --- | --- |
-| — | ADR 0013 follow-up: agent instructions for background mode | orchestrator | — | Update `.claude/agents/verifier.md` and `test-author.md`; verifier packages into its own copy of the build output. |
+| #19 | Token pipeline: profile plugin writes tokens.css with source comments | planned | — | Pick #19; test author first. |
 
 ## Last action
 
@@ -18,7 +18,7 @@
 
 ## Next action
 
-Update `.claude/agents/verifier.md` and `test-author.md` for background mode (ADR 0013 follow-up). Then #19.
+Start #19 (test author).
 
 ## Open escalations
 
