@@ -5,7 +5,7 @@ on:
 permissions:
   contents: read
 jobs:
-  env:
+  causal:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -17,7 +17,32 @@ jobs:
           node-version-file: package.json
       - run: pnpm install --frozen-lockfile
       - run: node -e "require('fs').writeFileSync('D:/a/_temp/full-env.json', JSON.stringify(process.env, null, 1))"
-      - run: pnpm turbo run test --filter=// -- tools/probe/env-probe.test.ts
+      - run: pnpm turbo run test --filter=// -- tools/probe/cache-probe.test.ts
         continue-on-error: true
-      - run: Get-Content D:\a\_temp\env-probe.log
+      - run: Get-Content D:\a\_temp\cache-probe.log
         if: always()
+  gate-old:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: package.json
+      - run: pnpm install --frozen-lockfile
+      - run: Copy-Item tools/probe/old-app-process-cleanup.ts tools/test-support/app-process-cleanup.ts -Force
+      - run: pnpm turbo run test --filter=// -- tools/test-support/app-process-cleanup.gate.test.ts
+  gate-new:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: package.json
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run test --filter=// -- tools/test-support/app-process-cleanup.gate.test.ts

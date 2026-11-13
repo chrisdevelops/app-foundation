@@ -5,11 +5,12 @@
 //   full command line and, on Windows, its executable path. Cleanup matches
 //   processes by `--user-data-dir=<dir>` and by executable folder, so long
 //   arguments, spaces and (on Windows) non-ASCII characters come back exactly.
-// - One listing is fast: under 15 s, also while the rest of the suite runs.
-//   On GitHub Windows runners, PowerShell cmdlets (Get-CimInstance and every
-//   other one that loads a module) took about 21 s each, and more than 60 s
-//   at first, while the suite ran (probe PR #49), so cleanup failed with
-//   `could not list processes with PowerShell (exit null)`.
+// - Listing is fast: the first listing in a test process and each later one
+//   take under 15 s, also while the rest of the suite runs. In `pnpm turbo run
+//   test` workers on GitHub Windows runners, the old PowerShell listing took
+//   41 s on its first call, more than 60 s under load, then about 21 s per call
+//   (probe PR #49), so cleanup failed with `could not list processes with
+//   PowerShell (exit null)`.
 // - listRunningProcesses({ timeoutMs, attempts }) bounds each attempt and the
 //   number of attempts. When every attempt fails it throws an Error whose
 //   message starts with `could not list processes`, names the number of
@@ -21,7 +22,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { listProcessesUsing, listRunningProcesses, waitForProcessesToExit } from './app-process-cleanup';
 
 const windows = process.platform === 'win32';
@@ -31,6 +32,19 @@ const slow = { timeout: 120_000 };
 
 const started: ChildProcess[] = [];
 const folders: string[] = [];
+
+/** Duration of the first listing in this test process (#46: the first PowerShell call cost 41 s or more). */
+let firstListing: { readonly elapsedMs: number; readonly entries: number; readonly error?: string } | undefined;
+
+beforeAll(() => {
+  const startedAt = Date.now();
+  try {
+    const entries = listRunningProcesses().length;
+    firstListing = { elapsedMs: Date.now() - startedAt, entries };
+  } catch (error) {
+    firstListing = { elapsedMs: Date.now() - startedAt, entries: 0, error: String(error) };
+  }
+}, 180_000);
 
 afterAll(() => {
   for (const child of started) child.kill();
@@ -46,10 +60,14 @@ function makeUserDataDir(): string {
 
 /** Starts a Node process that sleeps, with `--user-data-dir=<dir>` and `extra` in its command line. */
 function startSleeper(dir: string, extra: readonly string[] = []): ChildProcess {
-  const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 120000)', '--', `--user-data-dir=${dir}`, ...extra], {
-    stdio: 'ignore',
-    windowsHide: true,
-  });
+  const child = spawn(
+    process.execPath,
+    ['-e', 'setTimeout(() => {}, 120000)', '--', `--user-data-dir=${dir}`, ...extra],
+    {
+      stdio: 'ignore',
+      windowsHide: true,
+    },
+  );
   started.push(child);
   return child;
 }
@@ -74,12 +92,17 @@ describe('process listing for gate-test cleanup (TST-011, #46)', () => {
       const longArgument = `--marker=${'x'.repeat(4000)}`;
       const child = startSleeper(dir, [longArgument]);
       const entry = await waitForListed(child.pid as number, 30_000);
-      expect(entry.command, 'the command line must hold the user data switch exactly').toContain(`--user-data-dir=${dir}`);
+      expect(entry.command, 'the command line must hold the user data switch exactly').toContain(
+        `--user-data-dir=${dir}`,
+      );
       expect(entry.command, 'the command line must not be cut').toContain(longArgument);
       if (windows) {
         expect(entry.executable.toLowerCase()).toBe(process.execPath.toLowerCase());
       } else {
-        expect(entry.command.startsWith(process.execPath), `POSIX command starts with the executable: ${entry.command.slice(0, 200)}`).toBe(true);
+        expect(
+          entry.command.startsWith(process.execPath),
+          `POSIX command starts with the executable: ${entry.command.slice(0, 200)}`,
+        ).toBe(true);
       }
     },
   );
@@ -104,15 +127,25 @@ describe('process listing for gate-test cleanup (TST-011, #46)', () => {
   );
 
   // TST-011, TST-018 (Windows runners, #46)
-  it(`TST-011: one listing of every process takes less than ${listingLimitMs} ms`, slow, () => {
-    for (let round = 1; round <= 3; round += 1) {
-      const startedAt = Date.now();
-      const entries = listRunningProcesses();
-      const elapsedMs = Date.now() - startedAt;
-      expect(entries.length, 'a listing holds more than this test process').toBeGreaterThan(1);
-      expect(elapsedMs, `listing ${round} took ${elapsedMs} ms`).toBeLessThan(listingLimitMs);
-    }
-  });
+  it(
+    `TST-011: the first listing in a test process, and each later one, takes less than ${listingLimitMs} ms`,
+    slow,
+    () => {
+      expect(firstListing?.error, 'the first listing in this test process must succeed').toBeUndefined();
+      expect(firstListing?.entries, 'the first listing holds more than this test process').toBeGreaterThan(1);
+      expect(
+        firstListing?.elapsedMs,
+        `the first listing in this test process took ${String(firstListing?.elapsedMs)} ms`,
+      ).toBeLessThan(listingLimitMs);
+      for (let round = 1; round <= 3; round += 1) {
+        const startedAt = Date.now();
+        const entries = listRunningProcesses();
+        const elapsedMs = Date.now() - startedAt;
+        expect(entries.length, 'a listing holds more than this test process').toBeGreaterThan(1);
+        expect(elapsedMs, `listing ${round} took ${elapsedMs} ms`).toBeLessThan(listingLimitMs);
+      }
+    },
+  );
 
   // TST-011: failure mode
   it(
