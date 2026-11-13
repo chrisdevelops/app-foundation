@@ -25,9 +25,18 @@
 //   read (gate 22, proved with a read trace preloaded into every Node process
 //   of the build). Each probe has a control build (Terrazzo without the
 //   profile) that shows the probe sees Terrazzo's request or read.
+// - The guard fails closed (orchestrator decision after #20 review 1):
+//   Terrazzo 2.10.0 reads token files as JSONC (comments allowed, the FIRST of
+//   duplicate keys wins) and as YAML, so every file the guard visits (resolver,
+//   `config.tokens` entries, every `$ref` target) must be strict JSON named
+//   `*.json`, an object may hold only one `$ref`, and a `config.tokens` entry
+//   that is remote or outside the repo root is refused. Each refusal is a
+//   `ui/ref-guard` line in the strict shape that names the file at fault, and
+//   comes before any request or read of the target. Each case has a control
+//   build (Terrazzo without the profile) that makes the request or the read.
 // - All builds run in scratch folders below packages/foundation/node_modules/.cache/;
 //   no gate removes, moves or writes a tracked file.
-import { realpathSync, writeFileSync } from 'node:fs';
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -43,11 +52,15 @@ import {
   createOutsideRepoDir,
   describePackageBuild,
   editPackageJson,
+  editPackageText,
   isInsideRepo,
   relativeRefFrom,
   removeTokenPackageDirs,
   runTerrazzoWithoutProfile,
+  runTerrazzoWithoutProfileOnTokens,
   runTokensBuildScript,
+  setAppConfigTokens,
+  writePackageFile,
   type TokenPackageBuildResult,
 } from './test-support/token-package-build';
 
@@ -358,9 +371,9 @@ describe('resolver $ref guard: remote URLs (gate 21, TOK-176)', { timeout: build
 // ---------- gate 22: $ref outside the repo root, or absolute
 
 /** A valid token file outside the checkout, as a `$ref` target. */
-function createOutsideTokenFile(): string {
+function createOutsideTokenFile(fileName = 'outside.tokens.json'): string {
   const outsideDir = createOutsideRepoDir();
-  const target = join(outsideDir, 'outside.tokens.json');
+  const target = join(outsideDir, fileName);
   writeFileSync(target, extraTokenFile);
   return target;
 }
@@ -485,3 +498,255 @@ describe('the guard and the wrapper apply to an app build that uses the profile'
     expectRefRefused(build, appResolverFile, ref);
   });
 });
+
+// ---------- fail-closed guard: files Terrazzo reads that JSON.parse does not (#20 review 1, findings 1 and 2)
+//
+// Terrazzo 2.10.0 parses token files with Momoa as JSONC (comments allowed;
+// of duplicate keys, the FIRST wins, where JSON.parse keeps the last) and
+// parses as YAML any source that does not start with `{`, `"` or `[`. The
+// orchestrator decision: the guard fails closed. Every file it visits must be
+// strict JSON named `*.json`, an object holds at most one `$ref`, and a
+// `config.tokens` entry that is remote or outside the repo root is refused.
+// Finding 3 (an error printed without failing the build) cannot be reached in
+// Terrazzo 2.10.0, so no gate covers it.
+
+/** The resolver source that the raw-text cases insert after. */
+const motionSourceText = '{ "$ref": "ref/motion.tokens.json" }';
+
+/** Inserts raw `text` as the next source after the motion source of a resolver's `ref` set. */
+function insertAfterMotionSource(packageDir: string, resolverFile: string, text: string): void {
+  editPackageText(packageDir, resolverFile, (source) => {
+    if (!source.includes(motionSourceText)) {
+      throw new Error(`fixture precondition: ${resolverFile} holds ${motionSourceText}`);
+    }
+    return source.replace(motionSourceText, `${motionSourceText}, ${text}`);
+  });
+}
+
+/**
+ * The guard's fail-closed refusal: the build fails, and stderr holds a
+ * `ui/ref-guard` line in the strict shape (TOK-155) that names `names` (the
+ * file at fault, as the line's `file` field or in its message). When `file` is
+ * given, that line's `file` field is exactly `file`. Each `ui/ref-guard` line
+ * is printed once, and only on stderr.
+ */
+function expectGuardRefusal(
+  build: TokenPackageBuildResult,
+  expected: { readonly names: string; readonly file?: string },
+): void {
+  expectFailedBuild(build);
+  const guardErrors = parseTokenErrorLines(build.run.stderr).filter((error) => error.ruleId === 'ui/ref-guard');
+  const naming = guardErrors.filter(
+    (error) => error.line.includes(expected.names) && (expected.file === undefined || error.file === expected.file),
+  );
+  expect(
+    naming.map((error) => error.line),
+    `stderr must hold a ui/ref-guard line in the shape file#token.path: rule-id: message that names ${expected.names}${
+      expected.file === undefined ? '' : ` with the file ${expected.file}`
+    }. ${describePackageBuild(build)}`,
+  ).not.toEqual([]);
+  for (const error of guardErrors) {
+    expect(
+      linesContaining(build.run.stderr, error.line),
+      `each guard line is printed once: ${error.line}`,
+    ).toHaveLength(1);
+    expect(linesContaining(build.run.stdout, error.line), `a guard line is not on stdout: ${error.line}`).toEqual([]);
+  }
+}
+
+/** The fixture's resolver as the `tokens` entry of a control config. */
+const foundationControlTokens = [`./${foundationResolverFile}`] as const;
+
+interface FailClosedArrangement {
+  /** The package to build with `pnpm run tokens:build`. */
+  readonly packageDir: string;
+  /** The `tokens` field of the control config (Terrazzo without the profile) in `packageDir`. */
+  readonly controlTokens: readonly string[];
+  /** What the guard line must name: the file at fault. */
+  readonly names: string;
+  /** The guard line's exact `file` field, when the file at fault is a token file of the package. */
+  readonly file?: string;
+}
+
+interface RemoteFailClosedCase {
+  readonly title: string;
+  arrange(origin: string): FailClosedArrangement;
+}
+
+const remoteFailClosedCases: readonly RemoteFailClosedCase[] = [
+  {
+    title: 'a resolver with a comment before a remote $ref',
+    arrange(origin) {
+      const packageDir = createFoundationShapedPackage(fixtureSystemDir);
+      insertAfterMotionSource(
+        packageDir,
+        foundationResolverFile,
+        `/* a comment before a remote $ref */ { "$ref": "${origin}/after-comment.tokens.json" }`,
+      );
+      return {
+        packageDir,
+        controlTokens: foundationControlTokens,
+        names: foundationResolverFile,
+        file: foundationResolverFile,
+      };
+    },
+  },
+  {
+    title: 'an object with two $ref keys, the first remote and the second in the repo',
+    arrange(origin) {
+      const packageDir = createFoundationShapedPackage(fixtureSystemDir);
+      insertAfterMotionSource(
+        packageDir,
+        foundationResolverFile,
+        `{ "$ref": "${origin}/duplicate-key.tokens.json", "$ref": "ref/motion.tokens.json" }`,
+      );
+      // JSON.parse accepts the file and keeps the last (in-repo) $ref; Terrazzo takes the first.
+      const resolverText = readFileSync(join(packageDir, ...foundationResolverFile.split('/')), 'utf8');
+      expect((): unknown => JSON.parse(resolverText), 'test precondition: the resolver is valid JSON').not.toThrow();
+      return {
+        packageDir,
+        controlTokens: foundationControlTokens,
+        names: foundationResolverFile,
+        file: foundationResolverFile,
+      };
+    },
+  },
+  {
+    title: 'an in-repo .yaml token file named by the resolver, holding a remote $ref',
+    arrange(origin) {
+      const packageDir = createFoundationShapedPackage(fixtureSystemDir);
+      writePackageFile(
+        packageDir,
+        'tokens/ref/remote-ref.tokens.yaml',
+        `ref:\n  extra:\n    $ref: "${origin}/from-yaml.tokens.json#/ref/extra"\n`,
+      );
+      addSetSource(packageDir, foundationResolverFile, 'ref', 'ref/remote-ref.tokens.yaml');
+      return { packageDir, controlTokens: foundationControlTokens, names: 'remote-ref.tokens.yaml' };
+    },
+  },
+  {
+    title: 'an app config.tokens entry that is a remote URL',
+    arrange(origin) {
+      const { appDir } = createAppShapedPackage(fixtureSystemDir);
+      const entry = `${origin}/remote-entry.tokens.json`;
+      setAppConfigTokens(appDir, [entry]);
+      return { packageDir: appDir, controlTokens: [entry], names: 'remote-entry.tokens.json' };
+    },
+  },
+];
+
+describe(
+  'fail-closed $ref guard: remote URLs Terrazzo would fetch (gate 21, TOK-176)',
+  { timeout: buildTimeoutMs },
+  () => {
+    for (const failClosedCase of remoteFailClosedCases) {
+      // Control: Terrazzo without the profile requests the URL, so the server
+      // count below proves a refusal and not a fixture Terrazzo ignores.
+      it(`control: Terrazzo without the profile requests the URL in ${failClosedCase.title}`, async () => {
+        await withServer((server) => {
+          const arranged = failClosedCase.arrange(server.origin);
+          const run = runTerrazzoWithoutProfileOnTokens(arranged.packageDir, arranged.controlTokens);
+          expect(
+            server.requests(),
+            `the control build must request the URL:\n${run.output.slice(-3000)}`,
+          ).toBeGreaterThan(0);
+        });
+      });
+
+      // TOK-176 (gate 21), fail-closed decision on #20 review 1 findings 1 and 2
+      it(`TOK-176: ${failClosedCase.title} is refused with a ui/ref-guard line naming the file, and the server gets no connection`, async () => {
+        await withServer((server) => {
+          const arranged = failClosedCase.arrange(server.origin);
+          const build = runTokensBuildScript(arranged.packageDir);
+          expect(server.connections(), `no connection may reach the server. ${describePackageBuild(build)}`).toBe(0);
+          expectGuardRefusal(build, arranged);
+        });
+      });
+    }
+  },
+);
+
+interface OutsideFailClosedCase {
+  readonly title: string;
+  arrange(): FailClosedArrangement & { readonly target: string };
+}
+
+/** Writes a token file that holds a `$ref` from `fileInPackage` to the `ref.extra` group of `target`. */
+function refToOutsideGroup(packageDir: string, fileInPackage: string, target: string): string {
+  const fromDir = join(packageDir, ...fileInPackage.split('/').slice(0, -1));
+  const ref = `${relativeRefFrom(fromDir, target)}#/ref/extra`;
+  expect(ref.startsWith('../'), 'test precondition: the $ref is relative and goes up').toBe(true);
+  return ref;
+}
+
+const outsideFailClosedCases: readonly OutsideFailClosedCase[] = [
+  {
+    title: 'a token file with a comment, named by the resolver, holding a $ref outside the repo root',
+    arrange() {
+      const target = createOutsideTokenFile('outside-target.tokens.json');
+      const packageDir = createFoundationShapedPackage(fixtureSystemDir);
+      const file = 'tokens/ref/commented.tokens.json';
+      const ref = refToOutsideGroup(packageDir, file, target);
+      writePackageFile(
+        packageDir,
+        file,
+        `{\n  /* a comment: JSONC, not JSON */\n  "ref": { "outside": { "$ref": ${JSON.stringify(ref)} } }\n}\n`,
+      );
+      addSetSource(packageDir, foundationResolverFile, 'ref', 'ref/commented.tokens.json');
+      return { packageDir, target, controlTokens: foundationControlTokens, names: 'commented.tokens.json' };
+    },
+  },
+  {
+    title: 'an in-repo .yaml token file named by the resolver, holding a $ref outside the repo root',
+    arrange() {
+      const target = createOutsideTokenFile('outside-target.tokens.json');
+      const packageDir = createFoundationShapedPackage(fixtureSystemDir);
+      const file = 'tokens/ref/outside-ref.tokens.yaml';
+      const ref = refToOutsideGroup(packageDir, file, target);
+      writePackageFile(packageDir, file, `ref:\n  outside:\n    $ref: ${JSON.stringify(ref)}\n`);
+      addSetSource(packageDir, foundationResolverFile, 'ref', 'ref/outside-ref.tokens.yaml');
+      return { packageDir, target, controlTokens: foundationControlTokens, names: 'outside-ref.tokens.yaml' };
+    },
+  },
+  {
+    title: 'an app config.tokens entry outside the repo root',
+    arrange() {
+      const target = createOutsideTokenFile('outside-entry.tokens.json');
+      const { appDir } = createAppShapedPackage(fixtureSystemDir);
+      // Terrazzo resolves a config.tokens entry against the build's working folder, the app package.
+      const entry = relativeRefFrom(appDir, target);
+      expect(entry.startsWith('../'), 'test precondition: the entry is relative and goes up').toBe(true);
+      setAppConfigTokens(appDir, [entry]);
+      return { packageDir: appDir, target, controlTokens: [entry], names: 'outside-entry.tokens.json' };
+    },
+  },
+];
+
+describe(
+  'fail-closed $ref guard: files outside the repo root Terrazzo would read (gate 22, TOK-177)',
+  { timeout: buildTimeoutMs },
+  () => {
+    for (const failClosedCase of outsideFailClosedCases) {
+      // Control: Terrazzo without the profile reads the target, so an empty
+      // trace below proves a refusal and not a fixture Terrazzo ignores.
+      it(`control: Terrazzo without the profile reads the target of ${failClosedCase.title}`, () => {
+        const arranged = failClosedCase.arrange();
+        const trace = createFsReadTrace([arranged.target]);
+        const run = runTerrazzoWithoutProfileOnTokens(arranged.packageDir, arranged.controlTokens, trace.env);
+        expect(
+          trace.lines().length,
+          `the control build must read ${arranged.target}:\n${run.output.slice(-3000)}`,
+        ).toBeGreaterThan(0);
+      });
+
+      // TOK-177 (gate 22), fail-closed decision on #20 review 1 findings 1 and 2
+      it(`TOK-177: ${failClosedCase.title} is refused with a ui/ref-guard line naming the file, before the target is read`, () => {
+        const arranged = failClosedCase.arrange();
+        const trace = createFsReadTrace([arranged.target]);
+        const build = runTokensBuildScript(arranged.packageDir, trace.env);
+        expect(trace.lines(), `the build must not read ${arranged.target}. ${describePackageBuild(build)}`).toEqual([]);
+        expectGuardRefusal(build, arranged);
+      });
+    }
+  },
+);

@@ -65,6 +65,22 @@ export function editPackageJson(packageDir: string, file: string, change: (json:
 }
 
 /**
+ * Reads a text file of a package, changes the raw text and writes it back.
+ * For token files that `JSON.parse` cannot round-trip: comments, duplicate keys.
+ */
+export function editPackageText(packageDir: string, file: string, change: (text: string) => string): void {
+  const path = join(packageDir, ...file.split('/'));
+  writeFileSync(path, change(readFileSync(path, 'utf8')));
+}
+
+/** Writes a new file into a package (`file` relative to the package, with `/`). */
+export function writePackageFile(packageDir: string, file: string, text: string): void {
+  const path = join(packageDir, ...file.split('/'));
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, text);
+}
+
+/**
  * A scratch package in the foundation shape: packages/foundation/package.json
  * and terrazzo.config.ts, unchanged, plus every file of `sourceDir`.
  */
@@ -76,19 +92,39 @@ export function createFoundationShapedPackage(sourceDir: string): string {
   return packageDir;
 }
 
-/** The app package's terrazzo.config.ts: the profile as token-profile-plugin.ts documents its use. */
-export const appTerrazzoConfigSource = `// App-shaped token build for the #20 gates: the app uses the token profile
+/**
+ * An app terrazzo.config.ts that uses the profile as token-profile-plugin.ts
+ * documents, with `tokensEntries` as its `tokens` field, written as given.
+ */
+export function appTerrazzoConfigSourceWithTokens(tokensEntries: readonly string[]): string {
+  return `// App-shaped token build for the #20 gates: the app uses the token profile
 // through the @foundation/config exports.
 import { defineConfig } from '@terrazzo/cli';
 import css from '@terrazzo/plugin-css';
 import { tokenProfileCssPluginOptions, tokenProfilePlugin } from '@foundation/config/token-profile-plugin';
 
 export default defineConfig({
-  tokens: ['./tokens/app.resolver.json'],
+  tokens: [${tokensEntries.map((entry) => `'${entry}'`).join(', ')}],
   outDir: './generated/',
   plugins: [css(tokenProfileCssPluginOptions), tokenProfilePlugin({ packageRoot: new URL('./', import.meta.url) })],
 });
 `;
+}
+
+/** The app package's terrazzo.config.ts: the profile as token-profile-plugin.ts documents its use. */
+export const appTerrazzoConfigSource = appTerrazzoConfigSourceWithTokens(['./tokens/app.resolver.json']);
+
+/**
+ * Replaces an app package's terrazzo.config.ts with one whose `tokens` field
+ * is `tokensEntries` (finding 2 of #20 review 1: `config.tokens` entries are
+ * checked like resolver `$ref`s). Entries must not hold `'` or `\`.
+ */
+export function setAppConfigTokens(appDir: string, tokensEntries: readonly string[]): void {
+  for (const entry of tokensEntries) {
+    if (/['\\]/.test(entry)) throw new Error(`test precondition: no quote or backslash in ${entry}`);
+  }
+  writeFileSync(join(appDir, 'terrazzo.config.ts'), appTerrazzoConfigSourceWithTokens(tokensEntries));
+}
 
 /** The shared file that the app resolver names outside the app package (relative to the scratch root). */
 export const appSharedFile = 'foundation/tokens/ref/color.tokens.json';
@@ -200,6 +236,18 @@ export function runTerrazzoWithoutProfile(
   resolverFile: string,
   env?: Record<string, string>,
 ): RepoCommandResult {
+  return runTerrazzoWithoutProfileOnTokens(packageDir, [`./${resolverFile}`], env);
+}
+
+/**
+ * Control build as `runTerrazzoWithoutProfile`, with `tokensEntries` as the
+ * config's `tokens` field, written as given (a URL, a relative path, ...).
+ */
+export function runTerrazzoWithoutProfileOnTokens(
+  packageDir: string,
+  tokensEntries: readonly string[],
+  env?: Record<string, string>,
+): RepoCommandResult {
   const configFile = 'control-without-profile.terrazzo.config.ts';
   writeFileSync(
     join(packageDir, configFile),
@@ -208,7 +256,7 @@ export function runTerrazzoWithoutProfile(
       "import css from '@terrazzo/plugin-css';",
       '',
       'export default defineConfig({',
-      `  tokens: [${JSON.stringify(`./${resolverFile}`)}],`,
+      `  tokens: [${tokensEntries.map((entry) => JSON.stringify(entry)).join(', ')}],`,
       "  outDir: './control-generated/',",
       '  plugins: [css({ skipBuild: true })],',
       '});',
