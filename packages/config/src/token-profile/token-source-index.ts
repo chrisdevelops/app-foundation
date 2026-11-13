@@ -45,7 +45,7 @@ function listTokenIds(node: unknown, path: readonly string[], ids: string[]): vo
   }
 }
 
-// DEFERRED: TOK-176, TOK-177 (refuse remote and out-of-root `$ref`s before any load; #20)
+// The profile plugin's `$ref` guard (token-ref-guard.ts) has checked every `$ref` before this runs.
 function sourceFileUrls(sources: unknown, resolverUrl: URL, where: string): URL[] {
   if (!Array.isArray(sources)) throw new TokenSourceIndexError(`${where} must be a list of { "$ref" } sources`);
   return sources.map((source, index) => {

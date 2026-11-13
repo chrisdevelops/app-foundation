@@ -4,11 +4,11 @@
 // CSS transforms that plugin-css did not produce with
 // `tokenProfileCssPluginOptions`. The plugin is driven through its Terrazzo
 // hooks (`config`, then `build`), which are its only inputs.
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { afterEach, describe, expect, it, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, test, vi, type MockInstance } from 'vitest';
 import { generatedTokensCssHeader, tokenProfilePlugin } from './token-profile-plugin';
 
 type Plugin = ReturnType<typeof tokenProfilePlugin>;
@@ -82,7 +82,12 @@ function runPlugin(options: {
   const outputs = new Map<string, string>();
   const errors: string[] = [];
   const logger = { error: (...entries: { message: string }[]) => errors.push(...entries.map((e) => e.message)) };
-  (plugin.config as ConfigHook)({ tokens } as unknown as Parameters<ConfigHook>[0], { logger } as never);
+  (plugin.config as ConfigHook)(
+    { tokens, lint: { rules: {} }, plugins: [] } as unknown as Parameters<ConfigHook>[0],
+    {
+      logger,
+    } as never,
+  );
   let thrown: unknown;
   try {
     void (plugin.build as BuildHook)({
@@ -161,6 +166,120 @@ describe('token profile plugin', () => {
     'tz build writes generated/token-names.ts with UiTokenName and uiTokenVar (TOK-092, TOK-113, TOK-119, TOK-160)',
   );
   test.todo('tz build writes generated/TOKENS.md for every token (TOK-114, TOK-120 to TOK-127)');
-  test.todo('a colour outside sRGB fails the token lint before the build (TOK-135)');
-  test.todo('the build refuses remote and out-of-root $ref sources before any load (TOK-176, TOK-177)');
+  test.todo(
+    'the other built-in lint rules run with the profile settings (TOK-129, TOK-130, TOK-131, TOK-132, TOK-134, TOK-136, TOK-137)',
+  );
+});
+
+// `$ref` forms the #20 gates (packages/foundation/src/token-pipeline/token-errors-guards.gate.test.ts)
+// do not build: the guard runs in the plugin's `config` hook, before Terrazzo loads any `$ref`.
+describe('token profile plugin: $ref guard (TOK-176, TOK-177)', () => {
+  let stderr: MockInstance<typeof process.stderr.write>;
+
+  beforeEach(() => {
+    stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    stderr.mockRestore();
+  });
+
+  /** A repo folder (with pnpm-workspace.yaml) holding a package with a resolver whose `ref` set adds `ref`. */
+  function packageWithRef(ref: string): { readonly repoDir: string; readonly packageDir: string } {
+    const repoDir = writePackage({ 'shared/extra.tokens.json': {} });
+    writeFileSync(join(repoDir, 'pnpm-workspace.yaml'), "packages:\n  - 'pkg'\n");
+    const packageDir = join(repoDir, 'pkg');
+    const files: Record<string, unknown> = {
+      'tokens/ui.resolver.json': {
+        version: '2025.10',
+        sets: { ref: { sources: [{ $ref: 'ref/color.tokens.json' }, { $ref: ref }] } },
+        resolutionOrder: [{ $ref: '#/sets/ref' }],
+      },
+      'tokens/ref/color.tokens.json': {},
+    };
+    for (const [file, json] of Object.entries(files)) {
+      const path = join(packageDir, ...file.split('/'));
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, JSON.stringify(json));
+    }
+    return { repoDir, packageDir };
+  }
+
+  function runConfigHook(packageDir: string): { readonly thrown: unknown; readonly lines: string[] } {
+    const plugin = tokenProfilePlugin({ packageRoot: pathToFileURL(`${packageDir}/`) });
+    const config = {
+      tokens: [pathToFileURL(join(packageDir, 'tokens', 'ui.resolver.json'))],
+      lint: { rules: {} },
+      plugins: [],
+    };
+    let thrown: unknown;
+    try {
+      (plugin.config as ConfigHook)(
+        config as unknown as Parameters<ConfigHook>[0],
+        { logger: { error: () => undefined } } as never,
+      );
+    } catch (error) {
+      thrown = error;
+    }
+    const lines = stderr.mock.calls.flatMap(([chunk]) => String(chunk).split('\n')).filter((line) => line !== '');
+    return { thrown, lines };
+  }
+
+  it('allows a relative $ref outside the package that stays inside the repo root', () => {
+    const { packageDir } = packageWithRef('../../shared/extra.tokens.json');
+    const run = runConfigHook(packageDir);
+    expect(run.thrown).toBeUndefined();
+    expect(run.lines).toEqual([]);
+  });
+
+  it.each([
+    { label: 'a protocol-relative URL', ref: '//example.com/remote.tokens.json', reason: 'remote URL' },
+    { label: 'an https URL with a fragment', ref: 'https://example.com/a.json#/ref', reason: 'remote URL' },
+    { label: 'a Windows drive path', ref: 'C:/tokens/outside.tokens.json', reason: 'absolute path' },
+    { label: 'a backslash root path', ref: '\\tokens\\outside.tokens.json', reason: 'absolute path' },
+    {
+      label: 'a percent-encoded escape',
+      ref: '%2e%2e/%2e%2e/%2e%2e/outside.tokens.json',
+      reason: 'leaves the repo root',
+    },
+    { label: 'a backslash escape', ref: '..\\..\\..\\outside.tokens.json', reason: 'leaves the repo root' },
+  ])('refuses $label with one error line at the resolver entry', ({ ref, reason }) => {
+    const { packageDir } = packageWithRef(ref);
+    const run = runConfigHook(packageDir);
+    expect(run.thrown).toBeInstanceOf(Error);
+    expect(run.lines).toEqual([
+      expect.stringMatching(
+        new RegExp(`^tokens/ui\\.resolver\\.json#sets\\.ref\\.sources\\.1\\.\\$ref: ui/ref-guard: .*${reason}`),
+      ),
+    ]);
+    expect(run.lines[0]).toContain(`"${ref}"`);
+  });
+
+  it('refuses a relative $ref through a symlink that points outside the repo root', () => {
+    const outsideDir = writePackage({ 'outside.tokens.json': {} });
+    const { packageDir } = packageWithRef('ref/linked/outside.tokens.json');
+    try {
+      symlinkSync(outsideDir, join(packageDir, 'tokens', 'ref', 'linked'), 'junction');
+    } catch {
+      // Symlinks need a privilege on some Windows hosts; the other cases still run.
+      return;
+    }
+    const run = runConfigHook(packageDir);
+    expect(run.thrown).toBeInstanceOf(Error);
+    expect(run.lines).toHaveLength(1);
+    expect(run.lines[0]).toContain('leaves the repo root');
+  });
+
+  it('refuses a remote $ref inside a token file that the resolver names', () => {
+    const { packageDir } = packageWithRef('ref/nested.tokens.json');
+    writeFileSync(
+      join(packageDir, 'tokens', 'ref', 'nested.tokens.json'),
+      JSON.stringify({ ref: { extra: { $ref: 'https://example.com/extra.json' } } }),
+    );
+    const run = runConfigHook(packageDir);
+    expect(run.thrown).toBeInstanceOf(Error);
+    expect(run.lines).toEqual([
+      'tokens/ref/nested.tokens.json#ref.extra.$ref: ui/ref-guard: $ref "https://example.com/extra.json" is a remote URL; only relative paths inside the repo are allowed (TOK-176)',
+    ]);
+  });
 });
