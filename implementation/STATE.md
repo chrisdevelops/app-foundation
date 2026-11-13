@@ -10,15 +10,15 @@
 
 | Issue | Title | Stage | Attempt | Next action |
 | --- | --- | --- | --- | --- |
-| #46 | Background test runs: no window shown, no focus taken (TST-018) | tests | test author 3 | ADR 0013 amendment 1 (Linux and Windows: `showInactive()`); test author updates the contract, then developer, CI, re-review. |
+| #46 | Background test runs: no window shown, no focus taken (TST-018) | review | developer 2, test author 4 | Reviewer re-review of PR #47 (seven checks pass in run 43350382942); then merge. |
 
 ## Last action
 
-#46 PR #47 CI failed on Linux and Windows: never-shown windows cannot be screenshotted there. Reviewer `escalate`, verifier pass (macOS). Human chose option A: ADR 0013 amendment 1.
+#46: developer attempt 2 (fae6cbf, `showInactive()` on Linux and Windows). Test author attempt 4 fixed the Windows cleanup failure that was on `main` since f6b352c (C# process lister, quoted `--user-data-dir`, bounded `rm` retry). PR #47 run 43350382942: seven checks pass. Open: Ubuntu dev-paint gate failed 2 of 5 runs.
 
 ## Next action
 
-Act on the #46 reviewer and verifier envelopes; confirm seven checks on PR #47; merge. Then update `.claude/agents/verifier.md` and `test-author.md` (ADR 0013 follow-up).
+Act on the #46 reviewer envelope; merge PR #47. Then update `.claude/agents/verifier.md` and `test-author.md` (ADR 0013 follow-up). Then #19.
 
 ## Open escalations
 
