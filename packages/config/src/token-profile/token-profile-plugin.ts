@@ -4,14 +4,28 @@
 // Input: a resolver (`config.tokens`) plus the `*.tokens.json` files it names,
 // and the CSS transforms of @terrazzo/plugin-css run with
 // `tokenProfileCssPluginOptions` (spike #7 result 10).
-// Output: `tokens.css` in Terrazzo's `outDir`, or a build error that names the
-// problem; on an error Terrazzo writes no files.
+// Output: `tokens.css` in Terrazzo's `outDir`, or a non-zero exit with no
+// files written. Lint and `$ref` guard errors are one line each on stderr,
+// `file#token.path: rule-id: message` (TOK-155, token-build-errors.ts).
+//
+// The plugin also brings the profile's build rules, so every package that
+// uses it gets them (foundation and apps; #20 reading A2):
+// - the `$ref` guard runs in the `config` hook, before Terrazzo loads any
+//   `$ref` (TOK-176, TOK-177; token-ref-guard.ts);
+// - `tokenProfileLintRules` replace Terrazzo's settings for those rules.
 //
 // Use in a terrazzo.config.ts:
 //   plugins: [css(tokenProfileCssPluginOptions), tokenProfilePlugin({ packageRoot: new URL('./', import.meta.url) })]
 import type { defineConfig } from '@terrazzo/cli';
 import type { CSSPluginOptions } from '@terrazzo/plugin-css';
-import { tokenProfileBlocks, tokenProfilePermutations, wrapTokenProfileBlock } from './token-profile-contexts';
+import { createStrictTokenErrorOutput, tokenBuildFailure, writeTokenBuildErrors } from './token-build-errors';
+import {
+  defaultResolverInput,
+  tokenProfileBlocks,
+  tokenProfilePermutations,
+  wrapTokenProfileBlock,
+} from './token-profile-contexts';
+import { findRefGuardErrors, findRepoRoot } from './token-ref-guard';
 import {
   indexTokenDeclarations,
   isDeclarationActive,
@@ -20,7 +34,8 @@ import {
   type TokenDeclaration,
 } from './token-source-index';
 
-type TerrazzoPlugin = NonNullable<Parameters<typeof defineConfig>[0]['plugins']>[number];
+/** A Terrazzo plugin, as `defineConfig` takes it. */
+export type TerrazzoPlugin = NonNullable<Parameters<typeof defineConfig>[0]['plugins']>[number];
 
 /** The plugin's name in Terrazzo's plugin list and log lines. */
 export const tokenProfilePluginName = '@foundation/config/token-profile';
@@ -45,6 +60,20 @@ export const tokenProfileCssPluginOptions: CSSPluginOptions = {
   permutations: tokenProfilePermutations(),
 };
 
+type TerrazzoLintRuleSetting = Parameters<NonNullable<TerrazzoPlugin['config']>>[0]['lint']['rules'][string];
+
+/**
+ * Built-in Terrazzo lint rules with the profile's settings (token profile
+ * spec, "Lint and CI rules" > "Token files: built-in Terrazzo rules").
+ */
+export const tokenProfileLintRules: Readonly<Record<string, TerrazzoLintRuleSetting>> = {
+  // TOK-047, TOK-133
+  'core/valid-dimension': ['error', { allowedUnits: ['px', 'rem'] }],
+  // TOK-135, ADR 0004 decision 7: the option is `gamut` (spike #7 result 6)
+  'core/max-gamut': ['error', { gamut: 'srgb' }],
+};
+// DEFERRED: TOK-129, TOK-130, TOK-131, TOK-132, TOK-134, TOK-136, TOK-137 (other built-in rule settings; phase 2)
+
 export interface TokenProfilePluginOptions {
   /** Folder that source comments are relative to: the package that holds terrazzo.config.ts. */
   readonly packageRoot: URL;
@@ -54,10 +83,39 @@ const compareIds = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0
 
 export function tokenProfilePlugin(options: TokenProfilePluginOptions): TerrazzoPlugin {
   let resolverUrl: URL | undefined;
+  let declarationsForLint: TokenDeclaration[] | undefined;
+  /** Error lines written in this build, so that no line is written twice (core rules run twice, spike #7 result 14). */
+  const written = new Set<string>();
+  const strictErrors = createStrictTokenErrorOutput({
+    written,
+    fileOfToken(tokenId) {
+      if (!resolverUrl) return undefined;
+      try {
+        declarationsForLint ??= indexTokenDeclarations(resolverUrl, options.packageRoot);
+      } catch {
+        // A resolver the profile does not accept: the error keeps Terrazzo's format, and the build hook names the problem.
+        return undefined;
+      }
+      return winningDeclaration(declarationsForLint, tokenId, defaultResolverInput)?.file;
+    },
+  });
   return {
     name: tokenProfilePluginName,
-    config(config) {
+    // Terrazzo calls this once per defineConfig, before it loads any token file.
+    config(config, { logger }) {
       resolverUrl = config.tokens.find((url) => url.pathname.endsWith('.resolver.json'));
+      const refErrors = findRefGuardErrors(config.tokens, {
+        packageRoot: options.packageRoot,
+        repoRoot: findRepoRoot(options.packageRoot),
+      });
+      if (refErrors.length > 0) {
+        writeTokenBuildErrors(refErrors, written);
+        throw tokenBuildFailure(written);
+      }
+      for (const [id, setting] of Object.entries(tokenProfileLintRules)) {
+        config.lint.rules[id] = [setting[0], structuredClone(setting[1])];
+      }
+      strictErrors.install(logger, config.plugins);
     },
     build({ context, getTransforms, outputFile }) {
       const fail = (message: string): never => {
@@ -105,7 +163,6 @@ export function tokenProfilePlugin(options: TokenProfilePluginOptions): Terrazzo
           if (transform.localID !== variableNameOfTokenId(id)) {
             return fail(`${id} has the CSS name ${transform.localID}; expected ${variableNameOfTokenId(id)} (TOK-115)`);
           }
-          // DEFERRED: TOK-135 (wide-gamut colours give one value per gamut; the srgb gamut lint is #20)
           if (typeof transform.value !== 'string') {
             return fail(`${id} has a CSS value per gamut or sub-value; tokens.css takes one value per token`);
           }

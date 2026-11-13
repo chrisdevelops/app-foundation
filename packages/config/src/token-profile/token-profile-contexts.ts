@@ -13,8 +13,8 @@ export const densityModifierName = 'density';
 
 const themeContextNames = ['light', 'dark', 'light-high-contrast', 'dark-high-contrast'] as const;
 
-/** The default permutation: light theme, compact density (TOK-059). */
-const defaultResolverInput = { [themeModifierName]: 'light', [densityModifierName]: 'compact' } as const;
+/** The default permutation: light theme, compact density (TOK-059). Terrazzo lints this permutation only. */
+export const defaultResolverInput = { [themeModifierName]: 'light', [densityModifierName]: 'compact' } as const;
 
 /** Which tokens a block declares. */
 export type TokenProfileBlockScope =
