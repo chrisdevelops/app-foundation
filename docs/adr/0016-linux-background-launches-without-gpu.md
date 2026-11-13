@@ -35,5 +35,5 @@ The developer's dev-reload fix (commit 3339578, `apps/reference/vite.renderer.co
 ## Follow-up
 
 - [x] Spec updated: not needed (implementation within ADR 0013)
-- [ ] Gates and launch helpers: test author, #46 attempt 6
-- [ ] Harness: developer, #46 attempt 4
+- [x] Gates and launch helpers: test author, #46 attempt 6 (a8e2cbd, 41a5472)
+- [x] Harness: developer, #46 attempt 4 (527e353); merged in fb7071e

@@ -10,15 +10,15 @@
 
 | Issue | Title | Stage | Attempt | Next action |
 | --- | --- | --- | --- | --- |
-| #46 | Background test runs: no window shown, no focus taken (TST-018) | review | developer 2, test author 4 | Reviewer re-review of PR #47 (seven checks pass in run 43350382942); then merge. |
+| — | ADR 0013 follow-up: agent instructions for background mode | orchestrator | — | Update `.claude/agents/verifier.md` and `test-author.md`; verifier packages into its own copy of the build output. |
 
 ## Last action
 
-#46: developer attempt 2 (fae6cbf, `showInactive()` on Linux and Windows). Test author attempt 4 fixed the Windows cleanup failure that was on `main` since f6b352c (C# process lister, quoted `--user-data-dir`, bounded `rm` retry). PR #47 run 43350382942: seven checks pass. Open: Ubuntu dev-paint gate failed 2 of 5 runs.
+#46 merged (fb7071e, PR #47): TST-018 done. Background mode on three platforms; Linux and Windows `showInactive()` (ADR 0013 amendment 1); Linux background launches pass `--disable-gpu` (ADR 0016, minor); Windows process lister and cleanup fixed; dev double load removed. Follow-ups #53, #54, #55 opened.
 
 ## Next action
 
-Act on the #46 reviewer envelope; merge PR #47. Then update `.claude/agents/verifier.md` and `test-author.md` (ADR 0013 follow-up). Then #19.
+Update `.claude/agents/verifier.md` and `test-author.md` for background mode (ADR 0013 follow-up). Then #19.
 
 ## Open escalations
 
@@ -32,7 +32,7 @@ None.
 
 ## Notes for the next orchestrator
 
-- Order: #46, #19 … #24, #30, #25 … #29. Phase 1 is strictly sequential.
+- Order: #19 … #24, #30, #25 … #29. Phase 1 is strictly sequential.
 - The repository is public (ADR 0015): Actions on standard runners are free. Local `user.email` is the GitHub noreply address.
 - Merge procedure (ADR 0009 item 4): reviewer `approve`; `gh pr checks` shows `boundary-check`, three `check (<os>)` and three `packaged-smoke (<os>)` checks `pass` (seven in total); explicit review of any diff to `.github/workflows/` or `tools/boundary-check/`. No branch protection (ADR 0009 item 5, human decision). A job cancelled because no runner was acquired, or a known Windows flake (#39 EBUSY), is rerun with `gh run rerun <id> --failed`; it is not a code failure. The human pre-approved `gh pr merge` with a local permission rule.
 - Windows: the human set a limit (ADR 0011). The smoke harness and smoke tests skip on Windows; no more phase 1 time on Windows harness work (#39); Windows keeps every other check. If a Windows-only failure needs real work, ask the human.
@@ -44,7 +44,7 @@ None.
 - The clean-clone gate shows only the end of nested output; a Windows or Linux e2e failure may need a direct run or a probe (#36).
 - After each agent's red or green runs, `pgrep` for `smoke gate fixture`, `smoke-user-data`, `rf-gate-user-data` and `repo-gate-clone`; stop leftovers from this project only (another project, flowspec, runs Electron on this machine).
 - The pinned-SHA gate needs network access; one local run failed on a connection reset (#36 adds a retry).
-- Follow-ups: #36 (minor gate gaps), #39 (Windows harness, phase 3), #42 (evidence gaps, phase 2), #45 (`--remote-debugging-pipe`, phase 2). After #46 merges: update `.claude/agents/verifier.md` and `test-author.md` for background mode (ADR 0013 follow-up).
+- Follow-ups: #36 (minor gate gaps), #39 (Windows harness, phase 3), #42 (evidence gaps, phase 2), #45 (`--remote-debugging-pipe`, phase 2), #53 (Electron binary downloaded during CI tests), #54 (#46 minor findings: switch name, final-env gate case, dev single-load gate), #55 (Windows TST-009 `probeDebugEndpoint` flake; rerun it as a known flake meanwhile).
 - Spike branches `spike/5` to `spike/9` and `spike/43` are never merged; their findings are the reference for phase 1 tasks.
 - `docs/upstream/react-aria-second-window-overlays.md` is a draft the human posts; do not post it.
 - Open human decision in the specs: re-validation after a failed submit.
