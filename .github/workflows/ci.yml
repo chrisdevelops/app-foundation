@@ -5,7 +5,7 @@ on:
 permissions:
   contents: read
 jobs:
-  suite:
+  loop:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -16,26 +16,17 @@ jobs:
         with:
           node-version-file: package.json
       - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo run test
-        continue-on-error: true
-      - run: Get-Content D:\a\_temp\probe-calls.log
-        if: always()
-      - run: node tools/probe/process-list-probe.ts after-suite
-        if: always()
-  only-reference:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: package.json
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec vitest run tools/reference-app/reference-app-build.gate.test.ts
-        continue-on-error: true
-      - run: Get-Content D:\a\_temp\probe-calls.log
-        if: always()
-      - run: node tools/probe/process-list-probe.ts after-suite
-        if: always()
+      - name: Suite with timing loop
+        shell: bash
+        run: |
+          node tools/probe/load-loop.ts "$RUNNER_TEMP/loop.log" "$RUNNER_TEMP/stop" &
+          loop=$!
+          sleep 45
+          echo "SUITE START $(date -u +%FT%TZ)" >> "$RUNNER_TEMP/loop.log"
+          pnpm turbo run test > "$RUNNER_TEMP/suite.out" 2>&1 || true
+          echo "SUITE END $(date -u +%FT%TZ)" >> "$RUNNER_TEMP/loop.log"
+          sleep 60
+          touch "$RUNNER_TEMP/stop"
+          wait $loop
+          cat "$RUNNER_TEMP/loop.log"
+          grep -E "Test Files|FAIL|could not list" "$RUNNER_TEMP/suite.out" | head -40
