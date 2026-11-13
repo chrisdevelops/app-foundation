@@ -21,6 +21,7 @@
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 
@@ -208,12 +209,12 @@ const retryableRemovalCodes = new Set(['EPERM', 'EACCES', 'EBUSY', 'ENOTEMPTY'])
 /**
  * Removes `path` once no process uses it. Windows releases an exited
  * program's image and file handles a moment after the process ends, so
- * removal retries EPERM, EACCES, EBUSY and ENOTEMPTY for up to 30 s. It retries
- * itself: Node 24's `rmSync` does not retry Windows "access denied"
- * (reported as `EPERM, Permission denied`), whatever `maxRetries` says (#46,
- * probe PR #51: the folder held no handle and every file deleted a few seconds
- * after rmSync failed). A folder that still cannot be removed fails with a
- * clear message.
+ * removal retries EPERM, EACCES, EBUSY and ENOTEMPTY for up to 30 s, then
+ * fails with a clear message. It uses the asynchronous `rm`: Node 24's
+ * `rmSync` (C++) did not retry Windows "access denied" whatever `maxRetries`
+ * says (#46, probe PR #51: no handle held the folder and every file deleted a
+ * few seconds after rmSync failed), and it ended the whole test process with
+ * 0xC0000409 when a file in the folder was locked with no sharing (probe PR #52).
  */
 export async function removeAppFolderAfterExit(path: string, label: string): Promise<void> {
   if (!existsSync(path)) return;
@@ -221,7 +222,7 @@ export async function removeAppFolderAfterExit(path: string, label: string): Pro
   const startedAt = Date.now();
   for (let attempt = 1; ; attempt += 1) {
     try {
-      rmSync(path, { recursive: true, force: true });
+      await rm(path, { recursive: true, force: true });
       return;
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;

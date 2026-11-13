@@ -27,7 +27,8 @@
 //   folder while such helpers still ran), and stops finding it once the
 //   process has exited.
 import { spawn, type ChildProcess } from 'node:child_process';
-import { copyFileSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -59,10 +60,13 @@ beforeAll(() => {
   }
 }, 180_000);
 
-afterAll(() => {
+afterAll(async () => {
   for (const child of started) child.kill();
-  for (const folder of folders) rmSync(folder, { recursive: true, force: true });
-});
+  // Asynchronous rm: rmSync can end the test process on Windows when a file is locked (probe PR #52).
+  for (const folder of folders) {
+    await rm(folder, { recursive: true, force: true, maxRetries: 20, retryDelay: 500 }).catch(() => undefined);
+  }
+}, 120_000);
 
 /** A folder name with spaces (and non-ASCII characters on Windows, where the old listing garbled them). */
 function makeUserDataDir(): string {
