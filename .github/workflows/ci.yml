@@ -5,7 +5,7 @@ on:
 permissions:
   contents: read
 jobs:
-  loop:
+  env:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -16,17 +16,8 @@ jobs:
         with:
           node-version-file: package.json
       - run: pnpm install --frozen-lockfile
-      - name: Suite with timing loop
-        shell: bash
-        run: |
-          node tools/probe/load-loop.ts "$RUNNER_TEMP/loop.log" "$RUNNER_TEMP/stop" &
-          loop=$!
-          sleep 45
-          echo "SUITE START $(date -u +%FT%TZ)" >> "$RUNNER_TEMP/loop.log"
-          pnpm turbo run test > "$RUNNER_TEMP/suite.out" 2>&1 || true
-          echo "SUITE END $(date -u +%FT%TZ)" >> "$RUNNER_TEMP/loop.log"
-          sleep 60
-          touch "$RUNNER_TEMP/stop"
-          wait $loop
-          cat "$RUNNER_TEMP/loop.log"
-          grep -E "Test Files|FAIL|could not list" "$RUNNER_TEMP/suite.out" | head -40
+      - run: node -e "require('fs').writeFileSync('D:/a/_temp/full-env.json', JSON.stringify(process.env, null, 1))"
+      - run: pnpm turbo run test --filter=// -- tools/probe/env-probe.test.ts
+        continue-on-error: true
+      - run: Get-Content D:\a\_temp\env-probe.log
+        if: always()
