@@ -47,8 +47,8 @@
 | CMP-012 | Phosphor icons through a curated Icon{Name} module | not-started | — | — |  |
 | CMP-013 | Icons decorative by default; icon-only buttons require a label prop | not-started | — | — |  |
 | CMP-014 | Single Chromium target: modern CSS allowed, no browser fallback | not-started | — | — |  |
-| TOK-001 | DTCG 2025.10 with Terrazzo plus the profile | not-started | — | — |  |
-| TOK-002 | Three token tiers: primitive, semantic, component | not-started | — | — | ADR 0002 |
+| TOK-001 | DTCG 2025.10 with Terrazzo plus the profile | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 |  |
+| TOK-002 | Three token tiers: primitive, semantic, component | done | packages/foundation/src/token-pipeline/foundation-tokens.gate | #19 | ADR 0002 |
 | TOK-003 | Repo token files are the master copy; design tool reads and writes them | not-started | — | — |  |
 | TOK-004 | Light, dark and high contrast themes; compact (default) and comfortable density | not-started | — | — |  |
 | TOK-005 | Follow the OS for dark mode and contrast; theme override via nativeTheme.themeSource | not-started | — | — |  |
@@ -57,8 +57,8 @@
 | TOK-008 | Generated CSS, TypeScript names and TOKENS.md committed, with CI drift check | not-started | — | — |  |
 | TOK-009 | DTCG dimensions accept only px and rem; percentages and fr stay in layout CSS | not-started | — | — |  |
 | TOK-010 | Tokens and config factories come before any styled component | not-started | — | — |  |
-| TOK-011 | Token files stay valid DTCG with no custom parser | not-started | — | — |  |
-| TOK-012 | Leaf key is the full name; CSS variable is that name with -- in front | not-started | — | — |  |
+| TOK-011 | Token files stay valid DTCG with no custom parser | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 |  |
+| TOK-012 | Leaf key is the full name; CSS variable is that name with -- in front | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 |  |
 | TOK-013 | Primitive name shape: ui-ref-{category}[-{scale}]-{step} | not-started | — | — | ADR 0002 |
 | TOK-014 | Semantic name shape: ui-{category}-{role}[-{variant}]-{leaf} | not-started | — | — |  |
 | TOK-015 | Component name shape: ui-{block}[__{part}]__{category}-{role}[-{variant}]-{leaf} | not-started | — | — |  |
@@ -82,7 +82,7 @@
 | TOK-033 | Group path equals the start of the leaf key after the prefix | not-started | — | — |  |
 | TOK-034 | Group color tokens start ui-color-; component tokens live in a block-named group | not-started | — | — |  |
 | TOK-035 | Values flow one way: literals, primitives, semantics, components | not-started | — | — |  |
-| TOK-036 | Only semantic tokens change between themes and densities | not-started | — | — |  |
+| TOK-036 | Only semantic tokens change between themes and densities | done | packages/foundation/src/token-pipeline/token-pipeline.gate, packages/foundation/src/token-pipeline/foundation-tokens.gate | #19 |  |
 | TOK-037 | Primitive tier: literal only, invariant, not used in component CSS | not-started | — | — |  |
 | TOK-038 | Semantic tier: aliases primitive or semantic, may vary, usable in component CSS | not-started | — | — |  |
 | TOK-039 | Component tier: aliases semantic only, invariant, used only by its own block | not-started | — | — |  |
@@ -91,33 +91,33 @@
 | TOK-042 | button.css must not reference --ui-ref-* or --ui-dialog__* | not-started | — | — |  |
 | TOK-043 | Apps override primitives and may add tokens under their own prefix | not-started | — | — |  |
 | TOK-044 | Apps must not redefine semantic or component tokens | not-started | — | — |  |
-| TOK-045 | Aliases use curly-brace references | not-started | — | — |  |
+| TOK-045 | Aliases use curly-brace references | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 |  |
 | TOK-046 | JSON Pointer $ref is reserved for the resolver file | not-started | — | — |  |
 | TOK-047 | DTCG dimensions accept only px and rem | not-started | — | — |  |
 | TOK-048 | rem for spacing, sizes and type; px for border widths and hairlines | not-started | — | — |  |
 | TOK-049 | Percentages and fr belong in layout CSS, not tokens | not-started | — | — |  |
-| TOK-050 | Shared tokens in tokens/; component tokens beside the owning component | not-started | — | — |  |
-| TOK-051 | File names use .tokens.json; the resolver uses .resolver.json | not-started | — | — |  |
+| TOK-050 | Shared tokens in tokens/; component tokens beside the owning component | done | packages/foundation/src/token-pipeline/foundation-tokens.gate | #19 |  |
+| TOK-051 | File names use .tokens.json; the resolver uses .resolver.json | done | packages/foundation/src/token-pipeline/foundation-tokens.gate | #19 |  |
 | TOK-052 | Every component *.tokens.json is listed in the resolver's components set | not-started | — | — |  |
 | TOK-053 | CI fails if a component token file is missing from the resolver | not-started | — | — |  |
-| TOK-054 | generated/ holds the only files containing resolved values | not-started | — | — |  |
+| TOK-054 | generated/ holds the only files containing resolved values | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 |  |
 | TOK-055 | Nothing outside generated/ may be generated | not-started | — | — |  |
-| TOK-056 | Resolver has two modifiers: theme for colours and density for dimensions | not-started | — | — |  |
+| TOK-056 | Resolver has two modifiers: theme for colours and density for dimensions | done | packages/foundation/src/token-pipeline/foundation-tokens.gate | #19 |  |
 | TOK-057 | No token appears in both modifiers | not-started | — | — |  |
-| TOK-058 | Components come last in the resolution order | not-started | — | — |  |
-| TOK-059 | Light context: no OS signal, themeSource light, :root | not-started | — | — |  |
-| TOK-060 | Dark context: prefers-color-scheme dark, themeSource dark, media query | not-started | — | — |  |
-| TOK-061 | Light high contrast context: prefers-contrast more, data-contrast more, light scheme | not-started | — | — |  |
-| TOK-062 | Dark high contrast context: both signals, both overrides, dark scheme | not-started | — | — |  |
-| TOK-063 | Comfortable density: data-density comfortable on the root | not-started | — | — |  |
+| TOK-058 | Components come last in the resolution order | done | packages/foundation/src/token-pipeline/foundation-tokens.gate | #19 |  |
+| TOK-059 | Light context: no OS signal, themeSource light, :root | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 |  |
+| TOK-060 | Dark context: prefers-color-scheme dark, themeSource dark, media query | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 |  |
+| TOK-061 | Light high contrast context: prefers-contrast more, data-contrast more, light scheme | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 | media query only; `data-contrast` attribute is TOK-068 (phase 3) |
+| TOK-062 | Dark high contrast context: both signals, both overrides, dark scheme | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 | media query only; `data-contrast` attribute is TOK-068 (phase 3) |
+| TOK-063 | Comfortable density: data-density comfortable on the root | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 |  |
 | TOK-064 | Theme override goes through Electron nativeTheme.themeSource, not an attribute | not-started | — | — |  |
-| TOK-065 | Runtime theme CSS needs only the media query | not-started | — | — | ADR 0002 |
-| TOK-066 | data-theme exists for tooling only | not-started | — | — |  |
-| TOK-067 | data-theme mirrors the media-query blocks | not-started | — | — |  |
-| TOK-068 | Contrast override is a data-contrast attribute on each window's root | not-started | — | — |  |
+| TOK-065 | Runtime theme CSS needs only the media query | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 | ADR 0002 |
+| TOK-066 | data-theme exists for tooling only | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 |  |
+| TOK-067 | data-theme mirrors the media-query blocks | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 |  |
+| TOK-068 | Contrast override is a data-contrast attribute on each window's root | stubbed | packages/config token-profile-plugin.test (todo) | #19 | DEFERRED: phase 3 (#23, #27) |
 | TOK-069 | Windows high contrast mode is not a token theme | not-started | — | — |  |
 | TOK-070 | Component CSS handles forced-colors with system colour keywords | not-started | — | — |  |
-| TOK-071 | Each permutation wraps its output in @layer tokens | not-started | — | — |  |
+| TOK-071 | Each permutation wraps its output in @layer tokens | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 |  |
 | TOK-072 | An app rebrands by overriding a fixed set of primitives | not-started | — | — |  |
 | TOK-073 | Foundation defines a brand ramp and UI font stack that semantic tokens point at | not-started | — | — |  |
 | TOK-074 | Brand ramp is ui-ref-color-brand-50 through 950 | not-started | — | — |  |
@@ -138,42 +138,42 @@
 | TOK-089 | brandTokens is optional: only brand overrides and prefixed tokens | not-started | — | — |  |
 | TOK-090 | defineAppTerrazzoConfig builds resolver, CSS plugin and prefix lint rules | not-started | — | — |  |
 | TOK-091 | defineAppStylelintConfig builds app naming and ui- consumption rules | not-started | — | — |  |
-| TOK-092 | token-names.ts exports UiTokenName and the app's own type | not-started | — | — |  |
+| TOK-092 | token-names.ts exports UiTokenName and the app's own type | stubbed | packages/config token-profile-plugin.test (todo) | #19 | DEFERRED: phase 2 |
 | TOK-093 | Apps cannot configure the ui- prefix | not-started | — | — |  |
 | TOK-094 | Apps cannot configure the extension namespace; own key only for invented fields | not-started | — | — |  |
 | TOK-095 | defineAppConfig throws at load on an invalid prefix | not-started | — | — |  |
 | TOK-096 | CI script fails on duplicate app prefixes | not-started | — | — |  |
-| TOK-097 | Every token has explicit $type and $description; guidance goes in one $extensions key | not-started | — | — |  |
-| TOK-098 | $type is on the token itself, not inherited | not-started | — | — |  |
-| TOK-099 | $description is one plain sentence on purpose, not appearance | not-started | — | — |  |
+| TOK-097 | Every token has explicit $type and $description; guidance goes in one $extensions key | not-started | — | — | foundation tokens checked by packages/foundation/src/token-pipeline/foundation-tokens.gate (#19); lint in phase 2 |
+| TOK-098 | $type is on the token itself, not inherited | not-started | — | — | foundation tokens checked by packages/foundation/src/token-pipeline/foundation-tokens.gate (#19); lint in phase 2 |
+| TOK-099 | $description is one plain sentence on purpose, not appearance | not-started | — | — | foundation tokens checked by packages/foundation/src/token-pipeline/foundation-tokens.gate (#19); lint in phase 2 |
 | TOK-100 | Extension keys use reverse domain notation; tools preserve unknown extension data | not-started | — | — |  |
 | TOK-101 | The profile reserves one extension key | not-started | — | — |  |
 | TOK-102 | The extension namespace belongs to the foundation and is set once | not-started | — | — |  |
 | TOK-103 | Apps use the same extension key; own key only for invented fields | not-started | — | — |  |
-| TOK-104 | usage is required on semantic and component tokens | not-started | — | — |  |
+| TOK-104 | usage is required on semantic and component tokens | not-started | — | — | foundation tokens checked by packages/foundation/src/token-pipeline/foundation-tokens.gate (#19); lint in phase 2 |
 | TOK-105 | avoid is optional and names misuse and the replacement | not-started | — | — |  |
 | TOK-106 | contrastWith is required on foreground colours and feeds the contrast lint | not-started | — | — |  |
 | TOK-107 | Removing extension data never changes a token's value | not-started | — | — |  |
 | TOK-108 | Deprecation uses $deprecated string form naming the replacement | not-started | — | — |  |
 | TOK-109 | A deprecated token stays for at least one minor foundation release | not-started | — | — |  |
 | TOK-110 | Deprecated token in CSS warns; removing it while in use fails CI | not-started | — | — |  |
-| TOK-111 | One tz build per package writes three committed files, each with a do-not-edit header | not-started | — | — |  |
-| TOK-112 | tokens.css written by the profile plugin from plugin-css transforms, with source comments | not-started | — | — | ADR 0004 |
-| TOK-113 | token-names.ts comes from a custom Terrazzo plugin | not-started | — | — |  |
-| TOK-114 | TOKENS.md comes from a custom Terrazzo plugin plus a usage scan | not-started | — | — |  |
-| TOK-115 | variableName returns -- plus the leaf key | not-started | — | — | ADR 0004 |
-| TOK-116 | Selectors: one per context plus [data-theme] blocks for tooling, each in @layer tokens | not-started | — | — | ADR 0002 |
-| TOK-117 | Each CSS declaration has a trailing source comment with file and token path | not-started | — | — | ADR 0004 |
-| TOK-118 | tokens.css starts with the specified generated header | not-started | — | — | ADR 0002 |
-| TOK-119 | Tokens referenced from TypeScript go through UiTokenName | not-started | — | — |  |
-| TOK-120 | TOKENS.md has one section per tier and one row per token | not-started | — | — |  |
-| TOK-121 | TOKENS.md Name column is the leaf key | not-started | — | — |  |
-| TOK-122 | TOKENS.md Type column is $type | not-started | — | — |  |
-| TOK-123 | TOKENS.md Description column is $description plus usage and avoid | not-started | — | — |  |
-| TOK-124 | TOKENS.md Values column is the resolved value per context | not-started | — | — |  |
-| TOK-125 | TOKENS.md Source column is file and token path | not-started | — | — |  |
-| TOK-126 | TOKENS.md Used by column lists CSS files from a var scan | not-started | — | — |  |
-| TOK-127 | TOKENS.md Status column shows deprecation and replacement | not-started | — | — |  |
+| TOK-111 | One tz build per package writes three committed files, each with a do-not-edit header | stubbed | packages/foundation/src/token-pipeline/foundation-tokens.gate | #19 | tokens.css only; token-names.ts and TOKENS.md DEFERRED (phase 2) |
+| TOK-112 | tokens.css written by the profile plugin from plugin-css transforms, with source comments | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 | ADR 0004 |
+| TOK-113 | token-names.ts comes from a custom Terrazzo plugin | stubbed | packages/config token-profile-plugin.test (todo) | #19 | DEFERRED: phase 2 |
+| TOK-114 | TOKENS.md comes from a custom Terrazzo plugin plus a usage scan | stubbed | packages/config token-profile-plugin.test (todo) | #19 | DEFERRED: phase 2 |
+| TOK-115 | variableName returns -- plus the leaf key | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 | ADR 0004 |
+| TOK-116 | Selectors: one per context plus [data-theme] blocks for tooling, each in @layer tokens | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 | ADR 0002 |
+| TOK-117 | Each CSS declaration has a trailing source comment with file and token path | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 | ADR 0004 |
+| TOK-118 | tokens.css starts with the specified generated header | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 | ADR 0002 |
+| TOK-119 | Tokens referenced from TypeScript go through UiTokenName | stubbed | packages/config token-profile-plugin.test (todo) | #19 | DEFERRED: phase 2 |
+| TOK-120 | TOKENS.md has one section per tier and one row per token | stubbed | packages/config token-profile-plugin.test (todo) | #19 | DEFERRED: phase 2 |
+| TOK-121 | TOKENS.md Name column is the leaf key | stubbed | packages/config token-profile-plugin.test (todo) | #19 | DEFERRED: phase 2 |
+| TOK-122 | TOKENS.md Type column is $type | stubbed | packages/config token-profile-plugin.test (todo) | #19 | DEFERRED: phase 2 |
+| TOK-123 | TOKENS.md Description column is $description plus usage and avoid | stubbed | packages/config token-profile-plugin.test (todo) | #19 | DEFERRED: phase 2 |
+| TOK-124 | TOKENS.md Values column is the resolved value per context | stubbed | packages/config token-profile-plugin.test (todo) | #19 | DEFERRED: phase 2 |
+| TOK-125 | TOKENS.md Source column is file and token path | stubbed | packages/config token-profile-plugin.test (todo) | #19 | DEFERRED: phase 2 |
+| TOK-126 | TOKENS.md Used by column lists CSS files from a var scan | stubbed | packages/config token-profile-plugin.test (todo) | #19 | DEFERRED: phase 2 |
+| TOK-127 | TOKENS.md Status column shows deprecation and replacement | stubbed | packages/config token-profile-plugin.test (todo) | #19 | DEFERRED: phase 2 |
 | TOK-128 | All lint layers run locally and in CI; errors unless marked | not-started | — | #13 | CI runs typecheck, lint and test in #13; drift checks in phase 2 |
 | TOK-129 | core/required-type is an error | not-started | — | — |  |
 | TOK-130 | core/descriptions is an error | not-started | — | — |  |
@@ -181,7 +181,7 @@
 | TOK-132 | core/valid-* rules are all errors | not-started | — | — |  |
 | TOK-133 | core/valid-dimension is an error with units px and rem | not-started | — | — |  |
 | TOK-134 | core/required-modes is an error across all four theme contexts | not-started | — | — |  |
-| TOK-135 | core/max-gamut with gamut: srgb; colours authored in oklch | not-started | — | — | ADR 0004 |
+| TOK-135 | core/max-gamut with gamut: srgb; colours authored in oklch | stubbed | packages/config token-profile-plugin.test (todo) | #19, #20 | ADR 0004; DEFERRED to #20; foundation tokens checked inside sRGB by packages/foundation/src/token-pipeline/foundation-tokens.gate |
 | TOK-136 | a11y/min-contrast is an error at AA with pairs from contrastWith | not-started | — | — |  |
 | TOK-137 | core/duplicate-values warns with primitives ignored | not-started | — | — |  |
 | TOK-138 | Lint ui/unique-leaf-names | not-started | — | — | ADR 0002 |
@@ -202,11 +202,11 @@
 | TOK-153 | CI: fail if a removed token is still referenced in CSS or TypeScript | not-started | — | — |  |
 | TOK-154 | CI: run the token gate tests | not-started | — | — |  |
 | TOK-155 | Pipeline output: three files, or non-zero exit with file#token.path: rule-id: message | not-started | — | — |  |
-| TOK-156 | Gate 1: valid fixtures build and match snapshots | not-started | — | — |  |
-| TOK-157 | Gate 2: CSS variables equal -- plus a leaf key found verbatim in source | not-started | — | — |  |
-| TOK-158 | Gate 3: each context has a selector block in @layer tokens | not-started | — | — |  |
-| TOK-159 | Gate 4: every declaration's source comment points at a real file and path | not-started | — | — |  |
-| TOK-160 | Gate 5: token-names.ts type-checks and lists every token once | not-started | — | — |  |
+| TOK-156 | Gate 1: valid fixtures build and match snapshots | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 |  |
+| TOK-157 | Gate 2: CSS variables equal -- plus a leaf key found verbatim in source | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 |  |
+| TOK-158 | Gate 3: each context has a selector block in @layer tokens | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 |  |
+| TOK-159 | Gate 4: every declaration's source comment points at a real file and path | done | packages/foundation/src/token-pipeline/token-pipeline.gate | #19 |  |
+| TOK-160 | Gate 5: token-names.ts type-checks and lists every token once | stubbed | packages/config token-profile-plugin.test (todo) | #19 | DEFERRED: phase 2 |
 | TOK-161 | Gate 6: app brand override redeclares semantics; component tokens unchanged | not-started | — | — |  |
 | TOK-162 | Gate 7: grammar break fails core/consistent-naming | not-started | — | — |  |
 | TOK-163 | Gate 8: duplicate leaf key outside alternative contexts fails ui/unique-leaf-names | not-started | — | — | ADR 0002 |
@@ -222,8 +222,8 @@
 | TOK-173 | Gate 18: invalid prefix makes defineAppConfig throw | not-started | — | — |  |
 | TOK-174 | Gate 19: duplicate app prefixes fail the CI check | not-started | — | — |  |
 | TOK-175 | Gate 20: app brand file redefining a semantic token is rejected | not-started | — | — |  |
-| TOK-176 | Gate 21: remote resolver $ref is refused | not-started | — | — |  |
-| TOK-177 | Gate 22: resolver $ref escaping the repo root is refused | not-started | — | — |  |
+| TOK-176 | Gate 21: remote resolver $ref is refused | stubbed | packages/config token-profile-plugin.test (todo) | #19 | DEFERRED to #20 |
+| TOK-177 | Gate 22: resolver $ref escaping the repo root is refused | stubbed | packages/config token-profile-plugin.test (todo) | #19 | DEFERRED to #20 |
 | TOK-178 | Gate 23: 2,000-token full build meets the measured budget | not-started | — | — |  |
 | TOK-179 | Gate 24: theme switch updates computed tokens in every open window | not-started | — | — |  |
 | CMD-001 | Shared command definitions; handlers where the work happens | not-started | — | — |  |

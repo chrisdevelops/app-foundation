@@ -10,15 +10,15 @@
 
 | Issue | Title | Stage | Attempt | Next action |
 | --- | --- | --- | --- | --- |
-| #19 | Token pipeline: profile plugin writes tokens.css with source comments | review | test author 2, developer 1 | Reviewer on PR #56 (7 checks pass, run 43387126722); then merge. |
+| #20 | Token pipeline: strict error format, sRGB gamut and $ref guard | planned | — | Pick #20; test author first. |
 
 ## Last action
 
-#19: gates (37 + 1), developer attempt 1 (profile plugin in `@foundation/config`, Terrazzo 2.10.0, minimal tokens). Windows build gates fixed by test author attempt 2 (Vite 8 native resolver does not follow a `node_modules` junction; build in `packages/foundation/node_modules/.cache`).
+#19 merged (eb9f299, PR #56): profile plugin in `@foundation/config`, Terrazzo 2.10.0, minimal foundation tokens, committed `generated/tokens.css`. Ledger updated (TOK rows done or stubbed with DEFERRED markers).
 
 ## Next action
 
-Act on the #19 reviewer envelope; merge PR #56. Then #20.
+Start #20 (test author).
 
 ## Open escalations
 
@@ -32,7 +32,7 @@ None.
 
 ## Notes for the next orchestrator
 
-- Order: #19 … #24, #30, #25 … #29. Phase 1 is strictly sequential.
+- Order: #20 … #24, #30, #25 … #29. Phase 1 is strictly sequential.
 - The repository is public (ADR 0015): Actions on standard runners are free. Local `user.email` is the GitHub noreply address.
 - Merge procedure (ADR 0009 item 4): reviewer `approve`; `gh pr checks` shows `boundary-check`, three `check (<os>)` and three `packaged-smoke (<os>)` checks `pass` (seven in total); explicit review of any diff to `.github/workflows/` or `tools/boundary-check/`. No branch protection (ADR 0009 item 5, human decision). A job cancelled because no runner was acquired, or a known Windows flake (#39 EBUSY), is rerun with `gh run rerun <id> --failed`; it is not a code failure. The human pre-approved `gh pr merge` with a local permission rule.
 - Windows: the human set a limit (ADR 0011). The smoke harness and smoke tests skip on Windows; no more phase 1 time on Windows harness work (#39); Windows keeps every other check. If a Windows-only failure needs real work, ask the human.
