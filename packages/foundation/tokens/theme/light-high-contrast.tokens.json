@@ -1,0 +1,25 @@
+{
+  "color": {
+    "ui-color-bg-default": {
+      "$type": "color",
+      "$value": "{ref.color.ui-ref-color-gray-50}",
+      "$description": "Background of default surfaces.",
+      "$extensions": {
+        "io.github.chrisdevelops.ui": {
+          "usage": "Window and panel backgrounds."
+        }
+      }
+    },
+    "ui-color-fg-default": {
+      "$type": "color",
+      "$value": "{ref.color.ui-ref-color-gray-950}",
+      "$description": "Text on default surfaces.",
+      "$extensions": {
+        "io.github.chrisdevelops.ui": {
+          "usage": "Paragraphs, labels and table cells.",
+          "contrastWith": ["ui-color-bg-default"]
+        }
+      }
+    }
+  }
+}

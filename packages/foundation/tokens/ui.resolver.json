@@ -1,0 +1,92 @@
+{
+  "name": "UI Foundation",
+  "version": "2025.10",
+  "sets": {
+    "ref": {
+      "sources": [
+        {
+          "$ref": "ref/color.tokens.json"
+        },
+        {
+          "$ref": "ref/space.tokens.json"
+        },
+        {
+          "$ref": "ref/font.tokens.json"
+        }
+      ]
+    },
+    "sys": {
+      "sources": [
+        {
+          "$ref": "sys/base.tokens.json"
+        }
+      ]
+    },
+    "components": {
+      "sources": [
+        {
+          "$ref": "../src/components/button/button.tokens.json"
+        }
+      ]
+    }
+  },
+  "modifiers": {
+    "theme": {
+      "contexts": {
+        "light": [
+          {
+            "$ref": "theme/light.tokens.json"
+          }
+        ],
+        "dark": [
+          {
+            "$ref": "theme/dark.tokens.json"
+          }
+        ],
+        "light-high-contrast": [
+          {
+            "$ref": "theme/light-high-contrast.tokens.json"
+          }
+        ],
+        "dark-high-contrast": [
+          {
+            "$ref": "theme/dark-high-contrast.tokens.json"
+          }
+        ]
+      },
+      "default": "light"
+    },
+    "density": {
+      "contexts": {
+        "compact": [
+          {
+            "$ref": "density/compact.tokens.json"
+          }
+        ],
+        "comfortable": [
+          {
+            "$ref": "density/comfortable.tokens.json"
+          }
+        ]
+      },
+      "default": "compact"
+    }
+  },
+  "resolutionOrder": [
+    {
+      "$ref": "#/sets/ref"
+    },
+    {
+      "$ref": "#/sets/sys"
+    },
+    {
+      "$ref": "#/modifiers/theme"
+    },
+    {
+      "$ref": "#/modifiers/density"
+    },
+    {
+      "$ref": "#/sets/components"
+    }
+  ]
+}
